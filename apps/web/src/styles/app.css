@@ -1,0 +1,35 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+@theme {
+  --color-bg-app: var(--bg-app);
+  --color-bg-sidebar: var(--bg-sidebar);
+  --color-bg-composer: var(--bg-composer);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-muted: var(--text-muted);
+  --color-border-subtle: var(--border-subtle);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-composer: var(--radius-composer);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--bg-app);
+  color: var(--text-primary);
+}

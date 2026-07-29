@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: maximus
+      POSTGRES_PASSWORD: maximus
+      POSTGRES_DB: maximus
+    ports:
+      - "5432:5432"
+    volumes:
+      - maximus_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maximus -d maximus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      RUSTFS_ACCESS_KEY: maximus
+      RUSTFS_SECRET_KEY: maximussecret
+    volumes:
+      - maximus_rustfs:/data
+    # Health endpoint varies by image version; start without strict health for v1 scaffold
+    restart: unless-stopped
+
+volumes:
+  maximus_pg:
+  maximus_rustfs:

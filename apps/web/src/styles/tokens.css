@@ -1,0 +1,35 @@
+/* Global design tokens — dark default + light. No page-local CSS. */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-app: #212121;
+  --bg-sidebar: #171717;
+  --bg-composer: #2f2f2f;
+  --bg-elevated: #2a2a2a;
+  --text-primary: #ececec;
+  --text-muted: #b4b4b4;
+  --border-subtle: #2e2e2e;
+  --accent: #10a37f;
+  --accent-fg: #ffffff;
+  --danger: #ef4444;
+  --radius-composer: 24px;
+  --sidebar-width: 260px;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg-app: #ffffff;
+  --bg-sidebar: #f9f9f9;
+  --bg-composer: #f4f4f4;
+  --bg-elevated: #ffffff;
+  --text-primary: #0d0d0d;
+  --text-muted: #6b6b6b;
+  --border-subtle: #e5e5e5;
+  --accent: #10a37f;
+  --accent-fg: #ffffff;
+  --danger: #dc2626;
+}
