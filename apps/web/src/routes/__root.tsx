@@ -1,6 +1,8 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
+import { ThemeProvider } from "#/features/theme/theme-provider";
+import { TooltipProvider } from "#/components/ui";
 
 import appCss from "../styles/app.css?url";
 
@@ -26,7 +28,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        <ThemeProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </ThemeProvider>
         {import.meta.env.DEV ? (
           <TanStackDevtools
             config={{ position: "bottom-right" }}
