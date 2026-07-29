@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "../client.js";
 import {
   modelAllowlists,
@@ -57,27 +57,48 @@ export async function listAllowlist(db: Db, orgId: string) {
     .where(eq(modelAllowlists.orgId, orgId));
 }
 
+/**
+ * True upsert: (orgId, modelRef, role) unique including role=null.
+ * PG UNIQUE treats NULLs as distinct, so we match role with IS NULL explicitly.
+ */
 export async function upsertAllowlist(
   db: Db,
   input: { orgId: string; modelRef: string; role?: string | null },
 ) {
+  const role = input.role ?? null;
+  const existing = await db
+    .select()
+    .from(modelAllowlists)
+    .where(
+      and(
+        eq(modelAllowlists.orgId, input.orgId),
+        eq(modelAllowlists.modelRef, input.modelRef),
+        role === null
+          ? isNull(modelAllowlists.role)
+          : eq(modelAllowlists.role, role),
+      ),
+    )
+    .limit(1);
+
+  if (existing[0]) {
+    // Idempotent re-set: return existing row unchanged (role already matches)
+    return existing[0];
+  }
+
   const [row] = await db
     .insert(modelAllowlists)
     .values({
       id: newId("al"),
       orgId: input.orgId,
       modelRef: input.modelRef,
-      role: input.role ?? null,
+      role,
     })
     .returning();
   return row!;
 }
 
 export async function listModels(db: Db, orgId: string) {
-  return db
-    .select()
-    .from(models)
-    .where(and(eq(models.orgId, orgId)));
+  return db.select().from(models).where(and(eq(models.orgId, orgId)));
 }
 
 export async function createModel(

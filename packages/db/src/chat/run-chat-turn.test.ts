@@ -246,6 +246,23 @@ describe("runChatTurn server-authoritative", () => {
     }).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
+  it("unknown conversationId throws NOT_FOUND (does not create)", async () => {
+    await expect(async () => {
+      for await (const _ of runChatTurn({
+        db,
+        ctx,
+        body: {
+          text: "should not create",
+          conversationId: "conv_does_not_exist",
+          modelRef: "openai:platform:gpt-4.1",
+        },
+        providerMode: "fake",
+      })) {
+        //
+      }
+    }).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
   it("abort mid-stream marks aborted", async () => {
     const ac = new AbortController();
     ac.abort();

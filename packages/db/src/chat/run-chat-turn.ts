@@ -86,13 +86,15 @@ export async function* runChatTurn(input: {
     throw new AppError("VALIDATION", "Message text required");
   }
 
-  let conversation =
-    body.conversationId != null
-      ? await conversationRepo.getConversation(db, body.conversationId)
-      : null;
-
-  if (conversation) {
+  let conversation;
+  if (body.conversationId != null) {
+    // Provided id must exist and be writable — never silently create
+    conversation = await conversationRepo.getConversation(
+      db,
+      body.conversationId,
+    );
     if (
+      !conversation ||
       !canWriteConversation({
         conversationOrgId: conversation.orgId,
         conversationUserId: conversation.userId,

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
-import { createDb, runChatTurn } from "@maximus/db";
+import { createDb, getOrgRateLimitFailOpen, runChatTurn } from "@maximus/db";
 import { AppError, isAppError } from "@maximus/domain";
 import { assertRateLimit, createLimiter } from "@maximus/rate-limit";
 import { sessionFromRequest } from "#/server/cookies";
@@ -17,6 +17,10 @@ export const Route = createFileRoute("/api/chat")({
 
         try {
           const ctx = await requireAuth(sessionFromRequest(request), db);
+          // D16: fail-closed by default; org.settings.rateLimitFailOpen may open
+          const orgFailOpen = await getOrgRateLimitFailOpen(db, ctx.orgId);
+          const failOpen = env.rateLimitFailOpen || orgFailOpen;
+
           const limiter = createLimiter(env.valkeyUrl);
           try {
             await assertRateLimit(
@@ -25,7 +29,7 @@ export const Route = createFileRoute("/api/chat")({
               {
                 userPerMin: env.userPerMin,
                 orgPerMin: env.orgPerMin,
-                failOpen: env.rateLimitFailOpen,
+                failOpen,
               },
             );
           } finally {

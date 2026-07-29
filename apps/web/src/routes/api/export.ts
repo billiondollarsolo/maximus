@@ -1,13 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
-import { conversationRepo, createDb, messageRepo } from "@maximus/db";
-import {
-  AppError,
-  canWriteConversation,
-  isAppError,
-  textFromParts,
-  type ContentPart,
-} from "@maximus/domain";
+import { createDb, exportConversation } from "@maximus/db";
+import { AppError, isAppError } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
 
@@ -21,36 +15,25 @@ export const Route = createFileRoute("/api/export")({
           const ctx = await requireAuth(sessionFromRequest(request), db);
           const url = new URL(request.url);
           const id = url.searchParams.get("id");
-          const format = url.searchParams.get("format") ?? "md";
+          const format = (url.searchParams.get("format") ?? "md") as
+            | "md"
+            | "json";
           if (!id) {
             return Response.json({ error: "id required" }, { status: 400 });
           }
-          const conv = await conversationRepo.getConversation(db, id);
-          if (
-            !conv ||
-            !canWriteConversation({
-              conversationOrgId: conv.orgId,
-              conversationUserId: conv.userId,
-              actorOrgId: ctx.orgId,
-              actorUserId: ctx.user.id,
-              actorRole: ctx.role,
-            })
-          ) {
-            throw new AppError("NOT_FOUND", "Conversation not found");
+          const result = await exportConversation(
+            db,
+            {
+              userId: ctx.user.id,
+              orgId: ctx.orgId,
+              role: ctx.role,
+            },
+            { id, format },
+          );
+          if (result.format === "json") {
+            return Response.json(result.body);
           }
-          const msgs = await messageRepo.listMessagesForConversation(db, id);
-          if (format === "json") {
-            return Response.json({ conversation: conv, messages: msgs });
-          }
-          const md = [
-            `# ${conv.title ?? "Conversation"}`,
-            "",
-            ...msgs.map((m) => {
-              const text = textFromParts((m.content as ContentPart[]) ?? []);
-              return `## ${m.role}\n\n${text}\n`;
-            }),
-          ].join("\n");
-          return new Response(md, {
+          return new Response(result.body, {
             headers: {
               "Content-Type": "text/markdown; charset=utf-8",
               "Content-Disposition": `attachment; filename="${id}.md"`,

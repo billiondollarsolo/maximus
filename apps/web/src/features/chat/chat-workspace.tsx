@@ -89,6 +89,7 @@ export function ChatWorkspace() {
     text: string,
     mode?: "send" | "regenerate" | "edit",
     targetMessageId?: string,
+    attachmentIds?: string[],
   ) {
     const ac = new AbortController();
     setAbort(ac);
@@ -111,7 +112,7 @@ export function ChatWorkspace() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          input: { text },
+          input: { text, attachmentIds },
           forwardedProps: {
             conversationId: activeId ?? undefined,
             modelRef,
@@ -243,7 +244,9 @@ export function ChatWorkspace() {
           initialValue={draft}
           streaming={streaming}
           onStop={() => abort?.abort()}
-          onSend={(text) => void send(text)}
+          onSend={(text, attachmentIds) =>
+            void send(text, "send", undefined, attachmentIds)
+          }
         />
       </div>
     </AppShell>

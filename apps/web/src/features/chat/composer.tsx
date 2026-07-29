@@ -1,8 +1,13 @@
-import { useState } from "react";
-import { ArrowUp, Paperclip, Square } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowUp, Paperclip, Square, X } from "lucide-react";
 import { Icon, IconButton, Textarea } from "#/components/ui";
 import { cn } from "#/lib/cn";
 import { ModelSelect } from "./model-select";
+
+export type PendingAttachment = {
+  id: string;
+  filename: string;
+};
 
 export function Composer({
   modelRef,
@@ -15,17 +20,61 @@ export function Composer({
   modelRef: string;
   onModelChange: (value: string) => void;
   streaming?: boolean;
-  onSend?: (text: string) => void;
+  onSend?: (text: string, attachmentIds?: string[]) => void;
   onStop?: () => void;
   initialValue?: string;
 }) {
   const [text, setText] = useState(initialValue);
-  const canSend = text.trim().length > 0 && !streaming;
+  const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const canSend =
+    (text.trim().length > 0 || attachments.length > 0) &&
+    !streaming &&
+    !uploading;
 
   function submit() {
     if (!canSend) return;
-    onSend?.(text.trim());
+    onSend?.(
+      text.trim(),
+      attachments.length ? attachments.map((a) => a.id) : undefined,
+    );
     setText("");
+    setAttachments([]);
+  }
+
+  async function onPickFile(file: File | undefined) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const intent = await fetch("/api/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          mime: file.type || "application/octet-stream",
+          sizeBytes: file.size,
+        }),
+      });
+      if (!intent.ok) return;
+      const data = (await intent.json()) as {
+        attachmentId: string;
+        uploadUrl: string;
+      };
+      // Best-effort PUT to presigned URL (RustFS/S3)
+      await fetch(data.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      }).catch(() => undefined);
+      setAttachments((prev) => [
+        ...prev,
+        { id: data.attachmentId, filename: file.name },
+      ]);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
   }
 
   return (
@@ -38,6 +87,28 @@ export function Composer({
           "flex flex-col rounded-[var(--radius-composer)] border border-border-subtle bg-bg-composer shadow-sm",
         )}
       >
+        {attachments.length > 0 ? (
+          <div className="flex flex-wrap gap-2 px-3 pt-3">
+            {attachments.map((a) => (
+              <span
+                key={a.id}
+                className="inline-flex items-center gap-1 rounded-full border border-border-subtle bg-bg-elevated px-2 py-0.5 text-xs text-text-muted"
+              >
+                {a.filename}
+                <button
+                  type="button"
+                  aria-label={`Remove ${a.filename}`}
+                  className="hover:text-text-primary"
+                  onClick={() =>
+                    setAttachments((prev) => prev.filter((x) => x.id !== a.id))
+                  }
+                >
+                  <Icon icon={X} size="sm" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <div className="px-3 pt-3">
           <Textarea
             value={text}
@@ -53,7 +124,21 @@ export function Composer({
           />
         </div>
         <div className="flex items-center justify-between px-2 pb-2 pt-1">
-          <IconButton icon={Paperclip} label="Attach file" />
+          <div className="flex items-center gap-1">
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              accept="image/*,.txt,.pdf,text/plain,application/pdf"
+              onChange={(e) => void onPickFile(e.target.files?.[0])}
+            />
+            <IconButton
+              icon={Paperclip}
+              label="Attach file"
+              disabled={streaming || uploading}
+              onClick={() => fileRef.current?.click()}
+            />
+          </div>
           {streaming ? (
             <button
               type="button"

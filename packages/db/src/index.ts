@@ -16,3 +16,8 @@ export {
   type ChatActor,
 } from "./chat/run-chat-turn.js";
 export { testMigrate } from "./test-migrate.js";
+export {
+  exportConversation,
+  type ExportActor,
+} from "./export/build-export.js";
+export { getOrgRateLimitFailOpen } from "./repos/org-settings.js";
