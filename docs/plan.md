@@ -2101,7 +2101,7 @@ Admin UI v1: show $ aggregates; editing price book can be read-only seed + simpl
 
 ---
 
-## 25. Glossary
+## 33. Glossary
 
 | Term | Meaning |
 | --- | --- |
