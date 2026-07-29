@@ -11,10 +11,21 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "migrate": "echo \"db migrations not yet implemented\"",
-    "studio": "echo \"db studio not yet implemented\""
+    "test": "vitest run",
+    "migrate": "tsx src/migrate.ts",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@maximus/domain": "workspace:*",
+    "@maximus/provider-gateway": "workspace:*",
+    "drizzle-orm": "^0.44.2",
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
-    "typescript": "^5.8.2"
+    "@types/node": "^22.13.10",
+    "drizzle-kit": "^0.31.1",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
   }
 }

@@ -10,9 +10,18 @@
     }
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@maximus/config": "workspace:*",
+    "@maximus/db": "workspace:*",
+    "@maximus/domain": "workspace:*",
+    "drizzle-orm": "^0.44.2"
   },
   "devDependencies": {
-    "typescript": "^5.8.2"
+    "postgres": "^3.4.7",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
   }
 }

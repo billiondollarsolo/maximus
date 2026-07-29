@@ -1,2 +1,5 @@
-/** Object storage — RustFS/S3 client lands in WP12. */
-export {};
+export {
+  createStorageClient,
+  type StorageConfig,
+  type Storage,
+} from "./s3.js";

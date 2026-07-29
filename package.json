@@ -13,7 +13,7 @@
     "test:watch": "vitest",
     "typecheck": "pnpm -r run typecheck",
     "lint": "eslint .",
-    "db:migrate": "pnpm --filter @maximus/db migrate",
+    "db:migrate": "pnpm --filter @maximus/db exec tsx src/migrate.ts",
     "db:studio": "pnpm --filter @maximus/db studio"
   },
   "devDependencies": {

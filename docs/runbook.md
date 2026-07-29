@@ -1,0 +1,44 @@
+# Maximus runbook
+
+## Local stack
+
+```bash
+docker compose -f docker/docker-compose.yml up -d postgres valkey rustfs
+cp .env.example .env
+# set ENCRYPTION_KEY to 32-byte base64, e.g.:
+# node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+pnpm install
+DATABASE_URL=postgres://maximus:maximus@localhost:5432/maximus pnpm --filter @maximus/db migrate
+pnpm dev
+```
+
+## Bootstrap first owner
+
+```bash
+curl -X POST http://localhost:3000/api/auth/bootstrap \
+  -H 'content-type: application/json' \
+  -d '{"email":"admin@localhost","password":"change-me","orgName":"Maximus"}'
+```
+
+## Chat (fake provider)
+
+```bash
+export PROVIDER_MODE=fake
+# after login cookie is set, POST /api/chat with JSON body:
+# { "input": { "text": "hello" }, "forwardedProps": { "modelRef": "openai:platform:gpt-4.1" } }
+```
+
+## Quality gates
+
+```bash
+pnpm test && pnpm typecheck && pnpm lint
+```
+
+## Backup
+
+- Postgres: `pg_dump $DATABASE_URL > backup.sql`
+- RustFS: back up the Docker volume
+
+## Encryption key rotation
+
+Re-enter BYOK API keys after rotating `ENCRYPTION_KEY` (ciphertexts cannot be decrypted with a new key).

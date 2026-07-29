@@ -11,6 +11,7 @@ import { Button, Icon, IconButton, Separator } from "#/components/ui";
 import { Wordmark } from "#/components/layout/wordmark";
 import { useTheme } from "#/features/theme/theme-provider";
 import { ConversationList } from "./conversation-list";
+import type { FakeConversation } from "./fake-conversations";
 
 export function SidebarNav({
   collapsed,
@@ -18,12 +19,14 @@ export function SidebarNav({
   onNewChat,
   activeId,
   onSelectConversation,
+  conversations,
 }: {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onNewChat: () => void;
   activeId?: string | null;
   onSelectConversation?: (id: string) => void;
+  conversations?: FakeConversation[];
 }) {
   const { theme, toggleTheme } = useTheme();
 
@@ -85,6 +88,7 @@ export function SidebarNav({
         collapsed={collapsed}
         activeId={activeId}
         onSelect={onSelectConversation}
+        items={conversations}
       />
 
       <Separator />
