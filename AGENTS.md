@@ -96,6 +96,7 @@ docker compose -f docker/docker-compose.yml up -d postgres valkey rustfs
 
 ## Read more
 
+- `docs/plan.md` — product/architecture plan (D1–D17, WPs, TDD)
 - `docs/architecture.md`
 - `docs/ui-parity-checklist.md`
 - `docs/adr/`

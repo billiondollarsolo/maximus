@@ -2,7 +2,8 @@
 
 Enterprise ChatGPT-class workspace: multi-provider AI chat (OpenAI-compatible, Anthropic, Ollama), Postgres, invite-only orgs, TanStack-native stack.
 
-**Agents and humans: read [`AGENTS.md`](./AGENTS.md) first.**
+**Agents and humans: read [`AGENTS.md`](./AGENTS.md) first.**  
+**Product plan:** [`docs/plan.md`](./docs/plan.md)
 
 ## Status
 
