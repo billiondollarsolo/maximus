@@ -13,8 +13,13 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiExportRouteImport } from './routes/api/export'
+import { Route as ApiFeedbackRouteImport } from './routes/api/feedback'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
+import { Route as ApiAdminAuditRouteImport } from './routes/api/admin/audit'
+import { Route as ApiAdminMembersRouteImport } from './routes/api/admin/members'
+import { Route as ApiAdminModelsRouteImport } from './routes/api/admin/models'
 import { Route as ApiAdminProvidersRouteImport } from './routes/api/admin/providers'
+import { Route as ApiAdminUsageRouteImport } from './routes/api/admin/usage'
 import { Route as ApiAuthBootstrapRouteImport } from './routes/api/auth/bootstrap'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
@@ -39,14 +44,39 @@ const ApiExportRoute = ApiExportRouteImport.update({
   path: '/api/export',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiFeedbackRoute = ApiFeedbackRouteImport.update({
+  id: '/api/feedback',
+  path: '/api/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUploadsRoute = ApiUploadsRouteImport.update({
   id: '/api/uploads',
   path: '/api/uploads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminAuditRoute = ApiAdminAuditRouteImport.update({
+  id: '/api/admin/audit',
+  path: '/api/admin/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminMembersRoute = ApiAdminMembersRouteImport.update({
+  id: '/api/admin/members',
+  path: '/api/admin/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminModelsRoute = ApiAdminModelsRouteImport.update({
+  id: '/api/admin/models',
+  path: '/api/admin/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminProvidersRoute = ApiAdminProvidersRouteImport.update({
   id: '/api/admin/providers',
   path: '/api/admin/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminUsageRoute = ApiAdminUsageRouteImport.update({
+  id: '/api/admin/usage',
+  path: '/api/admin/usage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthBootstrapRoute = ApiAuthBootstrapRouteImport.update({
@@ -70,8 +100,13 @@ export interface FileRoutesByFullPath {
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRoute
   '/api/export': typeof ApiExportRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/api/admin/audit': typeof ApiAdminAuditRoute
+  '/api/admin/members': typeof ApiAdminMembersRoute
+  '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
+  '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/me': typeof ApiAuthMeRoute
@@ -81,8 +116,13 @@ export interface FileRoutesByTo {
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRoute
   '/api/export': typeof ApiExportRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/api/admin/audit': typeof ApiAdminAuditRoute
+  '/api/admin/members': typeof ApiAdminMembersRoute
+  '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
+  '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/me': typeof ApiAuthMeRoute
@@ -93,8 +133,13 @@ export interface FileRoutesById {
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRoute
   '/api/export': typeof ApiExportRoute
+  '/api/feedback': typeof ApiFeedbackRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/api/admin/audit': typeof ApiAdminAuditRoute
+  '/api/admin/members': typeof ApiAdminMembersRoute
+  '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
+  '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/me': typeof ApiAuthMeRoute
@@ -106,8 +151,13 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/conversations'
     | '/api/export'
+    | '/api/feedback'
     | '/api/uploads'
+    | '/api/admin/audit'
+    | '/api/admin/members'
+    | '/api/admin/models'
     | '/api/admin/providers'
+    | '/api/admin/usage'
     | '/api/auth/bootstrap'
     | '/api/auth/login'
     | '/api/auth/me'
@@ -117,8 +167,13 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/conversations'
     | '/api/export'
+    | '/api/feedback'
     | '/api/uploads'
+    | '/api/admin/audit'
+    | '/api/admin/members'
+    | '/api/admin/models'
     | '/api/admin/providers'
+    | '/api/admin/usage'
     | '/api/auth/bootstrap'
     | '/api/auth/login'
     | '/api/auth/me'
@@ -128,8 +183,13 @@ export interface FileRouteTypes {
     | '/api/chat'
     | '/api/conversations'
     | '/api/export'
+    | '/api/feedback'
     | '/api/uploads'
+    | '/api/admin/audit'
+    | '/api/admin/members'
+    | '/api/admin/models'
     | '/api/admin/providers'
+    | '/api/admin/usage'
     | '/api/auth/bootstrap'
     | '/api/auth/login'
     | '/api/auth/me'
@@ -140,8 +200,13 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiConversationsRoute: typeof ApiConversationsRoute
   ApiExportRoute: typeof ApiExportRoute
+  ApiFeedbackRoute: typeof ApiFeedbackRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
+  ApiAdminAuditRoute: typeof ApiAdminAuditRoute
+  ApiAdminMembersRoute: typeof ApiAdminMembersRoute
+  ApiAdminModelsRoute: typeof ApiAdminModelsRoute
   ApiAdminProvidersRoute: typeof ApiAdminProvidersRoute
+  ApiAdminUsageRoute: typeof ApiAdminUsageRoute
   ApiAuthBootstrapRoute: typeof ApiAuthBootstrapRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthMeRoute: typeof ApiAuthMeRoute
@@ -177,6 +242,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiExportRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/feedback': {
+      id: '/api/feedback'
+      path: '/api/feedback'
+      fullPath: '/api/feedback'
+      preLoaderRoute: typeof ApiFeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/uploads': {
       id: '/api/uploads'
       path: '/api/uploads'
@@ -184,11 +256,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUploadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/audit': {
+      id: '/api/admin/audit'
+      path: '/api/admin/audit'
+      fullPath: '/api/admin/audit'
+      preLoaderRoute: typeof ApiAdminAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/members': {
+      id: '/api/admin/members'
+      path: '/api/admin/members'
+      fullPath: '/api/admin/members'
+      preLoaderRoute: typeof ApiAdminMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/models': {
+      id: '/api/admin/models'
+      path: '/api/admin/models'
+      fullPath: '/api/admin/models'
+      preLoaderRoute: typeof ApiAdminModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/providers': {
       id: '/api/admin/providers'
       path: '/api/admin/providers'
       fullPath: '/api/admin/providers'
       preLoaderRoute: typeof ApiAdminProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/usage': {
+      id: '/api/admin/usage'
+      path: '/api/admin/usage'
+      fullPath: '/api/admin/usage'
+      preLoaderRoute: typeof ApiAdminUsageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/bootstrap': {
@@ -220,8 +320,13 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiConversationsRoute: ApiConversationsRoute,
   ApiExportRoute: ApiExportRoute,
+  ApiFeedbackRoute: ApiFeedbackRoute,
   ApiUploadsRoute: ApiUploadsRoute,
+  ApiAdminAuditRoute: ApiAdminAuditRoute,
+  ApiAdminMembersRoute: ApiAdminMembersRoute,
+  ApiAdminModelsRoute: ApiAdminModelsRoute,
   ApiAdminProvidersRoute: ApiAdminProvidersRoute,
+  ApiAdminUsageRoute: ApiAdminUsageRoute,
   ApiAuthBootstrapRoute: ApiAuthBootstrapRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthMeRoute: ApiAuthMeRoute,

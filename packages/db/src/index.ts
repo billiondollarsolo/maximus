@@ -5,8 +5,12 @@ export * as conversationRepo from "./repos/conversations.js";
 export * as messageRepo from "./repos/messages.js";
 export * as usageRepo from "./repos/usage.js";
 export * as providerRepo from "./repos/providers.js";
+export * as feedbackRepo from "./repos/feedback.js";
+export * as membersRepo from "./repos/members.js";
+export * as usageQueryRepo from "./repos/usage-query.js";
 export {
   runChatTurn,
+  buildProviderMessages,
   type ChatTurnInput,
   type ChatTurnEvent,
   type ChatActor,

@@ -77,7 +77,19 @@ export function ChatWorkspace() {
     setMobileOpen(false);
   }
 
-  async function send(text: string, mode?: "send" | "regenerate", targetMessageId?: string) {
+  async function postFeedback(messageId: string, rating: "up" | "down") {
+    await fetch("/api/feedback", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId, rating }),
+    });
+  }
+
+  async function send(
+    text: string,
+    mode?: "send" | "regenerate" | "edit",
+    targetMessageId?: string,
+  ) {
     const ac = new AbortController();
     setAbort(ac);
     setStreaming(true);
@@ -107,6 +119,7 @@ export function ChatWorkspace() {
             targetMessageId,
           },
         }),
+        // mode edit/regenerate handled server-side
         signal: ac.signal,
       });
       if (!res.ok || !res.body) {
@@ -218,6 +231,8 @@ export function ChatWorkspace() {
           <MessageList
             messages={messages}
             onRegenerate={(id) => void send("", "regenerate", id)}
+            onEdit={(id, text) => void send(text, "edit", id)}
+            onFeedback={(id, rating) => void postFeedback(id, rating)}
           />
         )}
 
