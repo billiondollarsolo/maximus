@@ -62,3 +62,10 @@ export {
 } from "./policies/conversation-access.js";
 export { computeCostMicros, type PriceRow } from "./pricing.js";
 export { assembleSystemPrompts } from "./system-prompt.js";
+export {
+  assertChatTurnInput,
+  conversationTitleFromInput,
+  type ChatTurnMode,
+  type ChatTurnInputShape,
+  type NormalizedChatTurnInput,
+} from "./chat-input.js";

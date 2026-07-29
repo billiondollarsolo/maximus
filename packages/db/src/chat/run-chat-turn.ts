@@ -1,8 +1,10 @@
 import {
   AppError,
   assembleSystemPrompts,
+  assertChatTurnInput,
   canWriteConversation,
   computeCostMicros,
+  conversationTitleFromInput,
   heuristicTitle,
   listActiveBranch,
   parseModelRef,
@@ -82,9 +84,15 @@ export async function* runChatTurn(input: {
 }): AsyncGenerator<ChatTurnEvent> {
   const { db, ctx, body } = input;
   void body.clientMessages; // never used for history
-  if (!body.text?.trim() && body.mode !== "regenerate") {
-    throw new AppError("VALIDATION", "Message text required");
-  }
+
+  // Single pure contract — UI + server share rules via assertChatTurnInput
+  const normalized = assertChatTurnInput({
+    text: body.text,
+    attachmentIds: body.attachmentIds,
+    mode: body.mode,
+    targetMessageId: body.targetMessageId,
+  });
+  const mode = normalized.mode;
 
   let conversation;
   if (body.conversationId != null) {
@@ -106,12 +114,13 @@ export async function* runChatTurn(input: {
       throw new AppError("NOT_FOUND", "Conversation not found");
     }
   } else {
+    const titleSourceText = conversationTitleFromInput(normalized);
     conversation = await conversationRepo.createConversation(db, {
       orgId: ctx.orgId,
       userId: ctx.user.id,
       modelRef: body.modelRef,
       projectId: body.projectId ?? null,
-      title: heuristicTitle(body.text),
+      title: heuristicTitle(titleSourceText),
       titleSource: "heuristic",
     });
   }
@@ -121,13 +130,9 @@ export async function* runChatTurn(input: {
     conversation.id,
   );
   const tree = toTree(allMsgs);
-  const mode = body.mode ?? "send";
 
   if (mode === "regenerate") {
-    if (!body.targetMessageId) {
-      throw new AppError("VALIDATION", "targetMessageId required for regenerate");
-    }
-    const plan = planRegenerate(tree, body.targetMessageId);
+    const plan = planRegenerate(tree, normalized.targetMessageId!);
     const userMessageId = plan.parentMessageId;
     const asst = await messageRepo.insertMessage(db, {
       conversationId: conversation.id,
@@ -144,7 +149,7 @@ export async function* runChatTurn(input: {
       userMessageId,
       assistantMessageId: asst.id,
     };
-    // History = path to parent user message (includes that user turn, not prior assistants siblings)
+    // History = path to parent user message (includes that user turn)
     const history = buildProviderMessages(allMsgs, userMessageId);
     yield* streamAssistant({
       db,
@@ -158,16 +163,19 @@ export async function* runChatTurn(input: {
     return;
   }
 
-  const contentParts = await buildUserContentParts(db, ctx, body);
+  // Contract guarantees hasContent for send/edit
+  const contentParts = await buildUserContentParts(
+    db,
+    ctx,
+    normalized.text,
+    normalized.attachmentIds,
+  );
 
   let userMessageId: string;
   let parentForAssistant: string;
 
   if (mode === "edit") {
-    if (!body.targetMessageId) {
-      throw new AppError("VALIDATION", "targetMessageId required for edit");
-    }
-    const plan = planEditFork(tree, body.targetMessageId);
+    const plan = planEditFork(tree, normalized.targetMessageId!);
     const userMsg = await messageRepo.insertMessage(db, {
       conversationId: conversation.id,
       parentMessageId: plan.parentMessageId,
@@ -193,14 +201,14 @@ export async function* runChatTurn(input: {
   }
 
   // link attachments to this user message
-  if (body.attachmentIds?.length) {
+  if (normalized.attachmentIds.length) {
     await db
       .update(attachments)
       .set({ messageId: userMessageId })
       .where(
         and(
           eq(attachments.orgId, ctx.orgId),
-          inArray(attachments.id, body.attachmentIds),
+          inArray(attachments.id, normalized.attachmentIds),
         ),
       );
   }
@@ -239,21 +247,26 @@ export async function* runChatTurn(input: {
   });
 }
 
+/**
+ * Build multimodal parts after assertChatTurnInput has validated content.
+ * Does not re-validate empty input (contract already holds).
+ */
 async function buildUserContentParts(
   db: Db,
   ctx: ChatActor,
-  body: ChatTurnInput,
+  text: string,
+  attachmentIds: string[],
 ): Promise<ContentPart[]> {
   const parts: ContentPart[] = [];
-  if (body.text?.trim()) parts.push({ type: "text", text: body.text });
-  if (body.attachmentIds?.length) {
+  if (text) parts.push({ type: "text", text });
+  if (attachmentIds.length) {
     const rows = await db
       .select()
       .from(attachments)
       .where(
         and(
           eq(attachments.orgId, ctx.orgId),
-          inArray(attachments.id, body.attachmentIds),
+          inArray(attachments.id, attachmentIds),
         ),
       );
     for (const a of rows) {
@@ -268,9 +281,6 @@ async function buildUserContentParts(
         });
       }
     }
-  }
-  if (parts.length === 0) {
-    throw new AppError("VALIDATION", "Message text or attachments required");
   }
   return parts;
 }

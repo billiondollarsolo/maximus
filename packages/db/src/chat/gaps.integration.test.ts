@@ -22,6 +22,7 @@ import {
 import { AppError } from "@maximus/domain";
 import { eq } from "drizzle-orm";
 import { listMessagesForConversation } from "../repos/messages.js";
+import { getConversation } from "../repos/conversations.js";
 
 const DATABASE_URL =
   process.env.DATABASE_URL ??
@@ -124,6 +125,51 @@ describe("AC gaps: allowlist, attach, feedback, BYOK resolve", () => {
     expect(content.some((p) => p.type === "file" && p.attachmentId === attId)).toBe(
       true,
     );
+  });
+
+  it("attachment-only send (empty text) succeeds with file parts + stream", async () => {
+    const attId = newId("att");
+    await db.insert(attachments).values({
+      id: attId,
+      orgId,
+      uploaderUserId: memberId,
+      storageKey: `org/${orgId}/att/${attId}`,
+      filename: "solo.png",
+      mime: "image/png",
+      sizeBytes: 99,
+    });
+    let convId = "";
+    let userMsgId = "";
+    let doneStatus = "";
+    for await (const ev of runChatTurn({
+      db,
+      ctx: member,
+      body: {
+        text: "",
+        attachmentIds: [attId],
+        modelRef: "openai:platform:allowed-only",
+      },
+      providerMode: "fake",
+    })) {
+      if (ev.type === "meta") {
+        convId = ev.conversationId;
+        userMsgId = ev.userMessageId;
+      }
+      if (ev.type === "done") doneStatus = ev.status;
+    }
+    expect(doneStatus).toBe("complete");
+    const msgs = await listMessagesForConversation(db, convId);
+    const user = msgs.find((m) => m.id === userMsgId)!;
+    const content = user.content as Array<{ type: string; attachmentId?: string }>;
+    expect(content.some((p) => p.type === "text")).toBe(false);
+    expect(
+      content.some((p) => p.type === "image" && p.attachmentId === attId),
+    ).toBe(true);
+    expect(msgs.some((m) => m.role === "assistant" && m.status === "complete")).toBe(
+      true,
+    );
+    const conv = await getConversation(db, convId);
+    expect(conv?.title).toMatch(/Attachment/i);
   });
 
   it("feedback upsert stores rating", async () => {
