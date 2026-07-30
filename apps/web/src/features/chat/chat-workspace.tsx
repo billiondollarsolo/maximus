@@ -6,16 +6,31 @@ import { SidebarNav } from "#/features/sidebar/sidebar-nav";
 import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
 import { MessageList } from "./message-list";
-import { ModelSelect } from "./model-select";
 import { useChatWorkspace } from "./use-chat-workspace";
 
 /**
- * ChatGPT aesthetic: black canvas, centered empty hero + pill, bottom composer in-thread.
+ * Black canvas + expanded composer (model inside field). Mobile menu only in header.
  */
 export function ChatWorkspace() {
   const [modelRef, setModelRef] = useState("");
   const chat = useChatWorkspace(modelRef);
   const isEmpty = chat.displayMessages.length === 0;
+
+  const composer = (
+    <Composer
+      key={chat.composerKey}
+      modelRef={modelRef}
+      onModelChange={setModelRef}
+      initialValue={chat.draft}
+      streaming={chat.streaming}
+      disabled={!modelRef}
+      centered={isEmpty}
+      onStop={() => chat.abort?.abort()}
+      onSend={(text, attachmentIds) =>
+        void chat.send(text, "send", undefined, attachmentIds)
+      }
+    />
+  );
 
   return (
     <AppShell
@@ -39,36 +54,21 @@ export function ChatWorkspace() {
         />
       }
     >
-      <header className="relative flex h-12 shrink-0 items-center px-2 md:h-14 md:px-3">
+      {/* Slim mobile-only header (model lives in composer) */}
+      <header className="flex h-11 shrink-0 items-center px-2 md:h-0 md:overflow-hidden md:p-0">
         <IconButton
           icon={Menu}
           label="Open menu"
           className="md:hidden"
           onClick={() => chat.setMobileOpen(true)}
         />
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="pointer-events-auto">
-            <ModelSelect value={modelRef} onChange={setModelRef} />
-          </div>
-        </div>
       </header>
 
       {isEmpty ? (
-        /* ChatGPT empty: hero + composer vertically centered */
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex flex-1 flex-col items-center justify-center pb-8">
+          <div className="flex flex-1 flex-col items-center justify-center pb-6">
             <EmptyState />
-            <Composer
-              key={chat.composerKey}
-              initialValue={chat.draft}
-              streaming={chat.streaming}
-              disabled={!modelRef}
-              centered
-              onStop={() => chat.abort?.abort()}
-              onSend={(text, attachmentIds) =>
-                void chat.send(text, "send", undefined, attachmentIds)
-              }
-            />
+            {composer}
           </div>
           <p className="pb-4 text-center text-[11px] text-text-faint">
             Maximus is AI. Check important info.
@@ -84,16 +84,7 @@ export function ChatWorkspace() {
             onFeedback={(id, rating) => void chat.postFeedback(id, rating)}
             onBranch={(id, dir) => void chat.switchBranch(id, dir)}
           />
-          <Composer
-            key={chat.composerKey}
-            initialValue={chat.draft}
-            streaming={chat.streaming}
-            disabled={!modelRef}
-            onStop={() => chat.abort?.abort()}
-            onSend={(text, attachmentIds) =>
-              void chat.send(text, "send", undefined, attachmentIds)
-            }
-          />
+          {composer}
         </div>
       )}
     </AppShell>

@@ -9,6 +9,7 @@ export type ModelOption = {
   capabilities?: Record<string, unknown>;
 };
 
+/** Compact model control for inside the composer toolbar. */
 export function ModelSelect({
   value,
   onChange,
@@ -40,17 +41,18 @@ export function ModelSelect({
   const vision = selected?.capabilities?.vision === true;
 
   return (
-    <div className={cn("inline-flex items-center gap-2", className)}>
-      <label className="relative inline-flex items-center">
+    <div className={cn("inline-flex min-w-0 items-center gap-1.5", className)}>
+      <label className="relative inline-flex min-w-0 max-w-[11rem] items-center sm:max-w-[14rem]">
         <span className="sr-only">Model</span>
         <select
           aria-label="Model"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className={cn(
-            "appearance-none rounded-full border-0 bg-transparent py-1.5 pl-3 pr-8",
-            "text-[15px] font-medium text-text-primary",
-            "hover:bg-bg-sidebar-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+            "w-full appearance-none truncate rounded-lg border border-border-subtle bg-bg-app",
+            "py-1 pl-2.5 pr-7 text-[12.5px] font-medium text-text-secondary",
+            "hover:bg-bg-sidebar-hover hover:text-text-primary",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
             "cursor-pointer",
           )}
         >
@@ -67,11 +69,11 @@ export function ModelSelect({
         <Icon
           icon={ChevronDown}
           size="sm"
-          className="pointer-events-none absolute right-2 text-text-muted"
+          className="pointer-events-none absolute right-1.5 text-text-faint"
         />
       </label>
       {vision ? (
-        <span className="rounded-full bg-bg-sidebar-hover px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-faint">
+        <span className="hidden rounded-md bg-bg-sidebar-hover px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-faint sm:inline">
           Vision
         </span>
       ) : null}

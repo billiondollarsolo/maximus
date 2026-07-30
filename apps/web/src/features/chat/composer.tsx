@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
-import { ArrowUp, Plus, Square } from "lucide-react";
+import { ArrowUp, Plus, Square, X } from "lucide-react";
 import { Icon } from "#/components/ui";
 import { cn } from "#/lib/cn";
+import { ModelSelect } from "./model-select";
 
 export type PendingAttachment = {
   id: string;
@@ -9,9 +10,12 @@ export type PendingAttachment = {
 };
 
 /**
- * ChatGPT-style single-row pill: + · Ask anything · send/stop
+ * Expanded, squarer composer with model selector in the toolbar.
+ * Layout: wide text area on top · tools + model + send on bottom row.
  */
 export function Composer({
+  modelRef,
+  onModelChange,
   streaming = false,
   onSend,
   onStop,
@@ -19,12 +23,14 @@ export function Composer({
   disabled,
   centered,
 }: {
+  modelRef: string;
+  onModelChange: (value: string) => void;
   streaming?: boolean;
   onSend?: (text: string, attachmentIds?: string[]) => void;
   onStop?: () => void;
   initialValue?: string;
   disabled?: boolean;
-  /** When true, tighter vertically under empty hero (chatgpt.com empty) */
+  /** Under empty hero — still full-width field */
   centered?: boolean;
 }) {
   const [text, setText] = useState(initialValue);
@@ -84,86 +90,113 @@ export function Composer({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-[48rem] px-4",
+        "mx-auto w-full max-w-[var(--content-max)] px-4",
         centered ? "pb-0 pt-6" : "pb-4 md:pb-5",
       )}
     >
-      {attachments.length > 0 ? (
-        <div className="mb-2 flex flex-wrap gap-2 px-1">
-          {attachments.map((a) => (
-            <span
-              key={a.id}
-              className="rounded-full border border-border-subtle bg-bg-elevated px-2.5 py-1 text-[12px] text-text-secondary"
-            >
-              {a.filename}
-            </span>
-          ))}
-        </div>
-      ) : null}
-
       <div
         className={cn(
-          "flex items-center gap-1 bg-bg-composer px-2 py-2",
-          "rounded-[var(--radius-composer)] shadow-[var(--shadow-composer)]",
+          "flex flex-col bg-bg-composer shadow-[var(--shadow-composer)]",
+          "rounded-[var(--radius-composer)]",
+          "min-h-[7.5rem]",
         )}
       >
-        <input
-          ref={fileRef}
-          type="file"
-          className="hidden"
-          accept="image/*,.txt,.pdf,text/plain,application/pdf"
-          onChange={(e) => void onPickFile(e.target.files?.[0])}
-        />
-        <button
-          type="button"
-          aria-label="Attach file"
-          disabled={streaming || uploading || disabled}
-          onClick={() => fileRef.current?.click()}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary disabled:opacity-40"
-        >
-          <Icon icon={Plus} size="sm" />
-        </button>
+        {attachments.length > 0 ? (
+          <div className="flex flex-wrap gap-2 px-3.5 pt-3">
+            {attachments.map((a) => (
+              <span
+                key={a.id}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-subtle bg-bg-app px-2.5 py-1 text-[12px] text-text-secondary"
+              >
+                {a.filename}
+                <button
+                  type="button"
+                  aria-label={`Remove ${a.filename}`}
+                  className="text-text-muted hover:text-text-primary"
+                  onClick={() =>
+                    setAttachments((prev) => prev.filter((x) => x.id !== a.id))
+                  }
+                >
+                  <Icon icon={X} size="sm" />
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
 
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Ask anything"
-          rows={1}
-          disabled={disabled}
-          className="composer-input max-h-[120px] min-h-[28px] flex-1 py-1.5 text-text-primary placeholder:text-text-faint disabled:opacity-50"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-        />
-
-        {streaming ? (
-          <button
-            type="button"
-            aria-label="Stop generating"
-            onClick={onStop}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-btn-primary text-btn-primary-fg"
-          >
-            <Icon icon={Square} size="sm" className="fill-current" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            aria-label="Send message"
-            disabled={!canSend}
-            onClick={submit}
+        {/* Expanded multi-line text area */}
+        <div className="flex-1 px-3.5 pt-3.5">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Ask anything"
+            rows={3}
+            disabled={disabled}
             className={cn(
-              "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors",
-              canSend
-                ? "bg-btn-primary text-btn-primary-fg hover:bg-btn-primary-hover"
-                : "bg-btn-send-disabled text-text-faint",
+              "composer-input w-full max-h-[220px] min-h-[4.5rem]",
+              "text-[15.5px] leading-relaxed text-text-primary",
+              "placeholder:text-text-faint disabled:opacity-50",
             )}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+          />
+        </div>
+
+        {/* Toolbar: attach · model · send */}
+        <div className="flex items-center gap-2 px-2.5 pb-2.5 pt-1">
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            accept="image/*,.txt,.pdf,text/plain,application/pdf"
+            onChange={(e) => void onPickFile(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            aria-label="Attach file"
+            disabled={streaming || uploading || disabled}
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary disabled:opacity-40"
           >
-            <Icon icon={ArrowUp} size="sm" strokeWidth={2.5} />
+            <Icon icon={Plus} size="sm" />
           </button>
-        )}
+
+          <ModelSelect
+            value={modelRef}
+            onChange={onModelChange}
+            className="min-w-0 flex-1"
+          />
+
+          {streaming ? (
+            <button
+              type="button"
+              aria-label="Stop generating"
+              onClick={onStop}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-btn-primary text-btn-primary-fg"
+            >
+              <Icon icon={Square} size="sm" className="fill-current" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="Send message"
+              disabled={!canSend}
+              onClick={submit}
+              className={cn(
+                "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors",
+                canSend
+                  ? "bg-btn-primary text-btn-primary-fg hover:bg-btn-primary-hover"
+                  : "bg-btn-send-disabled text-text-faint",
+              )}
+            >
+              <Icon icon={ArrowUp} size="sm" strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
       </div>
 
       {!centered ? (

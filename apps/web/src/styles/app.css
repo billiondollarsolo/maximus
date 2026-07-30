@@ -98,18 +98,16 @@ body {
   margin-bottom: 0;
 }
 
-/* Single-line ChatGPT pill input */
+/* Expanded composer textarea (no field chrome) */
 .composer-input {
   field-sizing: content;
-  min-height: 24px;
-  max-height: 160px;
   resize: none;
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
   font-size: 1rem;
-  line-height: 1.5;
+  line-height: 1.55;
 }
 .composer-input:focus {
   outline: none !important;
