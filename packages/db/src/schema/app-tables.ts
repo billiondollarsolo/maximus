@@ -105,6 +105,58 @@ export const modelAllowlists = pgTable(
   (t) => [uniqueIndex("model_allowlists_uidx").on(t.orgId, t.modelRef, t.role)],
 );
 
+/** Teams: grant groups inside an org (not data isolation). */
+export const teams = pgTable(
+  "teams",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("teams_org_slug_uidx").on(t.orgId, t.slug)],
+);
+
+export const teamMembers = pgTable(
+  "team_members",
+  {
+    id: text("id").primaryKey(),
+    teamId: text("team_id")
+      .notNull()
+      .references(() => teams.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("team_members_team_user_uidx").on(t.teamId, t.userId)],
+);
+
+/** Allow-only resource grants (models; agents via base model in domain). */
+export const accessGrants = pgTable(
+  "access_grants",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    resourceType: text("resource_type").notNull(),
+    resourceRef: text("resource_ref").notNull(),
+    subjectType: text("subject_type").notNull(),
+    subjectId: text("subject_id"),
+    effect: text("effect").notNull().default("allow"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdBy: text("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+  },
+);
+
 export const projects = pgTable("projects", {
   id: text("id").primaryKey(),
   orgId: text("org_id")

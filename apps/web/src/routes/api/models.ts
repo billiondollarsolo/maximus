@@ -19,6 +19,7 @@ export const Route = createFileRoute("/api/models")({
               db,
               orgId: ctx.orgId,
               role: ctx.role,
+              userId: ctx.user.id,
               env,
             });
           // Picker options: base offerings + agent presets (agent:{id}).

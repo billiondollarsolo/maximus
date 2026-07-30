@@ -8,7 +8,13 @@ import {
   type PlatformCatalogEnv,
 } from "@maximus/domain";
 import type { Db } from "@maximus/db";
-import { agentsRepo, getOrgSettings, providerRepo } from "@maximus/db";
+import {
+  agentsRepo,
+  getOrgSettings,
+  loadAccessForOrg,
+  providerRepo,
+  teamsRepo,
+} from "@maximus/db";
 import type { serverEnv } from "#/server/env";
 
 type Env = ReturnType<typeof serverEnv>;
@@ -40,6 +46,7 @@ export type BuildModelCatalogResult = {
  * Chat / member catalog:
  * - Platform cloud models **only if** platform API keys are set
  * - Org models that are **explicitly registered**, enabled, visible, non-embedding
+ * - Filtered by accessMode + grants (open = no filter)
  *
  * Does **not** auto-list every Ollama `/api/tags` entry.
  */
@@ -47,6 +54,7 @@ export async function buildModelCatalog(input: {
   db: Db;
   orgId: string;
   role: OrgRole;
+  userId: string;
   env: Env;
 }): Promise<BuildModelCatalogResult> {
   const envFlags: PlatformCatalogEnv = {
@@ -58,13 +66,14 @@ export async function buildModelCatalog(input: {
 
   const staticPlatform = defaultPlatformCatalog(envFlags);
 
-  const [orgModels, allowRows, connections, agentRows, orgSettings] =
+  const [orgModels, connections, agentRows, orgSettings, access, teamIds] =
     await Promise.all([
       providerRepo.listModels(input.db, input.orgId),
-      providerRepo.listAllowlist(input.db, input.orgId),
       providerRepo.listProviderConnections(input.db, input.orgId),
       agentsRepo.listAgentPresets(input.db, input.orgId).catch(() => []),
       getOrgSettings(input.db, input.orgId),
+      loadAccessForOrg(input.db, input.orgId),
+      teamsRepo.listTeamIdsForUser(input.db, input.orgId, input.userId),
     ]);
 
   const enabledConnIds = new Set(
@@ -98,12 +107,12 @@ export async function buildModelCatalog(input: {
     orgModels: orgCatalog,
   });
 
-  const allowlist = allowRows.map((r) => ({
-    modelRef: r.modelRef,
-    role: (r.role as "owner" | "admin" | "member" | null) ?? null,
-  }));
-
-  const models = modelsForUser(catalog, input.role, allowlist);
+  const models = modelsForUser(catalog, input.role, [], {
+    accessMode: access.accessMode,
+    grants: access.grants,
+    userId: input.userId,
+    teamIds,
+  });
 
   const agents: AgentCatalogEntry[] = (agentRows as Array<{
     id: string;
@@ -122,7 +131,7 @@ export async function buildModelCatalog(input: {
       providerKind: "agent" as const,
     }));
 
-  // Agents that point at inaccessible bases stay listed only if base is in chat models.
+  // Agents appear only if base model is allowed (same grant rules).
   const accessibleBases = new Set(models.map((m) => m.modelRef));
   const agentsVisible = agents.filter((a) =>
     accessibleBases.has(a.baseModelRef),

@@ -8,6 +8,13 @@ export * as providerRepo from "./repos/providers.js";
 export * as pricesRepo from "./repos/prices.js";
 export * as agentsRepo from "./repos/agents.js";
 export { resolveAgentForRun } from "./repos/agents.js";
+export * as teamsRepo from "./repos/teams.js";
+export * as accessGrantsRepo from "./repos/access-grants.js";
+export {
+  loadAccessForOrg,
+  ensureAllowlistMigrated,
+  toDomainGrants,
+} from "./repos/access-grants.js";
 export {
   exportOrgCatalog,
   importOrgCatalog,

@@ -5,8 +5,11 @@ export {
   requireAuth,
   requireOrgRole,
   revokeSession,
+  listUserOrgMemberships,
+  switchActiveContext,
   type AuthContext,
   type SessionUser,
+  type OrgMembership,
 } from "./session.js";
 export { bootstrapOwner, needsBootstrap } from "./bootstrap.js";
 export { loginWithPassword } from "./login.js";

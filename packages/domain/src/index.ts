@@ -61,6 +61,16 @@ export {
   sanitizeConnectionForExport,
   assertExportHasNoSecrets,
 } from "./catalog-export.js";
+export {
+  parseAccessMode,
+  isResourceAllowed,
+  grantsFromLegacyAllowlist,
+  accessModeFromLegacyAllowlist,
+  type AccessMode,
+  type AccessGrant,
+  type AccessContext,
+  type GrantSubjectType,
+} from "./access-grants.js";
 export { assertVisionAllowed } from "./assert-vision.js";
 export {
   pathToRoot,

@@ -48,6 +48,7 @@ describe("buildModelCatalog", () => {
     const { catalog, platform, models } = await buildModelCatalog({
       db,
       orgId,
+      userId: "user_test",
       role: "owner",
       env: env({
         providerMode: "live",
@@ -76,6 +77,7 @@ describe("buildModelCatalog", () => {
     const { models } = await buildModelCatalog({
       db,
       orgId,
+      userId: "user_test",
       role: "member",
       env: env({ providerMode: "fake" }),
     });
@@ -120,6 +122,7 @@ describe("buildModelCatalog", () => {
     const { models } = await buildModelCatalog({
       db,
       orgId,
+      userId: "user_test",
       role: "admin",
       env: env({ providerMode: "live" }),
     });
@@ -145,6 +148,7 @@ describe("buildModelCatalog", () => {
     const { models } = await buildModelCatalog({
       db,
       orgId,
+      userId: "user_test",
       role: "owner",
       env: env({ providerMode: "live", openaiApiKey: "sk-test" }),
     });
@@ -205,6 +209,7 @@ describe("buildModelCatalog", () => {
     const { models, defaultModelRef } = await buildModelCatalog({
       db,
       orgId,
+      userId: "user_test",
       role: "member",
       env: env({ providerMode: "live" }),
     });

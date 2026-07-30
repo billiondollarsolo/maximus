@@ -5,6 +5,7 @@ import {
   effectiveMaxOutputTokens,
   effectiveNumCtx,
   estimateMessagesTokens,
+  isResourceAllowed,
   modelIdFromRef,
   parseModelRef,
   resolveEffectiveParams,
@@ -17,7 +18,6 @@ import {
   createLiveHttpAdapter,
   decryptSecret,
   resolveAdapter,
-  type AllowlistRule,
   type FakeTextAdapter,
   type ProviderMessage,
 } from "@maximus/provider-gateway";
@@ -30,6 +30,8 @@ import {
   getAgentPreset,
   resolveAgentForRun,
 } from "../repos/agents.js";
+import { loadAccessForOrg } from "../repos/access-grants.js";
+import { listTeamIdsForUser } from "../repos/teams.js";
 import { getCustomInstructions } from "../repos/user-settings.js";
 import type { StreamAssistantInput } from "./chat-turn-types.js";
 import type { ChatActor, ChatTurnEvent } from "./chat-turn-types.js";
@@ -54,11 +56,10 @@ export async function* streamAssistant(args: {
   input: StreamAssistantInput;
 }): AsyncGenerator<ChatTurnEvent> {
   const started = Date.now();
-  const allowRows = await providerRepo.listAllowlist(args.db, args.ctx.orgId);
-  const allowlist: AllowlistRule[] = allowRows.map((r) => ({
-    modelRef: r.modelRef,
-    role: (r.role as AllowlistRule["role"]) ?? null,
-  }));
+  const [access, teamIds] = await Promise.all([
+    loadAccessForOrg(args.db, args.ctx.orgId),
+    listTeamIdsForUser(args.db, args.ctx.orgId, args.ctx.user.id),
+  ]);
 
   let inferenceModelRef = args.modelRef;
   let agentSystemPrompt: string | null = null;
@@ -125,11 +126,29 @@ export async function* streamAssistant(args: {
     }
   }
 
+  if (
+    !isResourceAllowed({
+      accessMode: access.accessMode,
+      grants: access.grants,
+      orgRole: args.ctx.role,
+      userId: args.ctx.user.id,
+      teamIds,
+      resourceType: "model",
+      resourceRef: inferenceModelRef,
+    })
+  ) {
+    throw new AppError(
+      "FORBIDDEN",
+      "You do not have access to this model in the current organization",
+    );
+  }
+
   const mode = args.input.providerMode ?? "fake";
+  // Access already enforced via grants; pass empty allowlist into adapter resolver.
   const resolved = resolveAdapter({
     modelRef: inferenceModelRef,
     role: args.ctx.role,
-    allowlist,
+    allowlist: [],
     connection,
     platform: args.input.platform,
     allowPrivateBaseUrls: args.input.allowPrivateBaseUrls,

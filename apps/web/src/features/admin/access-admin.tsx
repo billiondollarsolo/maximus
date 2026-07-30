@@ -1,5 +1,4 @@
 import { createColumnHelper } from "@tanstack/react-table";
-import { Link } from "@tanstack/react-router";
 import { Plus, Shield } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -13,6 +12,7 @@ import {
   Icon,
   Label,
   Select,
+  Switch,
 } from "#/components/ui";
 import { adminFetch } from "./admin-api";
 import { AdminAlert } from "./admin-alert";
@@ -20,72 +20,68 @@ import { AdminSection } from "./admin-section";
 import { ConfirmDialog } from "./confirm-dialog";
 import { AdminPageHeader } from "./page-header";
 
-type AllowRow = {
+type GrantRow = {
   id: string;
-  modelRef: string;
-  role: string | null;
+  resourceRef: string;
+  subjectType: string;
+  subjectId: string | null;
 };
 
-type ModelOpt = { modelRef: string; displayName: string };
+type Offering = { modelRef: string; displayName: string };
+type TeamOpt = { id: string; name: string };
+type MemberOpt = { userId: string; name: string; email: string };
 
-const allowHelper = createColumnHelper<AllowRow>();
-const platformHelper = createColumnHelper<{
-  modelRef: string;
-  displayName: string;
-  providerKind: string;
-}>();
+const grantHelper = createColumnHelper<GrantRow>();
 
 export function AccessAdmin() {
-  const [allowlist, setAllowlist] = useState<AllowRow[]>([]);
-  const [catalogRefs, setCatalogRefs] = useState<ModelOpt[]>([]);
+  const [accessMode, setAccessMode] = useState<"open" | "allowlist">("open");
+  const [grants, setGrants] = useState<GrantRow[]>([]);
+  const [offerings, setOfferings] = useState<Offering[]>([]);
+  const [teams, setTeams] = useState<TeamOpt[]>([]);
+  const [members, setMembers] = useState<MemberOpt[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [allowRef, setAllowRef] = useState("");
-  const [allowRole, setAllowRole] = useState("");
+  const [resourceRef, setResourceRef] = useState("");
+  const [subjectType, setSubjectType] = useState<"org" | "role" | "team" | "user">(
+    "role",
+  );
+  const [subjectId, setSubjectId] = useState("member");
   const [busy, setBusy] = useState(false);
-  const [removeId, setRemoveId] = useState<AllowRow | null>(null);
-
-  const [platformRows, setPlatformRows] = useState<
-    Array<{ modelRef: string; displayName: string; providerKind: string }>
-  >([]);
+  const [removeId, setRemoveId] = useState<GrantRow | null>(null);
 
   const refresh = useCallback(async () => {
-    const r = await adminFetch<{
-      models: Array<{ modelRef: string; displayName: string }>;
-      platform?: Array<{
-        modelRef: string;
-        displayName: string;
-        providerKind: string;
-      }>;
-      catalog?: Array<{ modelRef: string; displayName: string }>;
-      allowlist: AllowRow[];
-    }>("/api/admin/models");
-    if (!r.ok) {
-      setError(r.error);
+    const [g, t, m] = await Promise.all([
+      adminFetch<{
+        accessMode: "open" | "allowlist";
+        grants: GrantRow[];
+        offerings: Offering[];
+      }>("/api/admin/access-grants"),
+      adminFetch<{ teams: Array<{ id: string; name: string }> }>(
+        "/api/admin/teams",
+      ),
+      adminFetch<{
+        members: Array<{ userId: string; name: string; email: string }>;
+      }>("/api/admin/members"),
+    ]);
+    if (!g.ok) {
+      setError(g.error);
       return;
     }
-    setAllowlist(r.data.allowlist ?? []);
-    setPlatformRows(r.data.platform ?? []);
-    // Prefer full composed catalog for allowlist picker (gated + discovered + org)
-    if (r.data.catalog && r.data.catalog.length > 0) {
-      setCatalogRefs(
-        r.data.catalog.map((m) => ({
-          modelRef: m.modelRef,
-          displayName: m.displayName,
+    setAccessMode(g.data.accessMode ?? "open");
+    setGrants(g.data.grants ?? []);
+    setOfferings(g.data.offerings ?? []);
+    if (t.ok) {
+      setTeams((t.data.teams ?? []).map((x) => ({ id: x.id, name: x.name })));
+    }
+    if (m.ok) {
+      setMembers(
+        (m.data.members ?? []).map((x) => ({
+          userId: x.userId,
+          name: x.name,
+          email: x.email,
         })),
       );
-    } else {
-      const platform = (r.data.platform ?? []).map((m) => ({
-        modelRef: m.modelRef,
-        displayName: m.displayName,
-      }));
-      const org = (r.data.models ?? []).map((m) => ({
-        modelRef: m.modelRef,
-        displayName: m.displayName,
-      }));
-      const byRef = new Map<string, ModelOpt>();
-      for (const m of [...platform, ...org]) byRef.set(m.modelRef, m);
-      setCatalogRefs([...byRef.values()]);
     }
   }, []);
 
@@ -93,63 +89,74 @@ export function AccessAdmin() {
     void refresh();
   }, [refresh]);
 
-  const platform = platformRows;
-
-  const allowColumns = useMemo(
+  const columns = useMemo(
     () => [
-      allowHelper.accessor("modelRef", {
-        header: "Model ref",
-        cell: (c) => <code className="table-mono">{c.getValue()}</code>,
+      grantHelper.accessor("resourceRef", {
+        header: "Model",
+        cell: (c) => (
+          <code className="text-xs text-text-secondary">{c.getValue()}</code>
+        ),
       }),
-      allowHelper.accessor("role", {
-        header: "Role",
-        cell: (c) => <Badge>{c.getValue() ?? "all roles"}</Badge>,
+      grantHelper.accessor("subjectType", {
+        header: "Subject",
+        cell: (c) => {
+          const row = c.row.original;
+          return (
+            <Badge>
+              {row.subjectType}
+              {row.subjectId ? `: ${row.subjectId}` : ""}
+            </Badge>
+          );
+        },
       }),
-      allowHelper.display({
+      grantHelper.display({
         id: "actions",
         header: "",
         cell: (c) => (
-          <div className="row-actions">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="text-danger"
-              onClick={() => setRemoveId(c.row.original)}
-            >
-              Remove
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-8 text-xs"
+            onClick={() => setRemoveId(c.row.original)}
+          >
+            Remove
+          </Button>
         ),
       }),
     ],
     [],
   );
 
-  const platformColumns = useMemo(
-    () => [
-      platformHelper.accessor("displayName", { header: "Display" }),
-      platformHelper.accessor("modelRef", {
-        header: "Ref",
-        cell: (c) => <code className="table-mono">{c.getValue()}</code>,
-      }),
-      platformHelper.accessor("providerKind", {
-        header: "Kind",
-        cell: (c) => <Badge>{c.getValue()}</Badge>,
-      }),
-    ],
-    [],
-  );
+  async function toggleMode(next: boolean) {
+    const mode = next ? "allowlist" : "open";
+    setBusy(true);
+    const r = await adminFetch("/api/admin/access-grants", {
+      method: "PATCH",
+      body: JSON.stringify({ accessMode: mode }),
+    });
+    setBusy(false);
+    if (!r.ok) {
+      setError(r.error);
+      return;
+    }
+    setAccessMode(mode);
+    setInfo(
+      mode === "open"
+        ? "Open mode: all enabled models available"
+        : "Allowlist mode: only granted models available",
+    );
+  }
 
-  async function addRule() {
+  async function addGrant() {
     setBusy(true);
     setError(null);
-    const r = await adminFetch("/api/admin/models", {
+    const r = await adminFetch("/api/admin/access-grants", {
       method: "POST",
       body: JSON.stringify({
-        action: "allowlist_upsert",
-        modelRef: allowRef,
-        role: allowRole || null,
+        resourceType: "model",
+        resourceRef,
+        subjectType,
+        subjectId: subjectType === "org" ? null : subjectId,
       }),
     });
     setBusy(false);
@@ -158,8 +165,7 @@ export function AccessAdmin() {
       return;
     }
     setAddOpen(false);
-    setAllowRef("");
-    setAllowRole("");
+    setResourceRef("");
     await refresh();
   }
 
@@ -167,42 +173,56 @@ export function AccessAdmin() {
     <div>
       <AdminPageHeader
         title="Access"
-        description={
-          <>
-            Control who may use which models. Catalog and pricing live under{" "}
-            <Link to="/admin/providers" className="text-accent underline">
-              Providers
-            </Link>
-            .
-          </>
-        }
+        description="Control who can use which models. Open mode ignores grants. Allowlist mode requires a matching grant (org, role, team, or user)."
         actions={
           <Button type="button" onClick={() => setAddOpen(true)}>
             <Icon icon={Plus} size="sm" />
-            Add rule
+            Add grant
           </Button>
         }
       />
-
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}
+      {info ? <AdminAlert tone="success">{info}</AdminAlert> : null}
 
       <AdminSection
-        title="Allowlist"
-        description="Empty allowlist means all enabled models. Non-empty restricts chat by model ref and optional role."
+        title="Access mode"
+        description="Open = everyone with chat can use enabled models (grants unused). Allowlist = only models with a matching grant."
+      >
+        <label className="flex items-center gap-3 text-sm text-text-secondary">
+          <Switch
+            checked={accessMode === "allowlist"}
+            onCheckedChange={(v) => void toggleMode(v)}
+            disabled={busy}
+          />
+          <span>
+            {accessMode === "allowlist"
+              ? "Allowlist (restricted)"
+              : "Open (all enabled models)"}
+          </span>
+        </label>
+      </AdminSection>
+
+      <AdminSection
+        title="Grants"
+        description="Each row allows a model for a subject. Team grants apply to all of a user’s teams in this org."
       >
         <DataTable
-          data={allowlist}
-          columns={allowColumns}
+          data={grants}
+          columns={columns}
           getRowId={(r) => r.id}
           empty={
             <EmptyStatePanel
               icon={Shield}
-              title="No allowlist rules"
-              description="Everyone with chat access can use every enabled model. Add a rule to restrict."
+              title="No grants yet"
+              description={
+                accessMode === "open"
+                  ? "Optional while open. Switch to Allowlist to enforce grants."
+                  : "Add grants or members will see no models."
+              }
               action={
                 <Button type="button" onClick={() => setAddOpen(true)}>
                   <Icon icon={Plus} size="sm" />
-                  Add rule
+                  Add grant
                 </Button>
               }
             />
@@ -210,59 +230,95 @@ export function AccessAdmin() {
         />
       </AdminSection>
 
-      <AdminSection
-        title="Platform models"
-        description="Gated by credentials (live). Platform cloud models appear only when API keys are set. Ollama tags are never auto-listed here — register offerings under Providers."
-      >
-        <DataTable
-          data={platform}
-          columns={platformColumns}
-          getRowId={(m) => m.modelRef}
-          empty={
-            <EmptyStatePanel
-              icon={Shield}
-              title="No platform models"
-              description="In live mode, set OPENAI_API_KEY / ANTHROPIC_API_KEY and/or OLLAMA_BASE_URL (with models pulled), or add BYOK under Providers."
-            />
-          }
-        />
-      </AdminSection>
-
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent
-          title="Add allowlist rule"
-          description="Pick a model ref and optional role scope."
+          title="Add access grant"
+          description="Pick a model offering and who may use it."
           size="sm"
         >
           <div className="grid gap-3">
             <div>
-              <Label htmlFor="al-ref">Model</Label>
+              <Label htmlFor="ag-model">Model</Label>
               <Select
-                id="al-ref"
-                value={allowRef}
-                onChange={(e) => setAllowRef(e.target.value)}
+                id="ag-model"
+                value={resourceRef}
+                onChange={(e) => setResourceRef(e.target.value)}
               >
                 <option value="">Select model…</option>
-                {catalogRefs.map((r) => (
-                  <option key={r.modelRef} value={r.modelRef}>
-                    {r.displayName} ({r.modelRef})
+                {offerings.map((o) => (
+                  <option key={o.modelRef} value={o.modelRef}>
+                    {o.displayName} ({o.modelRef})
                   </option>
                 ))}
               </Select>
             </div>
             <div>
-              <Label htmlFor="al-role">Role scope</Label>
+              <Label htmlFor="ag-subj">Subject type</Label>
               <Select
-                id="al-role"
-                value={allowRole}
-                onChange={(e) => setAllowRole(e.target.value)}
+                id="ag-subj"
+                value={subjectType}
+                onChange={(e) => {
+                  const v = e.target.value as typeof subjectType;
+                  setSubjectType(v);
+                  if (v === "role") setSubjectId("member");
+                  else if (v === "org") setSubjectId("");
+                  else setSubjectId("");
+                }}
               >
-                <option value="">All roles</option>
-                <option value="owner">owner</option>
-                <option value="admin">admin</option>
-                <option value="member">member</option>
+                <option value="org">Entire org</option>
+                <option value="role">Role</option>
+                <option value="team">Team</option>
+                <option value="user">User</option>
               </Select>
             </div>
+            {subjectType === "role" ? (
+              <div>
+                <Label htmlFor="ag-role">Role</Label>
+                <Select
+                  id="ag-role"
+                  value={subjectId}
+                  onChange={(e) => setSubjectId(e.target.value)}
+                >
+                  <option value="member">member</option>
+                  <option value="admin">admin</option>
+                  <option value="owner">owner</option>
+                </Select>
+              </div>
+            ) : null}
+            {subjectType === "team" ? (
+              <div>
+                <Label htmlFor="ag-team">Team</Label>
+                <Select
+                  id="ag-team"
+                  value={subjectId}
+                  onChange={(e) => setSubjectId(e.target.value)}
+                >
+                  <option value="">Select team…</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
+            {subjectType === "user" ? (
+              <div>
+                <Label htmlFor="ag-user">User</Label>
+                <Select
+                  id="ag-user"
+                  value={subjectId}
+                  onChange={(e) => setSubjectId(e.target.value)}
+                >
+                  <option value="">Select member…</option>
+                  {members.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.name} ({m.email})
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            ) : null}
           </div>
           <DialogFooter>
             <Button
@@ -274,10 +330,14 @@ export function AccessAdmin() {
             </Button>
             <Button
               type="button"
-              disabled={busy || !allowRef}
-              onClick={() => void addRule()}
+              disabled={
+                busy ||
+                !resourceRef ||
+                (subjectType !== "org" && !subjectId)
+              }
+              onClick={() => void addGrant()}
             >
-              {busy ? "Saving…" : "Add rule"}
+              {busy ? "Saving…" : "Add grant"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -286,10 +346,10 @@ export function AccessAdmin() {
       <ConfirmDialog
         open={removeId != null}
         onOpenChange={(o) => !o && setRemoveId(null)}
-        title="Remove allowlist rule?"
+        title="Remove grant?"
         description={
           removeId
-            ? `Stop restricting ${removeId.modelRef}${removeId.role ? ` for ${removeId.role}` : ""}.`
+            ? `Remove access to ${removeId.resourceRef} for ${removeId.subjectType}${removeId.subjectId ? ` ${removeId.subjectId}` : ""}.`
             : ""
         }
         confirmLabel="Remove"
@@ -298,12 +358,9 @@ export function AccessAdmin() {
         onConfirm={async () => {
           if (!removeId) return;
           setBusy(true);
-          const r = await adminFetch("/api/admin/models", {
+          const r = await adminFetch("/api/admin/access-grants", {
             method: "DELETE",
-            body: JSON.stringify({
-              action: "allowlist_delete",
-              id: removeId.id,
-            }),
+            body: JSON.stringify({ id: removeId.id }),
           });
           setBusy(false);
           setRemoveId(null);

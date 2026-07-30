@@ -4,6 +4,7 @@ import {
   defaultPlatformCatalog,
   defaultPlatformModelRef,
 } from "./platform-catalog.js";
+import type { AccessGrant } from "./access-grants.js";
 
 const base: CatalogModel[] = [
   {
@@ -43,7 +44,7 @@ const base: CatalogModel[] = [
 ];
 
 describe("modelsForUser", () => {
-  it("filters disabled, hidden, embeddings, allowlist", () => {
+  it("filters disabled, hidden, embeddings, allowlist (legacy)", () => {
     const out = modelsForUser(base, "member", []);
     const refs = out.map((m) => m.modelRef);
     expect(refs).toContain("openai:platform:gpt-4.1");
@@ -53,7 +54,7 @@ describe("modelsForUser", () => {
     expect(refs).not.toContain("ollama:c1:nomic-embed-text");
   });
 
-  it("allowlist restricts", () => {
+  it("legacy allowlist restricts", () => {
     const out = modelsForUser(base, "member", [
       { modelRef: "ollama:c1:gemma3:4b", role: null },
     ]);
@@ -63,6 +64,90 @@ describe("modelsForUser", () => {
   it("can include embeddings when requested", () => {
     const out = modelsForUser(base, "owner", [], { includeEmbeddings: true });
     expect(out.some((m) => m.modelRef.includes("nomic-embed"))).toBe(true);
+  });
+
+  it("open mode with grants still shows all enabled visible", () => {
+    const grants: AccessGrant[] = [
+      {
+        resourceType: "model",
+        resourceRef: "ollama:c1:gemma3:4b",
+        subjectType: "team",
+        subjectId: "t1",
+      },
+    ];
+    const out = modelsForUser(base, "member", [], {
+      accessMode: "open",
+      grants,
+      userId: "u1",
+      teamIds: [],
+    });
+    expect(out.map((m) => m.modelRef)).toEqual(
+      expect.arrayContaining([
+        "openai:platform:gpt-4.1",
+        "ollama:c1:gemma3:4b",
+      ]),
+    );
+  });
+
+  it("allowlist mode filters by team grant", () => {
+    const grants: AccessGrant[] = [
+      {
+        resourceType: "model",
+        resourceRef: "ollama:c1:gemma3:4b",
+        subjectType: "team",
+        subjectId: "team_eng",
+      },
+    ];
+    const denied = modelsForUser(base, "member", [], {
+      accessMode: "allowlist",
+      grants,
+      userId: "u1",
+      teamIds: ["team_sales"],
+    });
+    expect(denied.map((m) => m.modelRef)).toEqual([]);
+
+    const allowed = modelsForUser(base, "member", [], {
+      accessMode: "allowlist",
+      grants,
+      userId: "u1",
+      teamIds: ["team_eng"],
+    });
+    expect(allowed.map((m) => m.modelRef)).toEqual(["ollama:c1:gemma3:4b"]);
+  });
+
+  it("agent uses baseModelRef for grant check", () => {
+    const catalog: CatalogModel[] = [
+      {
+        modelRef: "agent:a1",
+        displayName: "Support",
+        providerKind: "agent",
+        isEnabled: true,
+        baseModelRef: "ollama:c1:gemma3:4b",
+      },
+    ];
+    const grants: AccessGrant[] = [
+      {
+        resourceType: "model",
+        resourceRef: "ollama:c1:gemma3:4b",
+        subjectType: "org",
+        subjectId: null,
+      },
+    ];
+    const ok = modelsForUser(catalog, "member", [], {
+      accessMode: "allowlist",
+      grants,
+      userId: "u1",
+      teamIds: [],
+    });
+    expect(ok).toHaveLength(1);
+
+    const no = modelsForUser(catalog, "member", [], {
+      accessMode: "allowlist",
+      grants: [],
+      userId: "u1",
+      teamIds: [],
+    });
+    expect(no).toHaveLength(0);
   });
 });
 

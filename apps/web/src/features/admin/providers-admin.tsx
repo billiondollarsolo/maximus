@@ -6,6 +6,7 @@ import {
   Pencil,
   Plus,
   PlugZap,
+  Settings2,
   Trash2,
   type LucideIcon,
 } from "lucide-react";
@@ -104,6 +105,7 @@ export function ProvidersAdmin() {
   } | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [defaultsOpen, setDefaultsOpen] = useState(false);
   const [defaultsCw, setDefaultsCw] = useState("");
   const [defaultsMaxOut, setDefaultsMaxOut] = useState("");
   const [defaultsTemp, setDefaultsTemp] = useState("");
@@ -548,6 +550,17 @@ export function ProvidersAdmin() {
             <Button
               type="button"
               variant="secondary"
+              onClick={() => {
+                void refreshDefaults();
+                setDefaultsOpen(true);
+              }}
+            >
+              <Icon icon={Settings2} size="sm" />
+              Model defaults
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
               disabled={busy}
               onClick={() =>
                 void (async () => {
@@ -588,120 +601,133 @@ export function ProvidersAdmin() {
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}
       {info ? <AdminAlert tone="success">{info}</AdminAlert> : null}
 
-      <AdminSection
-        title="Org model defaults"
-        description="Applied to new imports/offerings and used at stream time when the model omits a value. Explicit per-model caps win. Default/pinned refs (one per line) drive new-chat selection."
-      >
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <Label htmlFor="def-cw">Default context window</Label>
-            <Input
-              id="def-cw"
-              inputMode="numeric"
-              value={defaultsCw}
-              onChange={(e) => setDefaultsCw(e.target.value)}
-              placeholder="8192"
-            />
+      <Dialog open={defaultsOpen} onOpenChange={setDefaultsOpen}>
+        <DialogContent
+          title="Org model defaults"
+          description="Optional. Fills blanks when a model has no per-offering value (import tags + stream). Explicit model settings always win. Leave empty to use code defaults only."
+          size="md"
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="def-cw">Default context window</Label>
+              <Input
+                id="def-cw"
+                inputMode="numeric"
+                value={defaultsCw}
+                onChange={(e) => setDefaultsCw(e.target.value)}
+                placeholder="optional"
+              />
+            </div>
+            <div>
+              <Label htmlFor="def-mo">Default max output</Label>
+              <Input
+                id="def-mo"
+                inputMode="numeric"
+                value={defaultsMaxOut}
+                onChange={(e) => setDefaultsMaxOut(e.target.value)}
+                placeholder="optional"
+              />
+            </div>
+            <div>
+              <Label htmlFor="def-temp">Default temperature</Label>
+              <Input
+                id="def-temp"
+                inputMode="decimal"
+                value={defaultsTemp}
+                onChange={(e) => setDefaultsTemp(e.target.value)}
+                placeholder="optional"
+              />
+            </div>
+            <div>
+              <Label htmlFor="def-top-p">Default top_p</Label>
+              <Input
+                id="def-top-p"
+                inputMode="decimal"
+                value={defaultsTopP}
+                onChange={(e) => setDefaultsTopP(e.target.value)}
+                placeholder="optional"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="def-refs">
+                Default model for new chats (model refs, priority order)
+              </Label>
+              <textarea
+                id="def-refs"
+                className="field-control min-h-[4rem] w-full font-mono text-xs"
+                value={defaultRefs}
+                onChange={(e) => setDefaultRefs(e.target.value)}
+                placeholder="one modelRef per line — optional"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="pin-refs">Pinned models (optional)</Label>
+              <textarea
+                id="pin-refs"
+                className="field-control min-h-[3rem] w-full font-mono text-xs"
+                value={pinnedRefs}
+                onChange={(e) => setPinnedRefs(e.target.value)}
+                placeholder="one modelRef per line"
+              />
+            </div>
           </div>
-          <div>
-            <Label htmlFor="def-mo">Default max output</Label>
-            <Input
-              id="def-mo"
-              inputMode="numeric"
-              value={defaultsMaxOut}
-              onChange={(e) => setDefaultsMaxOut(e.target.value)}
-              placeholder="2048"
-            />
-          </div>
-          <div>
-            <Label htmlFor="def-temp">Default temperature</Label>
-            <Input
-              id="def-temp"
-              inputMode="decimal"
-              value={defaultsTemp}
-              onChange={(e) => setDefaultsTemp(e.target.value)}
-              placeholder="0.7"
-            />
-          </div>
-          <div>
-            <Label htmlFor="def-top-p">Default top_p</Label>
-            <Input
-              id="def-top-p"
-              inputMode="decimal"
-              value={defaultsTopP}
-              onChange={(e) => setDefaultsTopP(e.target.value)}
-              placeholder="0.9"
-            />
-          </div>
-          <div className="sm:col-span-3">
-            <Label htmlFor="def-refs">Default model refs (priority order)</Label>
-            <textarea
-              id="def-refs"
-              className="min-h-[4rem] w-full rounded-md border border-border-subtle bg-bg-app px-2 py-1.5 font-mono text-xs text-text-primary"
-              value={defaultRefs}
-              onChange={(e) => setDefaultRefs(e.target.value)}
-              placeholder="ollama:conn:gemma3:4b"
-            />
-          </div>
-          <div className="sm:col-span-3">
-            <Label htmlFor="pin-refs">Pinned model refs</Label>
-            <textarea
-              id="pin-refs"
-              className="min-h-[3rem] w-full rounded-md border border-border-subtle bg-bg-app px-2 py-1.5 font-mono text-xs text-text-primary"
-              value={pinnedRefs}
-              onChange={(e) => setPinnedRefs(e.target.value)}
-              placeholder="openai:platform:gpt-4.1"
-            />
-          </div>
-        </div>
-        <div className="mt-3">
-          <Button
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              void (async () => {
-                setBusy(true);
-                setError(null);
-                const modelDefaults: Record<string, number> = {};
-                const cw = Number(defaultsCw);
-                const mo = Number(defaultsMaxOut);
-                const temp = Number(defaultsTemp);
-                const tp = Number(defaultsTopP);
-                if (Number.isFinite(cw) && cw > 0)
-                  modelDefaults.contextWindow = Math.floor(cw);
-                if (Number.isFinite(mo) && mo > 0)
-                  modelDefaults.maxOutputTokens = Math.floor(mo);
-                if (Number.isFinite(temp) && temp >= 0)
-                  modelDefaults.temperature = temp;
-                if (Number.isFinite(tp) && tp >= 0 && tp <= 1)
-                  modelDefaults.topP = tp;
-                const r = await apiJson("/api/admin/model-defaults", {
-                  method: "PATCH",
-                  body: JSON.stringify({
-                    modelDefaults,
-                    defaultModelRefs: defaultRefs
-                      .split("\n")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                    pinnedModelRefs: pinnedRefs
-                      .split("\n")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                  }),
-                });
-                setBusy(false);
-                if (!r.ok) setError(r.error ?? "Failed to save defaults");
-                else {
-                  setInfo("Model defaults saved");
-                  await refreshDefaults();
-                }
-              })()
-            }
-          >
-            Save defaults
-          </Button>
-        </div>
-      </AdminSection>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setDefaultsOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void (async () => {
+                  setBusy(true);
+                  setError(null);
+                  const modelDefaults: Record<string, number> = {};
+                  const cw = Number(defaultsCw);
+                  const mo = Number(defaultsMaxOut);
+                  const temp = Number(defaultsTemp);
+                  const tp = Number(defaultsTopP);
+                  if (Number.isFinite(cw) && cw > 0)
+                    modelDefaults.contextWindow = Math.floor(cw);
+                  if (Number.isFinite(mo) && mo > 0)
+                    modelDefaults.maxOutputTokens = Math.floor(mo);
+                  if (Number.isFinite(temp) && temp >= 0)
+                    modelDefaults.temperature = temp;
+                  if (Number.isFinite(tp) && tp >= 0 && tp <= 1)
+                    modelDefaults.topP = tp;
+                  const r = await apiJson("/api/admin/model-defaults", {
+                    method: "PATCH",
+                    body: JSON.stringify({
+                      modelDefaults,
+                      defaultModelRefs: defaultRefs
+                        .split("\n")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                      pinnedModelRefs: pinnedRefs
+                        .split("\n")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    }),
+                  });
+                  setBusy(false);
+                  if (!r.ok) setError(r.error ?? "Failed to save defaults");
+                  else {
+                    setInfo("Model defaults saved");
+                    setDefaultsOpen(false);
+                    await refreshDefaults();
+                  }
+                })()
+              }
+            >
+              {busy ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {loading ? (
         <p className="text-sm text-text-muted">Loading…</p>

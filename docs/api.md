@@ -43,7 +43,8 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/auth/me"
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/auth/me` | User + org + role |
+| GET | `/api/auth/me` | User + org + role + orgs[] + teamsInActiveOrg + accessMode |
+| POST | `/api/auth/context` | Switch active org (`{ orgId }`) — membership required |
 | POST | `/api/auth/logout` | |
 | DELETE | `/api/auth/account` | Hard-delete account (`confirm: "DELETE"`) |
 | GET/PUT | `/api/me/instructions` | Personalization → chat system prompt |
@@ -68,7 +69,9 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/auth/me"
 | GET/PATCH | `/api/admin/overview/settings` | Probe settings |
 | POST | `/api/admin/overview/probe` | Manual probes |
 | CRUD | `/api/admin/providers` | BYOK + test; actions `list_tags`, `show_model`, `import_tags` (Ollama) |
-| CRUD | `/api/admin/models` | Models + allowlist (`isEnabled`, `isVisible`, capabilities) |
+| CRUD | `/api/admin/models` | Models + legacy allowlist (`isEnabled`, `isVisible`, capabilities) |
+| CRUD | `/api/admin/teams` | Teams + membership (admin) |
+| GET/POST/PATCH/DELETE | `/api/admin/access-grants` | Grants + `accessMode` open\|allowlist |
 | GET/PATCH | `/api/admin/model-defaults` | Org `modelDefaults`, `defaultModelRefs`, `pinnedModelRefs` |
 | CRUD | `/api/admin/agents` | Agent presets; `action: resolve` for disabled-base checks |
 | GET | `/api/admin/catalog-export` | Secret-free catalog export (connections metadata, models, allowlist, agents) |

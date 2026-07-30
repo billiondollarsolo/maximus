@@ -35,6 +35,7 @@ import { Route as SettingsAccountRouteImport } from './routes/settings.account'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsGeneralRouteImport } from './routes/settings.general'
 import { Route as SettingsPersonalizationRouteImport } from './routes/settings.personalization'
+import { Route as ApiAdminAccessGrantsRouteImport } from './routes/api/admin/access-grants'
 import { Route as ApiAdminAgentsRouteImport } from './routes/api/admin/agents'
 import { Route as ApiAdminAuditRouteImport } from './routes/api/admin/audit'
 import { Route as ApiAdminCatalogExportRouteImport } from './routes/api/admin/catalog-export'
@@ -44,10 +45,12 @@ import { Route as ApiAdminModelsRouteImport } from './routes/api/admin/models'
 import { Route as ApiAdminOverviewRouteImport } from './routes/api/admin/overview'
 import { Route as ApiAdminPricesRouteImport } from './routes/api/admin/prices'
 import { Route as ApiAdminProvidersRouteImport } from './routes/api/admin/providers'
+import { Route as ApiAdminTeamsRouteImport } from './routes/api/admin/teams'
 import { Route as ApiAdminUsageRouteImport } from './routes/api/admin/usage'
 import { Route as ApiAttachmentsIdRouteImport } from './routes/api/attachments.$id'
 import { Route as ApiAuthAccountRouteImport } from './routes/api/auth/account'
 import { Route as ApiAuthBootstrapRouteImport } from './routes/api/auth/bootstrap'
+import { Route as ApiAuthContextRouteImport } from './routes/api/auth/context'
 import { Route as ApiAuthInviteRouteImport } from './routes/api/auth/invite'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
@@ -188,6 +191,11 @@ const SettingsPersonalizationRoute = SettingsPersonalizationRouteImport.update({
   path: '/settings/personalization',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminAccessGrantsRoute = ApiAdminAccessGrantsRouteImport.update({
+  id: '/api/admin/access-grants',
+  path: '/api/admin/access-grants',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminAgentsRoute = ApiAdminAgentsRouteImport.update({
   id: '/api/admin/agents',
   path: '/api/admin/agents',
@@ -233,6 +241,11 @@ const ApiAdminProvidersRoute = ApiAdminProvidersRouteImport.update({
   path: '/api/admin/providers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminTeamsRoute = ApiAdminTeamsRouteImport.update({
+  id: '/api/admin/teams',
+  path: '/api/admin/teams',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminUsageRoute = ApiAdminUsageRouteImport.update({
   id: '/api/admin/usage',
   path: '/api/admin/usage',
@@ -251,6 +264,11 @@ const ApiAuthAccountRoute = ApiAuthAccountRouteImport.update({
 const ApiAuthBootstrapRoute = ApiAuthBootstrapRouteImport.update({
   id: '/api/auth/bootstrap',
   path: '/api/auth/bootstrap',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthContextRoute = ApiAuthContextRouteImport.update({
+  id: '/api/auth/context',
+  path: '/api/auth/context',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthInviteRoute = ApiAuthInviteRouteImport.update({
@@ -327,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/api/': typeof ApiIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/api/admin/access-grants': typeof ApiAdminAccessGrantsRoute
   '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
   '/api/admin/catalog-export': typeof ApiAdminCatalogExportRoute
@@ -336,10 +355,12 @@ export interface FileRoutesByFullPath {
   '/api/admin/overview': typeof ApiAdminOverviewRouteWithChildren
   '/api/admin/prices': typeof ApiAdminPricesRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
+  '/api/admin/teams': typeof ApiAdminTeamsRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
   '/api/auth/account': typeof ApiAuthAccountRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
+  '/api/auth/context': typeof ApiAuthContextRoute
   '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -377,6 +398,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/api': typeof ApiIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/api/admin/access-grants': typeof ApiAdminAccessGrantsRoute
   '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
   '/api/admin/catalog-export': typeof ApiAdminCatalogExportRoute
@@ -386,10 +408,12 @@ export interface FileRoutesByTo {
   '/api/admin/overview': typeof ApiAdminOverviewRouteWithChildren
   '/api/admin/prices': typeof ApiAdminPricesRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
+  '/api/admin/teams': typeof ApiAdminTeamsRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
   '/api/auth/account': typeof ApiAuthAccountRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
+  '/api/auth/context': typeof ApiAuthContextRoute
   '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -428,6 +452,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/api/': typeof ApiIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/api/admin/access-grants': typeof ApiAdminAccessGrantsRoute
   '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
   '/api/admin/catalog-export': typeof ApiAdminCatalogExportRoute
@@ -437,10 +462,12 @@ export interface FileRoutesById {
   '/api/admin/overview': typeof ApiAdminOverviewRouteWithChildren
   '/api/admin/prices': typeof ApiAdminPricesRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
+  '/api/admin/teams': typeof ApiAdminTeamsRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
   '/api/auth/account': typeof ApiAuthAccountRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
+  '/api/auth/context': typeof ApiAuthContextRoute
   '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -480,6 +507,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/'
     | '/settings/'
+    | '/api/admin/access-grants'
     | '/api/admin/agents'
     | '/api/admin/audit'
     | '/api/admin/catalog-export'
@@ -489,10 +517,12 @@ export interface FileRouteTypes {
     | '/api/admin/overview'
     | '/api/admin/prices'
     | '/api/admin/providers'
+    | '/api/admin/teams'
     | '/api/admin/usage'
     | '/api/attachments/$id'
     | '/api/auth/account'
     | '/api/auth/bootstrap'
+    | '/api/auth/context'
     | '/api/auth/invite'
     | '/api/auth/login'
     | '/api/auth/logout'
@@ -530,6 +560,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api'
     | '/settings'
+    | '/api/admin/access-grants'
     | '/api/admin/agents'
     | '/api/admin/audit'
     | '/api/admin/catalog-export'
@@ -539,10 +570,12 @@ export interface FileRouteTypes {
     | '/api/admin/overview'
     | '/api/admin/prices'
     | '/api/admin/providers'
+    | '/api/admin/teams'
     | '/api/admin/usage'
     | '/api/attachments/$id'
     | '/api/auth/account'
     | '/api/auth/bootstrap'
+    | '/api/auth/context'
     | '/api/auth/invite'
     | '/api/auth/login'
     | '/api/auth/logout'
@@ -580,6 +613,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/'
     | '/settings/'
+    | '/api/admin/access-grants'
     | '/api/admin/agents'
     | '/api/admin/audit'
     | '/api/admin/catalog-export'
@@ -589,10 +623,12 @@ export interface FileRouteTypes {
     | '/api/admin/overview'
     | '/api/admin/prices'
     | '/api/admin/providers'
+    | '/api/admin/teams'
     | '/api/admin/usage'
     | '/api/attachments/$id'
     | '/api/auth/account'
     | '/api/auth/bootstrap'
+    | '/api/auth/context'
     | '/api/auth/invite'
     | '/api/auth/login'
     | '/api/auth/logout'
@@ -631,6 +667,7 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   ApiIndexRoute: typeof ApiIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  ApiAdminAccessGrantsRoute: typeof ApiAdminAccessGrantsRoute
   ApiAdminAgentsRoute: typeof ApiAdminAgentsRoute
   ApiAdminAuditRoute: typeof ApiAdminAuditRoute
   ApiAdminCatalogExportRoute: typeof ApiAdminCatalogExportRoute
@@ -640,10 +677,12 @@ export interface RootRouteChildren {
   ApiAdminOverviewRoute: typeof ApiAdminOverviewRouteWithChildren
   ApiAdminPricesRoute: typeof ApiAdminPricesRoute
   ApiAdminProvidersRoute: typeof ApiAdminProvidersRoute
+  ApiAdminTeamsRoute: typeof ApiAdminTeamsRoute
   ApiAdminUsageRoute: typeof ApiAdminUsageRoute
   ApiAttachmentsIdRoute: typeof ApiAttachmentsIdRoute
   ApiAuthAccountRoute: typeof ApiAuthAccountRoute
   ApiAuthBootstrapRoute: typeof ApiAuthBootstrapRoute
+  ApiAuthContextRoute: typeof ApiAuthContextRoute
   ApiAuthInviteRoute: typeof ApiAuthInviteRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
@@ -836,6 +875,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsPersonalizationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/access-grants': {
+      id: '/api/admin/access-grants'
+      path: '/api/admin/access-grants'
+      fullPath: '/api/admin/access-grants'
+      preLoaderRoute: typeof ApiAdminAccessGrantsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/agents': {
       id: '/api/admin/agents'
       path: '/api/admin/agents'
@@ -899,6 +945,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminProvidersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/teams': {
+      id: '/api/admin/teams'
+      path: '/api/admin/teams'
+      fullPath: '/api/admin/teams'
+      preLoaderRoute: typeof ApiAdminTeamsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/usage': {
       id: '/api/admin/usage'
       path: '/api/admin/usage'
@@ -925,6 +978,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/bootstrap'
       fullPath: '/api/auth/bootstrap'
       preLoaderRoute: typeof ApiAuthBootstrapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/context': {
+      id: '/api/auth/context'
+      path: '/api/auth/context'
+      fullPath: '/api/auth/context'
+      preLoaderRoute: typeof ApiAuthContextRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/invite': {
@@ -1035,6 +1095,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   ApiIndexRoute: ApiIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  ApiAdminAccessGrantsRoute: ApiAdminAccessGrantsRoute,
   ApiAdminAgentsRoute: ApiAdminAgentsRoute,
   ApiAdminAuditRoute: ApiAdminAuditRoute,
   ApiAdminCatalogExportRoute: ApiAdminCatalogExportRoute,
@@ -1044,10 +1105,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminOverviewRoute: ApiAdminOverviewRouteWithChildren,
   ApiAdminPricesRoute: ApiAdminPricesRoute,
   ApiAdminProvidersRoute: ApiAdminProvidersRoute,
+  ApiAdminTeamsRoute: ApiAdminTeamsRoute,
   ApiAdminUsageRoute: ApiAdminUsageRoute,
   ApiAttachmentsIdRoute: ApiAttachmentsIdRoute,
   ApiAuthAccountRoute: ApiAuthAccountRoute,
   ApiAuthBootstrapRoute: ApiAuthBootstrapRoute,
+  ApiAuthContextRoute: ApiAuthContextRoute,
   ApiAuthInviteRoute: ApiAuthInviteRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
@@ -1058,12 +1121,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

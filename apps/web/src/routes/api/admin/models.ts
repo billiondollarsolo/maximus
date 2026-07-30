@@ -29,6 +29,7 @@ export const Route = createFileRoute("/api/admin/models")({
               db,
               orgId: ctx.orgId,
               role: ctx.role,
+              userId: ctx.user.id,
               env,
             }),
           ]);
