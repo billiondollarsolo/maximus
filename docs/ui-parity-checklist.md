@@ -1,37 +1,22 @@
-# UI parity checklist (ChatGPT-class)
+# UI parity checklist
 
-Research basis (2024–2026 ChatGPT product UI):
+## Targets
 
-- Canvas `#212121`, sidebar `#171717`, elevated surfaces `#2f2f2f`
-- Composer large pill (~28px radius), soft shadow/hairline — **not** green send
-- Send control: **neutral** filled circle (white-on-dark / black-on-light)
-- Assistant: full-width prose + small mark; user: right soft bubble
-- Model control sits **top-center** of main, not stacked on composer
-- Empty state: large “What can I help with?” + quiet suggestion cards
-- Sidebar: sparse icons, date groups, quiet wordmark — no chrome noise
+### Chat (chatgpt.com black minimal)
+- [x] Near-pure black canvas / sidebar
+- [x] Empty: **“Ready when you are.”** centered
+- [x] Empty: composer **pill under hero** (not bottom-docked only)
+- [x] Pill: `+` · “Ask anything” · send disc (neutral white/black)
+- [x] Model chip top-center when in app
+- [x] User soft bubble / assistant full-width prose
+- [x] New chat pill highlight in sidebar
 
-## Shell
+### Auth (2-pane Astronomer-style)
+- [x] Left brand pane (gradient + grid + pitch)
+- [x] Right pure-black credentials form
+- [x] White full-width primary CTA
+- [x] Login + bootstrap + invite share shell
+- [x] Mobile: form-only (left hidden)
 
-- [x] Dark default + light theme tokens
-- [x] Theme toggle persists
-- [x] Global CSS only (D17)
-- [x] Lucide via Icon wrapper
-- [x] Sidebar collapse + date-grouped history
-- [x] Empty state centered (ChatGPT density)
-- [x] Composer pill geometry + neutral send
-- [x] Model picker top-center
-- [x] Message layout (user bubble / assistant full-width)
-- [x] Maximus wordmark (not OpenAI)
-
-## Chat depth
-
-- [x] Message hover actions + thumbs
-- [x] Branch switcher
-- [x] Code block copy
-- [ ] Streaming without remount jank (partial)
-- [ ] Virtualized long threads
-
-## Admin / auth
-
-- [x] Admin nav only for admin/owner
-- [x] Auth card on product surfaces
+## Notes
+Brand accent is soft indigo/lavender (`--accent` / `--brand`) for Maximus — not legacy OpenAI green chrome.

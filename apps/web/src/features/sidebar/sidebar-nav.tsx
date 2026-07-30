@@ -148,7 +148,14 @@ export function SidebarNav({
       </div>
 
       <div className="flex flex-col gap-0.5">
-        <NavItem icon={SquarePen} label="New chat" onClick={onNewChat} />
+        <button
+          type="button"
+          onClick={onNewChat}
+          className="flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] bg-bg-sidebar-active px-2.5 text-[13.5px] text-text-primary transition-colors hover:bg-bg-sidebar-hover"
+        >
+          <Icon icon={SquarePen} size="sm" className="shrink-0 opacity-90" />
+          <span className="min-w-0 flex-1 truncate text-left">New chat</span>
+        </button>
         <NavItem
           icon={Search}
           label="Search chats"

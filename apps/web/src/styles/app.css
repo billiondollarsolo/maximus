@@ -10,6 +10,7 @@
   --color-bg-elevated: var(--bg-elevated);
   --color-bg-user-bubble: var(--bg-user-bubble);
   --color-bg-code: var(--bg-code);
+  --color-bg-input: var(--bg-input);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
@@ -17,7 +18,9 @@
   --color-border-subtle: var(--border-subtle);
   --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-accent-fg: var(--accent-fg);
+  --color-brand: var(--brand);
   --color-danger: var(--danger);
   --color-btn-primary: var(--btn-primary);
   --color-btn-primary-fg: var(--btn-primary-fg);
@@ -51,22 +54,20 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
-/* ChatGPT-like subtle scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent)
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 40%, transparent)
     transparent;
 }
 
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 *::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+  background: color-mix(in srgb, var(--text-muted) 35%, transparent);
   border-radius: 999px;
 }
 *::-webkit-scrollbar-track {
@@ -74,8 +75,7 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 35%, transparent);
-  color: var(--text-primary);
+  background: color-mix(in srgb, var(--brand) 40%, transparent);
 }
 
 :focus-visible {
@@ -83,7 +83,6 @@ body {
   outline-offset: 2px;
 }
 
-/* Prose in assistant messages */
 .msg-prose {
   font-size: 1rem;
   line-height: 1.75;
@@ -99,11 +98,11 @@ body {
   margin-bottom: 0;
 }
 
-/* Composer textarea reset inside pill */
+/* Single-line ChatGPT pill input */
 .composer-input {
   field-sizing: content;
   min-height: 24px;
-  max-height: 200px;
+  max-height: 160px;
   resize: none;
   border: 0 !important;
   background: transparent !important;
@@ -115,6 +114,28 @@ body {
 .composer-input:focus {
   outline: none !important;
   box-shadow: none !important;
+}
+
+/* Auth split left pane texture */
+.auth-pane-glow {
+  background:
+    radial-gradient(
+      ellipse 80% 60% at 30% 40%,
+      rgba(99, 102, 241, 0.18),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 70% 70%,
+      rgba(165, 180, 252, 0.08),
+      transparent 50%
+    ),
+    #0a0a0a;
+}
+.auth-pane-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
 
 @media (prefers-reduced-motion: reduce) {

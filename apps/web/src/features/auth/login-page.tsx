@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Button, Input, Spinner } from "#/components/ui";
-import { AuthCard } from "./auth-card";
+import { ArrowRight } from "lucide-react";
+import { Icon, Spinner } from "#/components/ui";
+import {
+  AuthField,
+  AuthFormTitle,
+  AuthPrimaryButton,
+  AuthSplit,
+  authInputClassName,
+} from "./auth-split";
 
 export function LoginPage() {
   const nav = useNavigate();
@@ -39,7 +46,7 @@ export function LoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = (await res.json()) as { error?: string; code?: string };
+      const data = (await res.json()) as { error?: string };
       if (!res.ok) {
         setError(data.error ?? "Authentication failed");
         return;
@@ -54,7 +61,7 @@ export function LoginPage() {
 
   if (!statusReady) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-bg-app text-text-muted">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-black text-white/50">
         <Spinner />
         <p className="text-sm">Loading Maximus…</p>
       </div>
@@ -62,85 +69,110 @@ export function LoginPage() {
   }
 
   return (
-    <AuthCard
-      title={bootstrap ? "Create your workspace" : "Welcome back"}
-      subtitle={
-        bootstrap
-          ? "First-run setup — you become the owner. After this, join is invite-only."
-          : "Sign in to Maximus. Public registration is disabled."
-      }
-    >
-      <form className="flex flex-col gap-3" onSubmit={(e) => void onSubmit(e)}>
+    <AuthSplit>
+      <AuthFormTitle
+        title={bootstrap ? "Create your workspace" : "Sign in to Maximus"}
+        subtitle={
+          bootstrap
+            ? "First-run setup — you become the owner. After this, join is invite-only."
+            : "Enter your credentials to continue"
+        }
+      />
+
+      {!bootstrap ? (
+        <div className="mb-6 flex items-center gap-3 text-[11px] uppercase tracking-wider text-white/30">
+          <span className="h-px flex-1 bg-white/10" />
+          continue with password
+          <span className="h-px flex-1 bg-white/10" />
+        </div>
+      ) : null}
+
+      <form className="flex flex-col gap-4" onSubmit={(e) => void onSubmit(e)}>
         {bootstrap ? (
           <>
-            <label className="flex flex-col gap-1 text-xs text-text-muted">
-              Your name
-              <Input
+            <AuthField label="Your name">
+              <input
+                className={authInputClassName()}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 autoComplete="name"
                 autoFocus
               />
-            </label>
-            <label className="flex flex-col gap-1 text-xs text-text-muted">
-              Workspace name
-              <Input
+            </AuthField>
+            <AuthField label="Workspace name">
+              <input
+                className={authInputClassName()}
                 value={orgName}
                 onChange={(e) => setOrgName(e.target.value)}
                 required
               />
-            </label>
+            </AuthField>
           </>
         ) : null}
-        <label className="flex flex-col gap-1 text-xs text-text-muted">
-          Email
-          <Input
+
+        <AuthField label="Email">
+          <input
             type="email"
+            className={authInputClassName()}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
             autoFocus={!bootstrap}
+            placeholder="you@example.com"
           />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">
-          Password
-          <Input
+        </AuthField>
+
+        <AuthField label="Password">
+          <input
             type="password"
+            className={authInputClassName()}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={bootstrap ? 10 : 1}
             autoComplete={bootstrap ? "new-password" : "current-password"}
+            placeholder="Enter your password"
           />
           {bootstrap ? (
-            <span className="text-[11px] text-text-muted">
+            <span className="text-[11px] font-normal text-white/35">
               At least 10 characters
             </span>
           ) : null}
-        </label>
+        </AuthField>
+
         {error ? (
           <p
             role="alert"
-            className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger"
+            className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-[13px] text-red-300"
           >
             {error}
           </p>
         ) : null}
-        <Button type="submit" className="mt-2 w-full" disabled={loading}>
-          {loading
-            ? "Please wait…"
-            : bootstrap
-              ? "Create workspace"
-              : "Sign in"}
-        </Button>
+
+        <AuthPrimaryButton loading={loading}>
+          {bootstrap ? (
+            "Create workspace"
+          ) : (
+            <>
+              Sign in
+              <Icon icon={ArrowRight} size="sm" />
+            </>
+          )}
+        </AuthPrimaryButton>
+
         {!bootstrap ? (
-          <p className="mt-1 text-center text-xs text-text-muted">
+          <p className="text-center text-[12px] text-white/35">
             Need access? Ask an admin for an invite link.
           </p>
-        ) : null}
+        ) : (
+          <p className="text-center text-[11px] leading-relaxed text-white/30">
+            By continuing, you create the first owner account for this
+            deployment.
+          </p>
+        )}
       </form>
-    </AuthCard>
+    </AuthSplit>
   );
 }

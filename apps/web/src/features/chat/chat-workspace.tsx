@@ -10,11 +10,12 @@ import { ModelSelect } from "./model-select";
 import { useChatWorkspace } from "./use-chat-workspace";
 
 /**
- * ChatGPT-class workspace chrome: top model chip, clean canvas, pill composer.
+ * ChatGPT aesthetic: black canvas, centered empty hero + pill, bottom composer in-thread.
  */
 export function ChatWorkspace() {
   const [modelRef, setModelRef] = useState("");
   const chat = useChatWorkspace(modelRef);
+  const isEmpty = chat.displayMessages.length === 0;
 
   return (
     <AppShell
@@ -38,7 +39,6 @@ export function ChatWorkspace() {
         />
       }
     >
-      {/* Top bar: mobile menu + model (ChatGPT places model at top-center) */}
       <header className="relative flex h-12 shrink-0 items-center px-2 md:h-14 md:px-3">
         <IconButton
           icon={Menu}
@@ -53,15 +53,29 @@ export function ChatWorkspace() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        {chat.displayMessages.length === 0 ? (
-          <EmptyState
-            onSuggestion={(text) => {
-              chat.setDraft(text);
-              chat.setComposerKey((k) => k + 1);
-            }}
-          />
-        ) : (
+      {isEmpty ? (
+        /* ChatGPT empty: hero + composer vertically centered */
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex flex-1 flex-col items-center justify-center pb-8">
+            <EmptyState />
+            <Composer
+              key={chat.composerKey}
+              initialValue={chat.draft}
+              streaming={chat.streaming}
+              disabled={!modelRef}
+              centered
+              onStop={() => chat.abort?.abort()}
+              onSend={(text, attachmentIds) =>
+                void chat.send(text, "send", undefined, attachmentIds)
+              }
+            />
+          </div>
+          <p className="pb-4 text-center text-[11px] text-text-faint">
+            Maximus is AI. Check important info.
+          </p>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
           <MessageList
             messages={chat.displayMessages}
             tree={chat.tree}
@@ -70,19 +84,18 @@ export function ChatWorkspace() {
             onFeedback={(id, rating) => void chat.postFeedback(id, rating)}
             onBranch={(id, dir) => void chat.switchBranch(id, dir)}
           />
-        )}
-
-        <Composer
-          key={chat.composerKey}
-          initialValue={chat.draft}
-          streaming={chat.streaming}
-          disabled={!modelRef}
-          onStop={() => chat.abort?.abort()}
-          onSend={(text, attachmentIds) =>
-            void chat.send(text, "send", undefined, attachmentIds)
-          }
-        />
-      </div>
+          <Composer
+            key={chat.composerKey}
+            initialValue={chat.draft}
+            streaming={chat.streaming}
+            disabled={!modelRef}
+            onStop={() => chat.abort?.abort()}
+            onSend={(text, attachmentIds) =>
+              void chat.send(text, "send", undefined, attachmentIds)
+            }
+          />
+        </div>
+      )}
     </AppShell>
   );
 }

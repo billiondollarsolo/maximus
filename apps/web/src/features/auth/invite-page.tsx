@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Button, Input } from "#/components/ui";
-import { AuthCard } from "./auth-card";
+import { ArrowRight } from "lucide-react";
+import { Icon } from "#/components/ui";
+import {
+  AuthField,
+  AuthFormTitle,
+  AuthPrimaryButton,
+  AuthSplit,
+  authInputClassName,
+} from "./auth-split";
 
 export function InvitePage({ inviteId }: { inviteId: string }) {
   const nav = useNavigate();
@@ -35,52 +42,60 @@ export function InvitePage({ inviteId }: { inviteId: string }) {
   }
 
   return (
-    <AuthCard
-      title="Accept invitation"
-      subtitle="Set a password to join the workspace. Public signup is disabled."
-    >
-      <form className="flex flex-col gap-3" onSubmit={(e) => void onSubmit(e)}>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">
-          Display name
-          <Input
+    <AuthSplit>
+      <AuthFormTitle
+        title="Accept invitation"
+        subtitle="Set a password to join the workspace. Public signup is disabled."
+      />
+
+      <form className="flex flex-col gap-4" onSubmit={(e) => void onSubmit(e)}>
+        <AuthField label="Display name">
+          <input
+            className={authInputClassName()}
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoComplete="name"
             autoFocus
+            placeholder="Your name"
           />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-text-muted">
-          Password
-          <Input
+        </AuthField>
+        <AuthField label="Password">
+          <input
             type="password"
+            className={authInputClassName()}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={10}
             autoComplete="new-password"
+            placeholder="At least 10 characters"
           />
-          <span className="text-[11px] text-text-muted">
-            At least 10 characters
-          </span>
-        </label>
+        </AuthField>
+
         {error ? (
           <p
             role="alert"
-            className="rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger"
+            className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-[13px] text-red-300"
           >
             {error}
           </p>
         ) : null}
-        <Button type="submit" className="mt-2 w-full" disabled={loading}>
-          {loading ? "Joining…" : "Join workspace"}
-        </Button>
-        <p className="text-center text-xs text-text-muted">
+
+        <AuthPrimaryButton loading={loading}>
+          Join workspace
+          <Icon icon={ArrowRight} size="sm" />
+        </AuthPrimaryButton>
+
+        <p className="text-center text-[12px] text-white/35">
           Already have an account?{" "}
-          <a href="/login" className="text-accent underline-offset-2 hover:underline">
+          <a
+            href="/login"
+            className="text-white/70 underline-offset-2 hover:text-white hover:underline"
+          >
             Sign in
           </a>
         </p>
       </form>
-    </AuthCard>
+    </AuthSplit>
   );
 }
