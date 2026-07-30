@@ -1,6 +1,15 @@
 import { createColumnHelper } from "@tanstack/react-table";
-import { Cable, Pencil, Plus, PlugZap, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Boxes,
+  Cable,
+  KeyRound,
+  Pencil,
+  Plus,
+  PlugZap,
+  Trash2,
+  type LucideIcon,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Badge,
   Button,
@@ -10,10 +19,12 @@ import {
   DialogFooter,
   EmptyStatePanel,
   Icon,
+  IconButton,
   Input,
   Label,
   Select,
   Switch,
+  Tooltip,
 } from "#/components/ui";
 import { AdminAlert } from "./admin-alert";
 import { AdminSection } from "./admin-section";
@@ -222,32 +233,26 @@ export function ProvidersAdmin() {
       }),
       connHelper.display({
         id: "actions",
-        header: "",
+        header: () => (
+          <span className="sr-only">Actions</span>
+        ),
         cell: (ctx) => {
           const row = ctx.row.original;
           return (
-            <div className="flex flex-wrap justify-end gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
+            <ActionIconGroup label={`Actions for ${row.name}`}>
+              <ActionIcon
+                icon={Boxes}
+                label={`Models for ${row.name}`}
                 onClick={() => setSelectedId(row.id)}
-              >
-                Models
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
+              />
+              <ActionIcon
+                icon={Pencil}
+                label={`Edit ${row.name}`}
                 onClick={() => setEditConn(row)}
-              >
-                <Icon icon={Pencil} size="sm" />
-                Edit
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
+              />
+              <ActionIcon
+                icon={PlugZap}
+                label={`Test connection ${row.name}`}
                 onClick={() =>
                   void (async () => {
                     setError(null);
@@ -267,27 +272,22 @@ export function ProvidersAdmin() {
                     )?.result;
                     if (!r.ok) setError(r.error ?? "Test failed");
                     else if (result?.ok)
-                      setInfo(`Test OK for ${row.name} (${result.latencyMs} ms)`);
+                      setInfo(
+                        `Test OK for ${row.name} (${result.latencyMs} ms)`,
+                      );
                     else setError(result?.message ?? "Test failed");
                   })()
                 }
-              >
-                <Icon icon={PlugZap} size="sm" />
-                Test
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
+              />
+              <ActionIcon
+                icon={KeyRound}
+                label={`Rotate API key for ${row.name}`}
                 onClick={() => setRotateConn(row)}
-              >
-                Rotate key
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-danger"
+              />
+              <ActionIcon
+                icon={Trash2}
+                label={`Delete ${row.name}`}
+                danger
                 onClick={() =>
                   askConfirm({
                     title: "Delete provider?",
@@ -320,10 +320,8 @@ export function ProvidersAdmin() {
                     },
                   })
                 }
-              >
-                <Icon icon={Trash2} size="sm" />
-              </Button>
-            </div>
+              />
+            </ActionIconGroup>
           );
         },
       }),
@@ -404,27 +402,22 @@ export function ProvidersAdmin() {
       }),
       modelHelper.display({
         id: "actions",
-        header: "",
+        header: () => <span className="sr-only">Actions</span>,
         cell: (ctx) => {
           const m = ctx.row.original;
           const conn = selected;
           if (!conn) return null;
           return (
-            <div className="flex justify-end gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
+            <ActionIconGroup label={`Actions for model ${m.displayName}`}>
+              <ActionIcon
+                icon={Pencil}
+                label={`Edit model ${m.displayName}`}
                 onClick={() => setEditModel({ conn, model: m })}
-              >
-                <Icon icon={Pencil} size="sm" />
-                Edit
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-danger"
+              />
+              <ActionIcon
+                icon={Trash2}
+                label={`Remove model ${m.displayName}`}
+                danger
                 onClick={() =>
                   askConfirm({
                     title: "Remove model?",
@@ -444,10 +437,8 @@ export function ProvidersAdmin() {
                     },
                   })
                 }
-              >
-                <Icon icon={Trash2} size="sm" />
-              </Button>
-            </div>
+              />
+            </ActionIconGroup>
           );
         },
       }),
@@ -910,6 +901,59 @@ function RotateKeyDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Compact icon toolbar for table rows */
+function ActionIconGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="flex shrink-0 items-center justify-end gap-0.5"
+      role="group"
+      aria-label={label}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ActionIcon({
+  icon,
+  label,
+  onClick,
+  danger,
+  disabled,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Tooltip content={label} side="top">
+      <IconButton
+        icon={icon}
+        label={label}
+        iconSize="sm"
+        disabled={disabled}
+        onClick={onClick}
+        className={[
+          "h-8 w-8",
+          danger
+            ? "text-danger/80 hover:bg-danger/10 hover:text-danger"
+            : undefined,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      />
+    </Tooltip>
   );
 }
 
