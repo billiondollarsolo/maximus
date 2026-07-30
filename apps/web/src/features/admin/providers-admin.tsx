@@ -38,6 +38,16 @@ const KINDS = [
   "ollama",
 ] as const;
 
+export type ProviderModelCaps = {
+  streaming?: boolean;
+  vision?: boolean;
+  imageGen?: boolean;
+  tools?: boolean;
+  contextWindow?: number;
+  maxOutputTokens?: number;
+  numCtx?: number;
+};
+
 export type ProviderModel = {
   id: string;
   modelRef: string;
@@ -46,6 +56,7 @@ export type ProviderModel = {
   isEnabled: boolean;
   inputUsdPer1m: number | null;
   outputUsdPer1m: number | null;
+  capabilities?: ProviderModelCaps | Record<string, unknown> | null;
 };
 
 export type ProviderConn = {
@@ -112,8 +123,6 @@ export function ProvidersAdmin() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
-  const selected = rows.find((r) => r.id === selectedId) ?? null;
 
   async function apiJson(
     url: string,
@@ -329,14 +338,39 @@ export function ProvidersAdmin() {
     [refresh, selectedId],
   );
 
-  const modelColumns = useMemo(
-    () => [
+  function modelColumnsFor(conn: ProviderConn) {
+    return [
       modelHelper.accessor("displayName", { header: "Display" }),
       modelHelper.accessor("modelId", {
         header: "Model id",
         cell: (ctx) => (
-          <code className="text-[12px] text-text-secondary">{ctx.getValue()}</code>
+          <code className="text-[12px] text-text-secondary">
+            {ctx.getValue()}
+          </code>
         ),
+      }),
+      modelHelper.display({
+        id: "limits",
+        header: "Limits",
+        cell: (ctx) => {
+          const caps = (ctx.row.original.capabilities ??
+            {}) as ProviderModelCaps;
+          const cw = caps.contextWindow;
+          const mo = caps.maxOutputTokens;
+          const nc = caps.numCtx;
+          if (cw == null && mo == null && nc == null) {
+            return <span className="text-text-faint">defaults</span>;
+          }
+          const bits: string[] = [];
+          if (cw != null) bits.push(`ctx ${cw.toLocaleString()}`);
+          if (nc != null && nc !== cw) bits.push(`num_ctx ${nc.toLocaleString()}`);
+          if (mo != null) bits.push(`out ${mo.toLocaleString()}`);
+          return (
+            <span className="font-mono text-[11px] text-text-muted">
+              {bits.join(" · ")}
+            </span>
+          );
+        },
       }),
       modelHelper.accessor("inputUsdPer1m", {
         header: "In $/1M",
@@ -405,8 +439,6 @@ export function ProvidersAdmin() {
         header: () => <span className="sr-only">Actions</span>,
         cell: (ctx) => {
           const m = ctx.row.original;
-          const conn = selected;
-          if (!conn) return null;
           return (
             <ActionIconGroup label={`Actions for model ${m.displayName}`}>
               <ActionIcon
@@ -442,9 +474,8 @@ export function ProvidersAdmin() {
           );
         },
       }),
-    ],
-    [refresh, selected],
-  );
+    ];
+  }
 
   return (
     <div>
@@ -485,31 +516,30 @@ export function ProvidersAdmin() {
         />
       )}
 
-      {selected ? (
+      {/* Always show models for every connection — no hide-behind-select */}
+      {rows.map((conn) => (
         <AdminSection
-          title={`Models · ${selected.name}`}
-          description={`${selected.kind}${selected.baseUrl ? ` · ${selected.baseUrl}` : ""}. Same model id on another provider is a separate offering.`}
+          key={conn.id}
+          title={`Models · ${conn.name}`}
+          description={`${conn.kind}${conn.baseUrl ? ` · ${conn.baseUrl}` : ""}${selectedId === conn.id ? " · selected" : ""}. Context / max output apply on chat.`}
           actions={
-            <Button type="button" onClick={() => setModelParent(selected)}>
+            <Button type="button" onClick={() => setModelParent(conn)}>
               <Icon icon={Plus} size="sm" />
               Add model
             </Button>
           }
         >
           <DataTable
-            data={selected.models}
-            columns={modelColumns}
+            data={conn.models}
+            columns={modelColumnsFor(conn)}
             getRowId={(m) => m.id}
             empty={
               <EmptyStatePanel
                 icon={Plus}
                 title="No models on this provider"
-                description="Add the model ids your key can call, with optional per-offering rates."
+                description="Add offerings (Ollama: pick from discovered tags). Chat only lists enabled offerings."
                 action={
-                  <Button
-                    type="button"
-                    onClick={() => setModelParent(selected)}
-                  >
+                  <Button type="button" onClick={() => setModelParent(conn)}>
                     <Icon icon={Plus} size="sm" />
                     Add model
                   </Button>
@@ -518,11 +548,7 @@ export function ProvidersAdmin() {
             }
           />
         </AdminSection>
-      ) : rows.length > 0 ? (
-        <p className="mt-6 text-sm text-text-faint">
-          Select a provider name to manage its models and pricing.
-        </p>
-      ) : null}
+      ))}
 
       <AddProviderDialog
         open={addOpen}
@@ -965,6 +991,38 @@ function formatOllamaLabel(name: string): string {
     .join(" ");
 }
 
+function parseOptionalInt(s: string): number | null {
+  const t = s.trim();
+  if (!t) return null;
+  const n = Number(t);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
+function capsFromForm(input: {
+  contextWindow: string;
+  maxOutput: string;
+  numCtx: string;
+  vision: boolean;
+  tools: boolean;
+  isOllama: boolean;
+}): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    streaming: true,
+    vision: input.vision,
+    tools: input.tools,
+    imageGen: false,
+  };
+  const cw = parseOptionalInt(input.contextWindow);
+  const mo = parseOptionalInt(input.maxOutput);
+  const nc = parseOptionalInt(input.numCtx);
+  if (cw != null) out.contextWindow = cw;
+  if (mo != null) out.maxOutputTokens = mo;
+  if (input.isOllama && nc != null) out.numCtx = nc;
+  else if (input.isOllama && cw != null) out.numCtx = cw;
+  return out;
+}
+
 function AddModelDialog({
   conn,
   onOpenChange,
@@ -978,6 +1036,7 @@ function AddModelDialog({
     displayName: string;
     inputUsdPer1m: number | null;
     outputUsdPer1m: number | null;
+    capabilities: Record<string, unknown>;
   }) => Promise<boolean>;
   busy: boolean;
 }) {
@@ -985,6 +1044,11 @@ function AddModelDialog({
   const [displayName, setDisplayName] = useState("");
   const [inputRate, setInputRate] = useState("");
   const [outputRate, setOutputRate] = useState("");
+  const [contextWindow, setContextWindow] = useState("");
+  const [maxOutput, setMaxOutput] = useState("");
+  const [numCtx, setNumCtx] = useState("");
+  const [vision, setVision] = useState(false);
+  const [tools, setTools] = useState(false);
   /** Ollama: discovered tags from /api/tags */
   const [tags, setTags] = useState<string[]>([]);
   const [tagsLoading, setTagsLoading] = useState(false);
@@ -1004,6 +1068,11 @@ function AddModelDialog({
     setDisplayName("");
     setInputRate("");
     setOutputRate("");
+    setContextWindow(isOllama ? "8192" : "");
+    setMaxOutput(isOllama ? "2048" : "4096");
+    setNumCtx("");
+    setVision(false);
+    setTools(false);
     setQuery("");
     setCustomMode(conn.kind !== "ollama");
     setTags([]);
@@ -1203,6 +1272,32 @@ function AddModelDialog({
               placeholder={isOllama ? "Llama 3.2" : "GPT-4.1 (prod)"}
             />
           </Field>
+          <Field label="Context window (tokens)">
+            <Input
+              value={contextWindow}
+              onChange={(e) => setContextWindow(e.target.value)}
+              placeholder={isOllama ? "8192" : "e.g. 128000"}
+              inputMode="numeric"
+            />
+          </Field>
+          <Field label="Max output tokens">
+            <Input
+              value={maxOutput}
+              onChange={(e) => setMaxOutput(e.target.value)}
+              placeholder="e.g. 4096"
+              inputMode="numeric"
+            />
+          </Field>
+          {isOllama ? (
+            <Field label="Ollama num_ctx (optional)">
+              <Input
+                value={numCtx}
+                onChange={(e) => setNumCtx(e.target.value)}
+                placeholder="defaults to context window"
+                inputMode="numeric"
+              />
+            </Field>
+          ) : null}
           <Field label="Input $/1M">
             <Input
               value={inputRate}
@@ -1217,6 +1312,24 @@ function AddModelDialog({
               placeholder="optional"
             />
           </Field>
+          <div className="sm:col-span-2 flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                checked={vision}
+                onChange={(e) => setVision(e.target.checked)}
+              />
+              Vision
+            </label>
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                checked={tools}
+                onChange={(e) => setTools(e.target.checked)}
+              />
+              Tools
+            </label>
+          </div>
         </div>
         {isOllama && modelId && !customMode ? (
           <p className="text-xs text-text-muted">
@@ -1224,6 +1337,11 @@ function AddModelDialog({
             <span className="font-mono text-text-secondary">{modelId}</span>
           </p>
         ) : null}
+        <p className="text-[11px] text-text-faint">
+          Context window is the model’s max input budget. Max output caps the
+          completion. For Ollama, context is sent as{" "}
+          <code className="font-mono">num_ctx</code> (slow first load if large).
+        </p>
         <DialogFooter>
           <Button
             type="button"
@@ -1241,6 +1359,14 @@ function AddModelDialog({
                 displayName: displayName.trim() || modelId.trim(),
                 inputUsdPer1m: inputRate === "" ? null : Number(inputRate),
                 outputUsdPer1m: outputRate === "" ? null : Number(outputRate),
+                capabilities: capsFromForm({
+                  contextWindow,
+                  maxOutput,
+                  numCtx,
+                  vision,
+                  tools,
+                  isOllama: Boolean(isOllama),
+                }),
               })
             }
           >
@@ -1264,12 +1390,20 @@ function EditModelDialog({
     displayName: string;
     inputUsdPer1m: number | null;
     outputUsdPer1m: number | null;
+    capabilities: Record<string, unknown>;
   }) => Promise<boolean>;
   busy: boolean;
 }) {
   const [displayName, setDisplayName] = useState("");
   const [inputRate, setInputRate] = useState("");
   const [outputRate, setOutputRate] = useState("");
+  const [contextWindow, setContextWindow] = useState("");
+  const [maxOutput, setMaxOutput] = useState("");
+  const [numCtx, setNumCtx] = useState("");
+  const [vision, setVision] = useState(false);
+  const [tools, setTools] = useState(false);
+
+  const isOllama = state?.conn.kind === "ollama";
 
   useEffect(() => {
     if (state) {
@@ -1284,6 +1418,16 @@ function EditModelDialog({
           ? ""
           : String(state.model.outputUsdPer1m),
       );
+      const caps = (state.model.capabilities ?? {}) as ProviderModelCaps;
+      setContextWindow(
+        caps.contextWindow != null ? String(caps.contextWindow) : "",
+      );
+      setMaxOutput(
+        caps.maxOutputTokens != null ? String(caps.maxOutputTokens) : "",
+      );
+      setNumCtx(caps.numCtx != null ? String(caps.numCtx) : "");
+      setVision(caps.vision === true);
+      setTools(caps.tools === true);
     }
   }, [state]);
 
@@ -1305,6 +1449,32 @@ function EditModelDialog({
             />
           </Field>
           <div />
+          <Field label="Context window (tokens)">
+            <Input
+              value={contextWindow}
+              onChange={(e) => setContextWindow(e.target.value)}
+              placeholder="e.g. 8192"
+              inputMode="numeric"
+            />
+          </Field>
+          <Field label="Max output tokens">
+            <Input
+              value={maxOutput}
+              onChange={(e) => setMaxOutput(e.target.value)}
+              placeholder="e.g. 4096"
+              inputMode="numeric"
+            />
+          </Field>
+          {isOllama ? (
+            <Field label="Ollama num_ctx (optional)">
+              <Input
+                value={numCtx}
+                onChange={(e) => setNumCtx(e.target.value)}
+                placeholder="defaults to context window"
+                inputMode="numeric"
+              />
+            </Field>
+          ) : null}
           <Field label="Input $/1M">
             <Input
               value={inputRate}
@@ -1319,6 +1489,24 @@ function EditModelDialog({
               placeholder="blank = pattern default"
             />
           </Field>
+          <div className="sm:col-span-2 flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                checked={vision}
+                onChange={(e) => setVision(e.target.checked)}
+              />
+              Vision
+            </label>
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
+              <input
+                type="checkbox"
+                checked={tools}
+                onChange={(e) => setTools(e.target.checked)}
+              />
+              Tools
+            </label>
+          </div>
         </div>
         <DialogFooter>
           <Button
@@ -1336,6 +1524,14 @@ function EditModelDialog({
                 displayName,
                 inputUsdPer1m: inputRate === "" ? null : Number(inputRate),
                 outputUsdPer1m: outputRate === "" ? null : Number(outputRate),
+                capabilities: capsFromForm({
+                  contextWindow,
+                  maxOutput,
+                  numCtx,
+                  vision,
+                  tools,
+                  isOllama: Boolean(isOllama),
+                }),
               })
             }
           >

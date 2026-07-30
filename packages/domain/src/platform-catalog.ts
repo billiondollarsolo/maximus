@@ -22,7 +22,13 @@ const OPENAI_GPT: CatalogModel = {
   displayName: "GPT-4.1",
   providerKind: "openai",
   isEnabled: true,
-  capabilities: { streaming: true, vision: true, tools: true },
+  capabilities: {
+    streaming: true,
+    vision: true,
+    tools: true,
+    contextWindow: 1_047_576,
+    maxOutputTokens: 32_768,
+  },
   sortOrder: 10,
 };
 
@@ -31,7 +37,13 @@ const ANTHROPIC_SONNET: CatalogModel = {
   displayName: "Claude Sonnet 4",
   providerKind: "anthropic",
   isEnabled: true,
-  capabilities: { streaming: true, vision: true, tools: true },
+  capabilities: {
+    streaming: true,
+    vision: true,
+    tools: true,
+    contextWindow: 200_000,
+    maxOutputTokens: 8_192,
+  },
   sortOrder: 20,
 };
 
@@ -40,9 +52,19 @@ const OPENAI_IMAGE: CatalogModel = {
   displayName: "GPT Image (gen)",
   providerKind: "openai",
   isEnabled: true,
-  capabilities: { streaming: false, imageGen: true },
+  capabilities: {
+    streaming: false,
+    imageGen: true,
+    // Image models don't use chat context the same way
+    maxOutputTokens: 4_096,
+  },
   sortOrder: 30,
 };
+
+/** Full static platform seed (ignores keys) — for capability lookup by modelRef. */
+export function platformSeedModels(): CatalogModel[] {
+  return [OPENAI_GPT, OPENAI_IMAGE, ANTHROPIC_SONNET];
+}
 
 /**
  * Static **cloud** platform models — only when platform API keys exist.

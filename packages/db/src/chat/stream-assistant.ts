@@ -2,6 +2,8 @@ import {
   AppError,
   assembleSystemPrompts,
   computeCostMicros,
+  effectiveMaxOutputTokens,
+  effectiveNumCtx,
   parseModelRef,
   textParts,
 } from "@maximus/domain";
@@ -22,6 +24,7 @@ import * as providerRepo from "../repos/providers.js";
 import { getCustomInstructions } from "../repos/user-settings.js";
 import type { StreamAssistantInput } from "./chat-turn-types.js";
 import type { ChatActor, ChatTurnEvent } from "./chat-turn-types.js";
+import { resolveModelCapabilities } from "./resolve-model-capabilities.js";
 
 export async function* streamAssistant(args: {
   db: Db;
@@ -86,6 +89,14 @@ export async function* streamAssistant(args: {
     userPreferred: custom?.preferredResponse,
   });
 
+  const caps = await resolveModelCapabilities(
+    args.db,
+    args.ctx.orgId,
+    args.modelRef,
+  );
+  const maxOutputTokens = effectiveMaxOutputTokens(caps);
+  const numCtx = effectiveNumCtx(caps);
+
   let adapter: FakeTextAdapter;
   if (resolved.adapter.kind === "fake" || mode === "fake") {
     adapter =
@@ -104,6 +115,8 @@ export async function* streamAssistant(args: {
       modelId: live.modelId,
       baseUrl: live.baseUrl ?? resolved.credentials.baseUrl,
       apiKey: live.apiKey ?? resolved.credentials.apiKey,
+      maxOutputTokens,
+      numCtx,
     });
   }
 
@@ -121,6 +134,8 @@ export async function* streamAssistant(args: {
   try {
     for await (const chunk of adapter.stream(messages, {
       signal: args.input.signal,
+      maxOutputTokens,
+      numCtx,
     })) {
       if (chunk.type === "text") {
         if (firstTokenAt == null) firstTokenAt = Date.now();

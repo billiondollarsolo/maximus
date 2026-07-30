@@ -5,12 +5,20 @@ export type FakeChunk =
   | { type: "usage"; inputTokens: number; outputTokens: number }
   | { type: "error"; message: string };
 
+export type StreamOpts = {
+  signal?: AbortSignal;
+  /** Cap completion tokens when supported by the provider. */
+  maxOutputTokens?: number;
+  /** Ollama num_ctx (and similar). */
+  numCtx?: number;
+};
+
 export type FakeTextAdapter = {
   kind: "fake";
   modelId: string;
   stream: (
     messages: ProviderMessage[],
-    opts?: { signal?: AbortSignal },
+    opts?: StreamOpts,
   ) => AsyncGenerator<FakeChunk>;
 };
 

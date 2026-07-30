@@ -1,6 +1,6 @@
 import {
-  defaultPlatformCatalog,
   parseCapabilities,
+  platformSeedModels,
   type ModelCapabilities,
 } from "@maximus/domain";
 import type { Db } from "../client.js";
@@ -18,7 +18,7 @@ export async function resolveModelCapabilities(
       (orgHit.capabilities ?? {}) as Record<string, unknown>,
     );
   }
-  const platform = defaultPlatformCatalog().find((m) => m.modelRef === modelRef);
+  const platform = platformSeedModels().find((m) => m.modelRef === modelRef);
   if (platform) {
     return parseCapabilities(
       (platform.capabilities ?? {}) as Record<string, unknown>,

@@ -32,6 +32,9 @@ export {
 } from "./content-parts.js";
 export {
   parseCapabilities,
+  buildCapabilities,
+  effectiveNumCtx,
+  effectiveMaxOutputTokens,
   modelAcceptsImages,
   modelCanGenerateImages,
   contentHasImages,
@@ -99,6 +102,7 @@ export {
   defaultPlatformModelRef,
   ollamaDiscoveredCatalog,
   formatOllamaDisplayName,
+  platformSeedModels,
   type PlatformCatalogEnv,
 } from "./platform-catalog.js";
 export { composeCatalog, type ComposeCatalogInput } from "./compose-catalog.js";

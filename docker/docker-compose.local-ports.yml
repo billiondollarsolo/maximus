@@ -1,0 +1,12 @@
+# Local port map (host): app HTTPS 16010 · pg 16011 · valkey 16012 · rustfs 16013/16014
+services:
+  postgres:
+    ports:
+      - "16011:5432"
+  valkey:
+    ports:
+      - "16012:6379"
+  rustfs:
+    ports:
+      - "16013:9000"
+      - "16014:9001"

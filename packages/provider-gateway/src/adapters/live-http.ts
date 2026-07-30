@@ -1,5 +1,9 @@
 import type { ProviderKind } from "@maximus/domain";
-import type { FakeChunk, FakeTextAdapter } from "./fake-adapter.js";
+import type {
+  FakeChunk,
+  FakeTextAdapter,
+  StreamOpts,
+} from "./fake-adapter.js";
 import {
   toAnthropicUserContent,
   toOllamaMessage,
@@ -13,6 +17,10 @@ export type LiveAdapterConfig = {
   apiKey?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
+  /** Default max completion tokens when stream opts omit maxOutputTokens */
+  maxOutputTokens?: number;
+  /** Default Ollama num_ctx when stream opts omit numCtx */
+  numCtx?: number;
 };
 
 /**
@@ -24,15 +32,20 @@ export function createLiveHttpAdapter(cfg: LiveAdapterConfig): FakeTextAdapter {
     kind: "fake",
     modelId: cfg.modelId,
     async *stream(messages, opts) {
+      const streamOpts: StreamOpts = {
+        signal: opts?.signal,
+        maxOutputTokens: opts?.maxOutputTokens ?? cfg.maxOutputTokens,
+        numCtx: opts?.numCtx ?? cfg.numCtx,
+      };
       if (cfg.providerKind === "anthropic") {
-        yield* streamAnthropic(cfg, messages, opts?.signal);
+        yield* streamAnthropic(cfg, messages, streamOpts);
         return;
       }
       if (cfg.providerKind === "ollama") {
-        yield* streamOllama(cfg, messages, opts?.signal);
+        yield* streamOllama(cfg, messages, streamOpts);
         return;
       }
-      yield* streamOpenAICompat(cfg, messages, opts?.signal);
+      yield* streamOpenAICompat(cfg, messages, streamOpts);
     },
   };
 }
@@ -40,38 +53,42 @@ export function createLiveHttpAdapter(cfg: LiveAdapterConfig): FakeTextAdapter {
 async function* streamOpenAICompat(
   cfg: LiveAdapterConfig,
   messages: ProviderMessage[],
-  signal?: AbortSignal,
+  opts: StreamOpts,
 ): AsyncGenerator<FakeChunk> {
   const fetchFn = cfg.fetchImpl ?? fetch;
   const base = (cfg.baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
   const url = base.endsWith("/chat/completions")
     ? base
     : `${base}/chat/completions`;
+  const body: Record<string, unknown> = {
+    model: cfg.modelId,
+    stream: true,
+    stream_options: { include_usage: true },
+    messages: toOpenAiChatMessages(messages),
+  };
+  if (opts.maxOutputTokens != null && opts.maxOutputTokens > 0) {
+    body.max_tokens = opts.maxOutputTokens;
+  }
   const res = await fetchFn(url, {
     method: "POST",
-    signal,
+    signal: opts.signal,
     headers: {
       "Content-Type": "application/json",
       ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {}),
     },
-    body: JSON.stringify({
-      model: cfg.modelId,
-      stream: true,
-      stream_options: { include_usage: true },
-      messages: toOpenAiChatMessages(messages),
-    }),
+    body: JSON.stringify(body),
   });
   if (!res.ok || !res.body) {
     const t = await res.text().catch(() => "");
     throw new Error(`OpenAI-compat error ${res.status}: ${t.slice(0, 200)}`);
   }
-  yield* parseSSEOpenAI(res.body, signal);
+  yield* parseSSEOpenAI(res.body, opts.signal);
 }
 
 async function* streamAnthropic(
   cfg: LiveAdapterConfig,
   messages: ProviderMessage[],
-  signal?: AbortSignal,
+  opts: StreamOpts,
 ): AsyncGenerator<FakeChunk> {
   const fetchFn = cfg.fetchImpl ?? fetch;
   const base = (cfg.baseUrl ?? "https://api.anthropic.com").replace(/\/$/, "");
@@ -92,9 +109,13 @@ async function* streamAnthropic(
       role: m.role === "assistant" ? "assistant" : "user",
       content: toAnthropicUserContent(m.content),
     }));
+  const maxTokens =
+    opts.maxOutputTokens != null && opts.maxOutputTokens > 0
+      ? opts.maxOutputTokens
+      : 4096;
   const res = await fetchFn(`${base}/v1/messages`, {
     method: "POST",
-    signal,
+    signal: opts.signal,
     headers: {
       "Content-Type": "application/json",
       "anthropic-version": "2023-06-01",
@@ -102,7 +123,7 @@ async function* streamAnthropic(
     },
     body: JSON.stringify({
       model: cfg.modelId,
-      max_tokens: 4096,
+      max_tokens: maxTokens,
       stream: true,
       system: system || undefined,
       messages: chatMsgs,
@@ -112,24 +133,32 @@ async function* streamAnthropic(
     const t = await res.text().catch(() => "");
     throw new Error(`Anthropic error ${res.status}: ${t.slice(0, 200)}`);
   }
-  yield* parseSSEAnthropic(res.body, signal);
+  yield* parseSSEAnthropic(res.body, opts.signal);
 }
 
 async function* streamOllama(
   cfg: LiveAdapterConfig,
   messages: ProviderMessage[],
-  signal?: AbortSignal,
+  opts: StreamOpts,
 ): AsyncGenerator<FakeChunk> {
   const fetchFn = cfg.fetchImpl ?? fetch;
   const base = (cfg.baseUrl ?? "http://127.0.0.1:11434").replace(/\/$/, "");
+  const options: Record<string, number> = {};
+  if (opts.numCtx != null && opts.numCtx > 0) {
+    options.num_ctx = opts.numCtx;
+  }
+  if (opts.maxOutputTokens != null && opts.maxOutputTokens > 0) {
+    options.num_predict = opts.maxOutputTokens;
+  }
   const res = await fetchFn(`${base}/api/chat`, {
     method: "POST",
-    signal,
+    signal: opts.signal,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: cfg.modelId,
       stream: true,
       messages: messages.map(toOllamaMessage),
+      ...(Object.keys(options).length ? { options } : {}),
     }),
   });
   if (!res.ok || !res.body) {
@@ -141,7 +170,7 @@ async function* streamOllama(
   let buf = "";
   let outTokens = 0;
   while (true) {
-    if (signal?.aborted) {
+    if (opts.signal?.aborted) {
       const err = new Error("aborted");
       err.name = "AbortError";
       throw err;

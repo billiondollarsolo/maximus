@@ -21,6 +21,20 @@ describe("parseCapabilities", () => {
       tools: false,
     });
   });
+
+  it("reads context and output limits", () => {
+    expect(
+      parseCapabilities({
+        contextWindow: 8192,
+        maxOutputTokens: "2048",
+        num_ctx: 4096,
+      }),
+    ).toMatchObject({
+      contextWindow: 8192,
+      maxOutputTokens: 2048,
+      numCtx: 4096,
+    });
+  });
 });
 
 describe("modelAcceptsImages / modelCanGenerateImages", () => {

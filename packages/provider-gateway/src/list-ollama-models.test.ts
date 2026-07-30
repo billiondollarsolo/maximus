@@ -21,8 +21,8 @@ describe("listOllamaModels", () => {
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
     expect(fetchImpl).toHaveBeenCalled();
-    const url = String(fetchImpl.mock.calls[0]?.[0]);
-    expect(url).toBe("http://127.0.0.1:11434/api/tags");
+    const firstCall = fetchImpl.mock.calls[0] as unknown as [string];
+    expect(String(firstCall[0])).toBe("http://127.0.0.1:11434/api/tags");
     expect(tags.map((t) => t.name)).toEqual([
       "llama3.2:latest",
       "qwen2.5:7b",
