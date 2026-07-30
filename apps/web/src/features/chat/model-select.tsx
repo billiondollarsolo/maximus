@@ -40,17 +40,22 @@ export function ModelSelect({
   const vision = selected?.capabilities?.vision === true;
 
   return (
-    <div className={cn("flex flex-col items-center gap-1", className)}>
+    <div className={cn("inline-flex items-center gap-2", className)}>
       <label className="relative inline-flex items-center">
         <span className="sr-only">Model</span>
         <select
           aria-label="Model"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="appearance-none rounded-lg border border-border-subtle bg-bg-elevated py-1.5 pl-3 pr-8 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className={cn(
+            "appearance-none rounded-full border-0 bg-transparent py-1.5 pl-3 pr-8",
+            "text-[15px] font-medium text-text-primary",
+            "hover:bg-bg-sidebar-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]",
+            "cursor-pointer",
+          )}
         >
           {models.length === 0 ? (
-            <option value={value}>{error ?? "Loading models…"}</option>
+            <option value={value}>{error ?? "Loading…"}</option>
           ) : (
             models.map((m) => (
               <option key={m.modelRef} value={m.modelRef}>
@@ -66,7 +71,7 @@ export function ModelSelect({
         />
       </label>
       {vision ? (
-        <span className="text-[10px] uppercase tracking-wide text-text-muted">
+        <span className="rounded-full bg-bg-sidebar-hover px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-faint">
           Vision
         </span>
       ) : null}

@@ -4,19 +4,22 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 const dir = dirname(fileURLToPath(import.meta.url));
+const tokens = readFileSync(join(dir, "tokens.css"), "utf8");
 
-describe("global design tokens", () => {
-  it("defines dark and light theme variables", () => {
-    const css = readFileSync(join(dir, "tokens.css"), "utf8");
-    expect(css).toContain('[data-theme="dark"]');
-    expect(css).toContain('[data-theme="light"]');
-    expect(css).toContain("--bg-app");
-    expect(css).toContain("--accent");
+describe("design tokens", () => {
+  it("defines dark canvas and sidebar near ChatGPT product greys", () => {
+    expect(tokens).toMatch(/--bg-app:\s*#212121/);
+    expect(tokens).toMatch(/--bg-sidebar:\s*#171717/);
+    expect(tokens).toMatch(/--bg-composer:\s*#2f2f2f/);
   });
 
-  it("app.css imports tokens and tailwind once", () => {
-    const css = readFileSync(join(dir, "app.css"), "utf8");
-    expect(css).toContain('@import "tailwindcss"');
-    expect(css).toContain('@import "./tokens.css"');
+  it("has light theme overrides", () => {
+    expect(tokens).toMatch(/\[data-theme="light"\]/);
+    expect(tokens).toMatch(/--bg-app:\s*#ffffff/);
+  });
+
+  it("uses neutral primary button tokens (not green send)", () => {
+    expect(tokens).toMatch(/--btn-primary:/);
+    expect(tokens).toMatch(/--btn-primary-fg:/);
   });
 });

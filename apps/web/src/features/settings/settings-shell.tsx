@@ -33,10 +33,10 @@ export function SettingsShell({
               key={item.to}
               to={item.to}
               className={cn(
-                "rounded-lg px-3 py-2 text-sm",
+                "rounded-[var(--radius-md)] px-3 py-2 text-[13.5px]",
                 active === item.to
-                  ? "bg-bg-composer font-medium"
-                  : "text-text-muted hover:bg-bg-composer/60 hover:text-text-primary",
+                  ? "bg-bg-sidebar-active font-medium text-text-primary"
+                  : "text-text-muted hover:bg-bg-sidebar-hover hover:text-text-primary",
               )}
             >
               {item.label}

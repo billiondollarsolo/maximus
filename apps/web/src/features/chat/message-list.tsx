@@ -22,6 +22,9 @@ export type UiMessage = {
   position?: number;
 };
 
+/**
+ * ChatGPT layout: assistant full-width prose; user right-aligned soft bubble.
+ */
 export function MessageList({
   messages,
   tree,
@@ -30,9 +33,7 @@ export function MessageList({
   onFeedback,
   onBranch,
 }: {
-  /** Linearized active branch for display */
   messages: UiMessage[];
-  /** Full tree nodes for sibling meta (id/parent/position) */
   tree: Array<{
     id: string;
     parentMessageId: string | null;
@@ -55,128 +56,165 @@ export function MessageList({
   }));
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 overflow-y-auto px-4 py-6">
-      {messages.map((m) => {
-        const meta = siblingBranchMeta(treeForMeta, m.id);
-        return (
-          <div
-            key={m.id}
-            className={cn(
-              "group flex flex-col gap-2",
-              m.role === "user" ? "items-end" : "items-start",
-            )}
-          >
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col gap-6 px-4 py-6 md:px-5 md:py-8">
+        {messages.map((m) => {
+          const meta = siblingBranchMeta(treeForMeta, m.id);
+          const isUser = m.role === "user";
+          const isAssistant = m.role === "assistant";
+
+          return (
             <div
+              key={m.id}
               className={cn(
-                "max-w-[90%] rounded-2xl px-4 py-3",
-                m.role === "user"
-                  ? "bg-bg-composer text-text-primary"
-                  : "bg-transparent text-text-primary",
+                "group flex w-full flex-col",
+                isUser ? "items-end" : "items-stretch",
               )}
             >
-              {editingId === m.id ? (
-                <div className="flex min-w-[16rem] flex-col gap-2">
-                  <textarea
-                    className="min-h-[80px] w-full rounded-lg border border-border-subtle bg-bg-app p-2 text-sm"
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        onEdit?.(m.id, editText);
-                        setEditingId(null);
-                      }}
-                    >
-                      Save & submit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditingId(null)}
-                    >
-                      Cancel
-                    </Button>
+              {isAssistant ? (
+                <div className="flex gap-3">
+                  <div
+                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-bg-sidebar-active text-[11px] font-semibold text-text-primary"
+                    aria-hidden
+                  >
+                    M
+                  </div>
+                  <div className="min-w-0 flex-1 pt-0.5">
+                    {editingId === m.id ? null : (
+                      <div className="msg-prose">
+                        <MarkdownRenderer content={m.content} />
+                        {m.status === "streaming" && !m.content ? (
+                          <span className="inline-block h-4 w-1.5 animate-pulse rounded-sm bg-text-muted" />
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 </div>
-              ) : m.role === "assistant" ? (
-                <MarkdownRenderer content={m.content} />
               ) : (
-                <p className="whitespace-pre-wrap text-sm">{m.content}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-1">
-              {meta && onBranch ? (
                 <div
-                  className="flex items-center gap-0.5 rounded-lg border border-border-subtle bg-bg-sidebar px-0.5 text-xs text-text-muted"
-                  role="group"
-                  aria-label="Branch version"
+                  className={cn(
+                    "max-w-[85%] rounded-[var(--radius-bubble)] bg-bg-user-bubble px-4 py-2.5 text-[15px] leading-relaxed text-text-primary sm:max-w-[75%]",
+                  )}
                 >
-                  <IconButton
-                    icon={ChevronLeft}
-                    label="Previous branch"
-                    iconSize="sm"
-                    disabled={meta.index <= 1}
-                    onClick={() => onBranch(m.id, -1)}
-                  />
-                  <span className="min-w-[2.5rem] text-center tabular-nums">
-                    {meta.index} / {meta.total}
-                  </span>
-                  <IconButton
-                    icon={ChevronRight}
-                    label="Next branch"
-                    iconSize="sm"
-                    disabled={meta.index >= meta.total}
-                    onClick={() => onBranch(m.id, 1)}
-                  />
+                  {editingId === m.id ? (
+                    <div className="flex min-w-[16rem] flex-col gap-2">
+                      <textarea
+                        className="min-h-[80px] w-full rounded-[var(--radius-md)] border border-border-subtle bg-bg-app p-2 text-sm"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            onEdit?.(m.id, editText);
+                            setEditingId(null);
+                          }}
+                        >
+                          Send
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setEditingId(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{m.content}</p>
+                  )}
                 </div>
-              ) : null}
-              {m.role === "assistant" ? (
-                <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <IconButton
-                    icon={Copy}
-                    label="Copy"
-                    iconSize="sm"
-                    onClick={() => navigator.clipboard.writeText(m.content)}
-                  />
-                  <IconButton
-                    icon={RefreshCw}
-                    label="Regenerate"
-                    iconSize="sm"
-                    onClick={() => onRegenerate?.(m.id)}
-                  />
-                  <IconButton
-                    icon={ThumbsUp}
-                    label="Good response"
-                    iconSize="sm"
-                    onClick={() => onFeedback?.(m.id, "up")}
-                  />
-                  <IconButton
-                    icon={ThumbsDown}
-                    label="Bad response"
-                    iconSize="sm"
-                    onClick={() => onFeedback?.(m.id, "down")}
-                  />
-                </div>
-              ) : null}
-              {m.role === "user" && editingId !== m.id ? (
-                <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+              )}
+
+              {/* Actions under turn */}
+              <div
+                className={cn(
+                  "mt-1.5 flex items-center gap-0.5",
+                  isUser ? "mr-0.5" : "ml-10",
+                  isAssistant &&
+                    "opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
+                )}
+              >
+                {meta && onBranch ? (
+                  <div
+                    className="mr-1 flex items-center gap-0.5 rounded-lg text-[12px] text-text-muted"
+                    role="group"
+                    aria-label="Branch version"
+                  >
+                    <IconButton
+                      icon={ChevronLeft}
+                      label="Previous branch"
+                      iconSize="sm"
+                      className="h-7 w-7"
+                      disabled={meta.index <= 1}
+                      onClick={() => onBranch(m.id, -1)}
+                    />
+                    <span className="min-w-[2.25rem] text-center tabular-nums">
+                      {meta.index}/{meta.total}
+                    </span>
+                    <IconButton
+                      icon={ChevronRight}
+                      label="Next branch"
+                      iconSize="sm"
+                      className="h-7 w-7"
+                      disabled={meta.index >= meta.total}
+                      onClick={() => onBranch(m.id, 1)}
+                    />
+                  </div>
+                ) : null}
+
+                {isAssistant ? (
+                  <>
+                    <IconButton
+                      icon={Copy}
+                      label="Copy"
+                      iconSize="sm"
+                      className="h-7 w-7"
+                      onClick={() => navigator.clipboard.writeText(m.content)}
+                    />
+                    <IconButton
+                      icon={RefreshCw}
+                      label="Regenerate"
+                      iconSize="sm"
+                      className="h-7 w-7"
+                      onClick={() => onRegenerate?.(m.id)}
+                    />
+                    <IconButton
+                      icon={ThumbsUp}
+                      label="Good response"
+                      iconSize="sm"
+                      className="h-7 w-7"
+                      onClick={() => onFeedback?.(m.id, "up")}
+                    />
+                    <IconButton
+                      icon={ThumbsDown}
+                      label="Bad response"
+                      iconSize="sm"
+                      className="h-7 w-7"
+                      onClick={() => onFeedback?.(m.id, "down")}
+                    />
+                  </>
+                ) : null}
+
+                {isUser && editingId !== m.id ? (
                   <IconButton
                     icon={Pencil}
                     label="Edit message"
                     iconSize="sm"
+                    className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100"
                     onClick={() => {
                       setEditingId(m.id);
                       setEditText(m.content);
                     }}
                   />
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

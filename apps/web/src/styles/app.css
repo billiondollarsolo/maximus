@@ -4,17 +4,29 @@
 @theme {
   --color-bg-app: var(--bg-app);
   --color-bg-sidebar: var(--bg-sidebar);
+  --color-bg-sidebar-hover: var(--bg-sidebar-hover);
+  --color-bg-sidebar-active: var(--bg-sidebar-active);
   --color-bg-composer: var(--bg-composer);
   --color-bg-elevated: var(--bg-elevated);
+  --color-bg-user-bubble: var(--bg-user-bubble);
+  --color-bg-code: var(--bg-code);
   --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
   --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
   --color-accent-fg: var(--accent-fg);
   --color-danger: var(--danger);
+  --color-btn-primary: var(--btn-primary);
+  --color-btn-primary-fg: var(--btn-primary-fg);
+  --color-btn-primary-hover: var(--btn-primary-hover);
+  --color-btn-send-disabled: var(--btn-send-disabled);
   --font-family-sans: var(--font-sans);
   --font-family-mono: var(--font-mono);
   --radius-composer: var(--radius-composer);
+  --radius-bubble: var(--radius-bubble);
   --spacing-sidebar: var(--sidebar-width);
 }
 
@@ -24,21 +36,85 @@
 
 html,
 body,
-#app {
+#app,
+#root {
+  height: 100%;
   min-height: 100%;
 }
 
 body {
   margin: 0;
   font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
   background: var(--bg-app);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* ChatGPT-like subtle scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text-muted) 45%, transparent)
+    transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-muted) 40%, transparent);
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
   color: var(--text-primary);
 }
 
-/* Focus ring for keyboard users */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
+}
+
+/* Prose in assistant messages */
+.msg-prose {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--text-primary);
+}
+.msg-prose p {
+  margin: 0.65em 0;
+}
+.msg-prose p:first-child {
+  margin-top: 0;
+}
+.msg-prose p:last-child {
+  margin-bottom: 0;
+}
+
+/* Composer textarea reset inside pill */
+.composer-input {
+  field-sizing: content;
+  min-height: 24px;
+  max-height: 200px;
+  resize: none;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.composer-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

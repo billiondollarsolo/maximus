@@ -1,28 +1,29 @@
 import { useRef, useState } from "react";
 import { ArrowUp, Paperclip, Square, X } from "lucide-react";
-import { Icon, IconButton, Textarea } from "#/components/ui";
+import { Icon } from "#/components/ui";
 import { cn } from "#/lib/cn";
-import { ModelSelect } from "./model-select";
 
 export type PendingAttachment = {
   id: string;
   filename: string;
 };
 
+/**
+ * ChatGPT-class composer: single elevated pill, tools inside, neutral send disc.
+ * Model picker lives in the main header (not stacked above the field).
+ */
 export function Composer({
-  modelRef,
-  onModelChange,
   streaming = false,
   onSend,
   onStop,
   initialValue = "",
+  disabled,
 }: {
-  modelRef: string;
-  onModelChange: (value: string) => void;
   streaming?: boolean;
   onSend?: (text: string, attachmentIds?: string[]) => void;
   onStop?: () => void;
   initialValue?: string;
+  disabled?: boolean;
 }) {
   const [text, setText] = useState(initialValue);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
@@ -31,7 +32,8 @@ export function Composer({
   const canSend =
     (text.trim().length > 0 || attachments.length > 0) &&
     !streaming &&
-    !uploading;
+    !uploading &&
+    !disabled;
 
   function submit() {
     if (!canSend) return;
@@ -49,6 +51,7 @@ export function Composer({
     try {
       const intent = await fetch("/api/uploads", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           filename: file.name,
@@ -61,7 +64,6 @@ export function Composer({
         attachmentId: string;
         uploadUrl: string;
       };
-      // Best-effort PUT to presigned URL (RustFS/S3)
       await fetch(data.uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -78,27 +80,25 @@ export function Composer({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-4">
-      <div className="mb-2 flex justify-center">
-        <ModelSelect value={modelRef} onChange={onModelChange} />
-      </div>
+    <div className="mx-auto w-full max-w-[var(--content-max)] px-4 pb-3 md:px-5">
       <div
         className={cn(
-          "flex flex-col rounded-[var(--radius-composer)] border border-border-subtle bg-bg-composer shadow-sm",
+          "flex flex-col bg-bg-composer shadow-[var(--shadow-composer)]",
+          "rounded-[var(--radius-composer)]",
         )}
       >
         {attachments.length > 0 ? (
-          <div className="flex flex-wrap gap-2 px-3 pt-3">
+          <div className="flex flex-wrap gap-2 px-4 pt-3">
             {attachments.map((a) => (
               <span
                 key={a.id}
-                className="inline-flex items-center gap-1 rounded-full border border-border-subtle bg-bg-elevated px-2 py-0.5 text-xs text-text-muted"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border-subtle bg-bg-app px-2.5 py-1 text-[12px] text-text-secondary"
               >
                 {a.filename}
                 <button
                   type="button"
                   aria-label={`Remove ${a.filename}`}
-                  className="hover:text-text-primary"
+                  className="text-text-muted hover:text-text-primary"
                   onClick={() =>
                     setAttachments((prev) => prev.filter((x) => x.id !== a.id))
                   }
@@ -109,12 +109,32 @@ export function Composer({
             ))}
           </div>
         ) : null}
-        <div className="px-3 pt-3">
-          <Textarea
+
+        <div className="flex items-end gap-1 px-3 py-3">
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            accept="image/*,.txt,.pdf,text/plain,application/pdf"
+            onChange={(e) => void onPickFile(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            aria-label="Attach file"
+            disabled={streaming || uploading || disabled}
+            onClick={() => fileRef.current?.click()}
+            className="mb-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary disabled:opacity-40"
+          >
+            <Icon icon={Paperclip} size="sm" />
+          </button>
+
+          <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Message Maximus…"
+            placeholder="Message Maximus"
             rows={1}
+            disabled={disabled}
+            className="composer-input max-h-[200px] min-h-[28px] flex-1 bg-transparent text-text-primary placeholder:text-text-faint disabled:opacity-50"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -122,31 +142,15 @@ export function Composer({
               }
             }}
           />
-        </div>
-        <div className="flex items-center justify-between px-2 pb-2 pt-1">
-          <div className="flex items-center gap-1">
-            <input
-              ref={fileRef}
-              type="file"
-              className="hidden"
-              accept="image/*,.txt,.pdf,text/plain,application/pdf"
-              onChange={(e) => void onPickFile(e.target.files?.[0])}
-            />
-            <IconButton
-              icon={Paperclip}
-              label="Attach file"
-              disabled={streaming || uploading}
-              onClick={() => fileRef.current?.click()}
-            />
-          </div>
+
           {streaming ? (
             <button
               type="button"
               aria-label="Stop generating"
               onClick={onStop}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-text-primary text-bg-app"
+              className="mb-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-btn-primary text-btn-primary-fg"
             >
-              <Icon icon={Square} size="sm" className="text-bg-app" />
+              <Icon icon={Square} size="sm" className="fill-current" />
             </button>
           ) : (
             <button
@@ -155,19 +159,19 @@ export function Composer({
               disabled={!canSend}
               onClick={submit}
               className={cn(
-                "inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+                "mb-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors",
                 canSend
-                  ? "bg-accent text-accent-fg hover:brightness-110"
-                  : "bg-bg-elevated text-text-muted",
+                  ? "bg-btn-primary text-btn-primary-fg hover:bg-btn-primary-hover"
+                  : "bg-btn-send-disabled text-bg-app opacity-70",
               )}
             >
-              <Icon icon={ArrowUp} size="sm" />
+              <Icon icon={ArrowUp} size="sm" strokeWidth={2.5} />
             </button>
           )}
         </div>
       </div>
-      <p className="mt-2 text-center text-xs text-text-muted">
-        Maximus can make mistakes. Verify important information.
+      <p className="mt-2 text-center text-[11px] leading-snug text-text-faint">
+        Maximus can make mistakes. Check important info.
       </p>
     </div>
   );

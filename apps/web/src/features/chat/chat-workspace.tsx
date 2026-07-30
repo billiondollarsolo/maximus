@@ -6,13 +6,13 @@ import { SidebarNav } from "#/features/sidebar/sidebar-nav";
 import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
 import { MessageList } from "./message-list";
+import { ModelSelect } from "./model-select";
 import { useChatWorkspace } from "./use-chat-workspace";
 
 /**
- * ChatGPT-faithful workspace shell — state lives in useChatWorkspace.
+ * ChatGPT-class workspace chrome: top model chip, clean canvas, pill composer.
  */
 export function ChatWorkspace() {
-  // Empty until ModelSelect loads catalog (no hardcoded production default).
   const [modelRef, setModelRef] = useState("");
   const chat = useChatWorkspace(modelRef);
 
@@ -38,16 +38,19 @@ export function ChatWorkspace() {
         />
       }
     >
-      <header className="flex h-12 items-center gap-2 border-b border-border-subtle px-2 md:px-4">
+      {/* Top bar: mobile menu + model (ChatGPT places model at top-center) */}
+      <header className="relative flex h-12 shrink-0 items-center px-2 md:h-14 md:px-3">
         <IconButton
           icon={Menu}
           label="Open menu"
           className="md:hidden"
           onClick={() => chat.setMobileOpen(true)}
         />
-        <span className="text-sm text-text-muted">
-          {chat.activeId ? "Conversation" : "New chat"}
-        </span>
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="pointer-events-auto">
+            <ModelSelect value={modelRef} onChange={setModelRef} />
+          </div>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -71,10 +74,9 @@ export function ChatWorkspace() {
 
         <Composer
           key={chat.composerKey}
-          modelRef={modelRef}
-          onModelChange={setModelRef}
           initialValue={chat.draft}
           streaming={chat.streaming}
+          disabled={!modelRef}
           onStop={() => chat.abort?.abort()}
           onSend={(text, attachmentIds) =>
             void chat.send(text, "send", undefined, attachmentIds)

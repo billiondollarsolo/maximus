@@ -1,10 +1,17 @@
-import { Button } from "#/components/ui";
-
 const SUGGESTIONS = [
-  "Explain multi-tenant RBAC for chat apps",
-  "Draft a system design for streaming LLM APIs",
-  "Compare Ollama and OpenAI-compatible gateways",
-  "Help me write acceptance tests for message trees",
+  { title: "Explain a concept", subtitle: "Multi-tenant RBAC for chat apps" },
+  {
+    title: "Draft a design",
+    subtitle: "Streaming LLM API architecture",
+  },
+  {
+    title: "Compare options",
+    subtitle: "Ollama vs OpenAI-compatible gateways",
+  },
+  {
+    title: "Write tests",
+    subtitle: "Acceptance cases for message trees",
+  },
 ];
 
 export function EmptyState({
@@ -13,24 +20,26 @@ export function EmptyState({
   onSuggestion?: (text: string) => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-4 pb-8">
-      <h1 className="text-center text-2xl font-semibold tracking-tight text-text-primary md:text-3xl">
+    <div className="flex flex-1 flex-col items-center justify-center px-4 pb-6">
+      <h1 className="text-center text-[28px] font-semibold tracking-tight text-text-primary md:text-[32px]">
         What can I help with?
       </h1>
-      <p className="mt-2 max-w-md text-center text-sm text-text-muted">
-        Maximus — multi-provider chat for teams. Pick a model and start a
-        conversation.
-      </p>
-      <div className="mt-8 grid w-full max-w-2xl gap-2 sm:grid-cols-2">
-        {SUGGESTIONS.map((text) => (
-          <Button
-            key={text}
-            variant="secondary"
-            className="h-auto justify-start whitespace-normal px-3 py-3 text-left font-normal"
-            onClick={() => onSuggestion?.(text)}
+
+      <div className="mt-10 grid w-full max-w-[42rem] gap-3 sm:grid-cols-2">
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s.title}
+            type="button"
+            onClick={() => onSuggestion?.(`${s.title}: ${s.subtitle}`)}
+            className="rounded-[var(--radius-lg)] border border-border-subtle bg-transparent px-4 py-3.5 text-left transition-colors hover:bg-bg-sidebar-hover"
           >
-            {text}
-          </Button>
+            <div className="text-[14px] font-medium text-text-primary">
+              {s.title}
+            </div>
+            <div className="mt-0.5 text-[13px] text-text-muted">
+              {s.subtitle}
+            </div>
+          </button>
         ))}
       </div>
     </div>

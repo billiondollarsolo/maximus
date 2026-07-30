@@ -1,7 +1,6 @@
-import { MessageSquare } from "lucide-react";
 import { cn } from "#/lib/cn";
-import { Icon } from "#/components/ui";
 
+/** ChatGPT-style history row: no per-row icon noise when expanded. */
 export function ConversationRow({
   title,
   active,
@@ -19,17 +18,20 @@ export function ConversationRow({
       onClick={onSelect}
       title={title}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition-colors",
+        "group flex w-full items-center rounded-[var(--radius-md)] text-left text-[13.5px] leading-snug transition-colors",
+        collapsed ? "h-9 justify-center px-0" : "min-h-9 px-2.5 py-2",
         active
-          ? "bg-bg-composer text-text-primary"
-          : "text-text-primary hover:bg-bg-composer/70",
-        collapsed && "justify-center px-0",
+          ? "bg-bg-sidebar-active text-text-primary"
+          : "text-text-secondary hover:bg-bg-sidebar-hover hover:text-text-primary",
       )}
     >
-      <Icon icon={MessageSquare} size="sm" className="text-text-muted" />
-      {!collapsed ? (
+      {collapsed ? (
+        <span className="flex h-7 w-7 items-center justify-center rounded-md bg-bg-sidebar-hover text-[11px] font-medium text-text-muted">
+          {title.slice(0, 1).toUpperCase()}
+        </span>
+      ) : (
         <span className="min-w-0 flex-1 truncate">{title}</span>
-      ) : null}
+      )}
     </button>
   );
 }

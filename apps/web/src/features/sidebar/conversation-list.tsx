@@ -19,7 +19,7 @@ export function ConversationList({
 }) {
   if (collapsed) {
     return (
-      <ScrollArea className="flex-1 px-1">
+      <ScrollArea className="flex-1 px-1.5">
         <div className="flex flex-col gap-0.5 py-1">
           {items.map((c) => (
             <ConversationRow
@@ -35,17 +35,25 @@ export function ConversationList({
     );
   }
 
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-1 items-start px-3 py-4">
+        <p className="text-[13px] text-text-faint">No chats yet</p>
+      </div>
+    );
+  }
+
   const groups = groupByDateGroups(items);
 
   return (
     <ScrollArea className="flex-1 px-2">
-      <div className="flex flex-col gap-4 py-2">
+      <div className="flex flex-col gap-4 py-1 pb-3">
         {groups.map((group) => (
           <section key={group.label}>
-            <h2 className="mb-1 px-2 text-xs font-medium text-text-muted">
+            <h2 className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-wide text-text-faint">
               {group.label}
             </h2>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-px">
               {group.items.map((c) => (
                 <ConversationRow
                   key={c.id}

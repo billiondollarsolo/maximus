@@ -1,20 +1,54 @@
 import {
   Folder,
   Moon,
-  PanelLeft,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
   Settings,
   Shield,
+  SquarePen,
   Sun,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Button, Icon, IconButton, Input, Separator } from "#/components/ui";
+import { Icon, IconButton, Input } from "#/components/ui";
 import { Wordmark } from "#/components/layout/wordmark";
 import { useTheme } from "#/features/theme/theme-provider";
+import { cn } from "#/lib/cn";
 import { ConversationList } from "./conversation-list";
 import type { FakeConversation } from "./fake-conversations";
+
+function NavItem({
+  icon,
+  label,
+  onClick,
+  trailing,
+  active,
+}: {
+  icon: typeof Plus;
+  label: string;
+  onClick?: () => void;
+  trailing?: React.ReactNode;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 text-[13.5px] transition-colors",
+        active
+          ? "bg-bg-sidebar-active text-text-primary"
+          : "text-text-secondary hover:bg-bg-sidebar-hover hover:text-text-primary",
+      )}
+    >
+      <Icon icon={icon} size="sm" className="shrink-0 opacity-90" />
+      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+      {trailing}
+    </button>
+  );
+}
 
 export function SidebarNav({
   collapsed,
@@ -60,65 +94,79 @@ export function SidebarNav({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  return (
-    <div className="flex h-full flex-col">
-      <div
-        className={
-          collapsed
-            ? "flex flex-col items-center gap-2 p-2"
-            : "flex items-center gap-1 p-3"
-        }
-      >
-        {!collapsed ? <Wordmark className="mr-auto" /> : null}
+  if (collapsed) {
+    return (
+      <div className="flex h-full flex-col items-center gap-1 py-2">
         <IconButton
-          icon={PanelLeft}
-          label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          icon={PanelLeftOpen}
+          label="Expand sidebar"
+          onClick={onToggleCollapsed}
+        />
+        <IconButton icon={SquarePen} label="New chat" onClick={onNewChat} />
+        <IconButton
+          icon={Search}
+          label="Search chats"
+          onClick={() => {
+            onToggleCollapsed();
+            setSearchOpen(true);
+          }}
+        />
+        <div className="min-h-0 flex-1 overflow-hidden py-1">
+          <ConversationList
+            collapsed
+            activeId={activeId}
+            onSelect={onSelectConversation}
+            items={conversations}
+          />
+        </div>
+        <IconButton
+          icon={theme === "dark" ? Sun : Moon}
+          label={theme === "dark" ? "Light theme" : "Dark theme"}
+          onClick={toggleTheme}
+        />
+        <Link to="/settings/general">
+          <IconButton icon={Settings} label="Settings" />
+        </Link>
+        {isAdmin ? (
+          <Link to="/admin">
+            <IconButton icon={Shield} label="Admin" />
+          </Link>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col px-2 pb-2 pt-2">
+      <div className="mb-1 flex items-center gap-1 px-1">
+        <Wordmark className="mr-auto px-1.5" />
+        <IconButton
+          icon={PanelLeftClose}
+          label="Collapse sidebar"
           onClick={onToggleCollapsed}
         />
       </div>
 
-      <div className={collapsed ? "flex flex-col items-center gap-1 px-1" : "px-2"}>
-        {collapsed ? (
-          <IconButton icon={Plus} label="New chat" onClick={onNewChat} />
-        ) : (
-          <Button
-            variant="secondary"
-            className="w-full justify-start"
-            onClick={onNewChat}
-          >
-            <Icon icon={Plus} size="sm" />
-            New chat
-          </Button>
-        )}
-        {collapsed ? (
-          <IconButton
-            icon={Search}
-            label="Search chats"
-            onClick={() => {
-              onToggleCollapsed();
-              setSearchOpen(true);
-            }}
-          />
-        ) : (
-          <Button
-            variant="ghost"
-            className="mt-1 w-full justify-start text-text-muted"
-            onClick={() => {
-              setSearchOpen(true);
-              queueMicrotask(() => searchRef.current?.focus());
-            }}
-          >
-            <Icon icon={Search} size="sm" />
-            Search chats
-            <kbd className="ml-auto hidden text-[10px] text-text-muted sm:inline">
+      <div className="flex flex-col gap-0.5">
+        <NavItem icon={SquarePen} label="New chat" onClick={onNewChat} />
+        <NavItem
+          icon={Search}
+          label="Search chats"
+          onClick={() => {
+            setSearchOpen(true);
+            queueMicrotask(() => searchRef.current?.focus());
+          }}
+          trailing={
+            <kbd className="rounded border border-border-subtle px-1.5 py-0.5 font-sans text-[10px] text-text-faint">
               ⌘K
             </kbd>
-          </Button>
-        )}
+          }
+        />
+        <NavItem icon={Folder} label="Projects" />
       </div>
 
-      {!collapsed && (searchOpen || searchQuery) ? (
-        <div className="px-2 pt-2">
+      {(searchOpen || searchQuery) && (
+        <div className="mt-2 px-0.5">
           <label className="sr-only" htmlFor="sidebar-search">
             Search conversations
           </label>
@@ -127,77 +175,48 @@ export function SidebarNav({
             ref={searchRef}
             value={searchQuery}
             onChange={(e) => onSearchQueryChange?.(e.target.value)}
-            placeholder="Search chats…"
-            className="h-9"
+            placeholder="Search chats"
+            className="h-9 border-border-subtle bg-bg-app text-[13px]"
             autoComplete="off"
           />
           {conversations && conversations.length === 0 && searchQuery ? (
-            <p className="mt-2 px-1 text-xs text-text-muted">No chats found</p>
+            <p className="mt-2 px-2 text-[12px] text-text-faint">
+              No chats found
+            </p>
           ) : null}
         </div>
-      ) : null}
+      )}
 
-      {!collapsed ? (
-        <div className="mt-3 px-4">
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-text-muted hover:bg-bg-composer hover:text-text-primary"
-          >
-            <Icon icon={Folder} size="sm" />
-            Projects
-          </button>
-        </div>
-      ) : null}
+      <div className="mt-3 min-h-0 flex-1">
+        <ConversationList
+          collapsed={false}
+          activeId={activeId}
+          onSelect={onSelectConversation}
+          items={conversations}
+        />
+      </div>
 
-      <Separator className="my-2" />
-
-      <ConversationList
-        collapsed={collapsed}
-        activeId={activeId}
-        onSelect={onSelectConversation}
-        items={conversations}
-      />
-
-      <Separator />
-      <div
-        className={
-          collapsed
-            ? "flex flex-col items-center gap-1 p-2"
-            : "flex items-center gap-1 p-2"
-        }
-      >
-        <IconButton
+      <div className="mt-1 flex flex-col gap-0.5 border-t border-border-subtle pt-2">
+        <NavItem
           icon={theme === "dark" ? Sun : Moon}
-          label={theme === "dark" ? "Light theme" : "Dark theme"}
+          label={theme === "dark" ? "Light mode" : "Dark mode"}
           onClick={toggleTheme}
         />
-        {!collapsed ? (
-          <Link
-            to="/settings/general"
-            className="inline-flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted hover:bg-bg-composer hover:text-text-primary"
-          >
-            <Icon icon={Settings} size="sm" />
-            Settings
-          </Link>
-        ) : (
-          <Link to="/settings/general">
-            <IconButton icon={Settings} label="Settings" />
-          </Link>
-        )}
+        <Link
+          to="/settings/general"
+          className="flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 text-[13.5px] text-text-secondary transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary"
+        >
+          <Icon icon={Settings} size="sm" className="shrink-0 opacity-90" />
+          Settings
+        </Link>
         {isAdmin ? (
-          collapsed ? (
-            <Link to="/admin">
-              <IconButton icon={Shield} label="Admin" />
-            </Link>
-          ) : (
-            <Link
-              to="/admin"
-              className="inline-flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted hover:bg-bg-composer hover:text-text-primary"
-            >
-              <Icon icon={Shield} size="sm" />
-              Admin
-            </Link>
-          )
+          <Link
+            to="/admin"
+            className="flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 text-[13.5px] text-text-secondary transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary"
+          >
+            <Icon icon={Shield} size="sm" className="shrink-0 opacity-90" />
+            Admin
+          </Link>
         ) : null}
       </div>
     </div>

@@ -3,7 +3,8 @@ import { cn } from "#/lib/cn";
 import { CodeBlock } from "./code-block";
 
 /**
- * Lightweight streaming-safe markdown: paragraphs, fences, inline code, lists.
+ * Streaming-safe markdown: paragraphs, fences, inline code, lists.
+ * Sized for ChatGPT-like reading column (~16px, 1.75 line-height).
  */
 export function MarkdownRenderer({
   content,
@@ -14,14 +15,14 @@ export function MarkdownRenderer({
 }) {
   const blocks = useMemo(() => parseBlocks(content), [content]);
   return (
-    <div className={cn("space-y-3 text-sm leading-relaxed", className)}>
+    <div className={cn("space-y-3 text-[15.5px] leading-[1.75]", className)}>
       {blocks.map((b, i) => {
         if (b.type === "code") {
           return <CodeBlock key={i} language={b.lang} code={b.code} />;
         }
         if (b.type === "list") {
           return (
-            <ul key={i} className="list-disc space-y-1 pl-5">
+            <ul key={i} className="list-disc space-y-1.5 pl-5 text-text-primary">
               {b.items.map((item, j) => (
                 <li key={j}>{renderInline(item)}</li>
               ))}
@@ -29,7 +30,7 @@ export function MarkdownRenderer({
           );
         }
         return (
-          <p key={i} className="whitespace-pre-wrap">
+          <p key={i} className="whitespace-pre-wrap text-text-primary">
             {renderInline(b.text)}
           </p>
         );
@@ -45,7 +46,7 @@ function renderInline(text: string) {
       return (
         <code
           key={i}
-          className="rounded bg-bg-composer px-1 py-0.5 font-mono text-[0.85em]"
+          className="rounded-md bg-bg-composer px-1.5 py-0.5 font-mono text-[0.88em] text-text-primary"
         >
           {p.slice(1, -1)}
         </code>
