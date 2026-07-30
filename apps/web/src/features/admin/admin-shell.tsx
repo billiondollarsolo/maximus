@@ -1,5 +1,9 @@
 import { Link } from "@tanstack/react-router";
 import { cn } from "#/lib/cn";
+import {
+  SecondarySidebar,
+  SecondaryThemeButton,
+} from "#/features/shell/secondary-sidebar";
 
 const NAV = [
   { to: "/admin", label: "Overview", exact: true },
@@ -26,8 +30,8 @@ function isAdminNavActive(
 }
 
 /**
- * Admin chrome: sidebar nav + content column.
- * Pages should use AdminPageHeader (hideTitle) for primary CTA pattern.
+ * Admin chrome: same wordmark + account footer as chat sidebar,
+ * plus admin section nav.
  */
 export function AdminShell({
   title,
@@ -42,16 +46,7 @@ export function AdminShell({
 }) {
   return (
     <div className="admin-shell flex min-h-dvh bg-bg-app text-text-primary">
-      <aside className="hidden w-[var(--admin-nav-width)] shrink-0 border-r border-border-subtle bg-bg-sidebar p-4 md:flex md:flex-col">
-        <Link
-          to="/"
-          className="mb-2 px-1 text-sm font-semibold text-text-primary hover:text-text-secondary"
-        >
-          ← Chat
-        </Link>
-        <p className="mb-3 px-1 text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint">
-          Admin
-        </p>
+      <SecondarySidebar sectionLabel="Admin">
         <nav className="flex flex-col gap-0.5" aria-label="Admin">
           {NAV.map((item) => {
             const isActive = isAdminNavActive(item, active);
@@ -67,28 +62,31 @@ export function AdminShell({
             );
           })}
         </nav>
-      </aside>
+      </SecondarySidebar>
       <main
         className={cn(
           "mx-auto w-full flex-1 p-6 md:p-10",
           "max-w-[var(--admin-content-max)]",
         )}
       >
-        <nav
-          className="mb-4 flex flex-wrap gap-1 md:hidden"
-          aria-label="Admin sections"
-        >
-          {NAV.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              data-active={isAdminNavActive(item, active) ? "true" : "false"}
-              className="admin-nav-link !inline-flex !w-auto px-2.5 py-1.5 text-xs"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="mb-4 flex items-start justify-between gap-3 md:hidden">
+          <nav
+            className="flex flex-wrap gap-1"
+            aria-label="Admin sections"
+          >
+            {NAV.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                data-active={isAdminNavActive(item, active) ? "true" : "false"}
+                className="admin-nav-link !inline-flex !w-auto px-2.5 py-1.5 text-xs"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <SecondaryThemeButton />
+        </div>
         {!hideTitle ? (
           <h1 className="mb-6 text-2xl font-semibold tracking-tight">
             {title}

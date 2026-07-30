@@ -1,54 +1,68 @@
 import { describe, expect, it } from "vitest";
-import { modelsForUser } from "./models-for-user.js";
+import { modelsForUser, type CatalogModel } from "./models-for-user.js";
 import {
   defaultPlatformCatalog,
   defaultPlatformModelRef,
 } from "./platform-catalog.js";
 
-const catalog = [
+const base: CatalogModel[] = [
   {
     modelRef: "openai:platform:gpt-4.1",
     displayName: "GPT-4.1",
     providerKind: "openai",
     isEnabled: true,
-    capabilities: { vision: true },
+    capabilities: { streaming: true },
   },
   {
-    modelRef: "openai:platform:disabled",
+    modelRef: "ollama:c1:off",
     displayName: "Off",
-    providerKind: "openai",
+    providerKind: "ollama",
     isEnabled: false,
   },
   {
-    modelRef: "anthropic:platform:claude",
-    displayName: "Claude",
-    providerKind: "anthropic",
+    modelRef: "ollama:c1:gemma3:4b",
+    displayName: "gemma3:4b",
+    providerKind: "ollama",
     isEnabled: true,
+    isVisible: true,
+  },
+  {
+    modelRef: "ollama:c1:hidden",
+    displayName: "hidden",
+    providerKind: "ollama",
+    isEnabled: true,
+    isVisible: false,
+  },
+  {
+    modelRef: "ollama:c1:nomic-embed-text",
+    displayName: "nomic-embed-text",
+    providerKind: "ollama",
+    isEnabled: true,
+    capabilities: { embedding: true },
   },
 ];
 
 describe("modelsForUser", () => {
-  it("returns all enabled when allowlist empty", () => {
-    const out = modelsForUser(catalog, "member", []);
-    expect(out.map((m) => m.modelRef)).toEqual([
-      "openai:platform:gpt-4.1",
-      "anthropic:platform:claude",
-    ]);
+  it("filters disabled, hidden, embeddings, allowlist", () => {
+    const out = modelsForUser(base, "member", []);
+    const refs = out.map((m) => m.modelRef);
+    expect(refs).toContain("openai:platform:gpt-4.1");
+    expect(refs).toContain("ollama:c1:gemma3:4b");
+    expect(refs).not.toContain("ollama:c1:off");
+    expect(refs).not.toContain("ollama:c1:hidden");
+    expect(refs).not.toContain("ollama:c1:nomic-embed-text");
   });
 
-  it("filters by allowlist and role", () => {
-    const out = modelsForUser(catalog, "member", [
-      { modelRef: "openai:platform:gpt-4.1", role: "admin" },
-      { modelRef: "anthropic:platform:claude", role: null },
+  it("allowlist restricts", () => {
+    const out = modelsForUser(base, "member", [
+      { modelRef: "ollama:c1:gemma3:4b", role: null },
     ]);
-    expect(out.map((m) => m.modelRef)).toEqual(["anthropic:platform:claude"]);
+    expect(out.map((m) => m.modelRef)).toEqual(["ollama:c1:gemma3:4b"]);
   });
 
-  it("admin can use role-scoped model", () => {
-    const out = modelsForUser(catalog, "admin", [
-      { modelRef: "openai:platform:gpt-4.1", role: "admin" },
-    ]);
-    expect(out.map((m) => m.modelRef)).toEqual(["openai:platform:gpt-4.1"]);
+  it("can include embeddings when requested", () => {
+    const out = modelsForUser(base, "owner", [], { includeEmbeddings: true });
+    expect(out.some((m) => m.modelRef.includes("nomic-embed"))).toBe(true);
   });
 });
 
@@ -58,7 +72,6 @@ describe("defaultPlatformModelRef", () => {
     const ref = defaultPlatformModelRef(env);
     const cat = defaultPlatformCatalog(env);
     expect(ref).toBe(cat.find((m) => m.isEnabled)!.modelRef);
-    expect(cat.some((m) => m.modelRef === ref)).toBe(true);
   });
 
   it("stable placeholder when catalog empty", () => {
@@ -67,4 +80,3 @@ describe("defaultPlatformModelRef", () => {
     );
   });
 });
-

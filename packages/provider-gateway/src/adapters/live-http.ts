@@ -1,15 +1,16 @@
-import type { ProviderKind } from "@maximus/domain";
-import type {
-  FakeChunk,
-  FakeTextAdapter,
-  StreamOpts,
-} from "./fake-adapter.js";
+import type { ModelCapabilities, ProviderKind } from "@maximus/domain";
+import { buildProviderInferenceFields } from "../build-provider-body.js";
 import {
   toAnthropicUserContent,
   toOllamaMessage,
   toOpenAiChatMessages,
   type ProviderMessage,
 } from "../provider-messages.js";
+import type {
+  FakeChunk,
+  FakeTextAdapter,
+  StreamOpts,
+} from "./fake-adapter.js";
 
 export type LiveAdapterConfig = {
   providerKind: ProviderKind;
@@ -17,11 +18,28 @@ export type LiveAdapterConfig = {
   apiKey?: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
-  /** Default max completion tokens when stream opts omit maxOutputTokens */
   maxOutputTokens?: number;
-  /** Default Ollama num_ctx when stream opts omit numCtx */
   numCtx?: number;
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  stop?: string[];
 };
+
+function capsFromOpts(cfg: LiveAdapterConfig, opts: StreamOpts): ModelCapabilities {
+  return {
+    maxOutputTokens: opts.maxOutputTokens ?? cfg.maxOutputTokens,
+    numCtx: opts.numCtx ?? cfg.numCtx,
+    temperature: opts.temperature ?? cfg.temperature,
+    topP: opts.topP ?? cfg.topP,
+    topK: opts.topK ?? cfg.topK,
+    frequencyPenalty: opts.frequencyPenalty ?? cfg.frequencyPenalty,
+    presencePenalty: opts.presencePenalty ?? cfg.presencePenalty,
+    stop: opts.stop ?? cfg.stop,
+  };
+}
 
 /**
  * Real multi-provider streaming via HTTP (OpenAI-compat, Anthropic, Ollama).
@@ -36,6 +54,12 @@ export function createLiveHttpAdapter(cfg: LiveAdapterConfig): FakeTextAdapter {
         signal: opts?.signal,
         maxOutputTokens: opts?.maxOutputTokens ?? cfg.maxOutputTokens,
         numCtx: opts?.numCtx ?? cfg.numCtx,
+        temperature: opts?.temperature ?? cfg.temperature,
+        topP: opts?.topP ?? cfg.topP,
+        topK: opts?.topK ?? cfg.topK,
+        frequencyPenalty: opts?.frequencyPenalty ?? cfg.frequencyPenalty,
+        presencePenalty: opts?.presencePenalty ?? cfg.presencePenalty,
+        stop: opts?.stop ?? cfg.stop,
       };
       if (cfg.providerKind === "anthropic") {
         yield* streamAnthropic(cfg, messages, streamOpts);
@@ -60,15 +84,18 @@ async function* streamOpenAICompat(
   const url = base.endsWith("/chat/completions")
     ? base
     : `${base}/chat/completions`;
+  const fields = buildProviderInferenceFields(
+    cfg.providerKind,
+    capsFromOpts(cfg, opts),
+  );
   const body: Record<string, unknown> = {
     model: cfg.modelId,
     stream: true,
     stream_options: { include_usage: true },
     messages: toOpenAiChatMessages(messages),
+    ...fields,
   };
-  if (opts.maxOutputTokens != null && opts.maxOutputTokens > 0) {
-    body.max_tokens = opts.maxOutputTokens;
-  }
+  delete body.options;
   const res = await fetchFn(url, {
     method: "POST",
     signal: opts.signal,
@@ -109,10 +136,7 @@ async function* streamAnthropic(
       role: m.role === "assistant" ? "assistant" : "user",
       content: toAnthropicUserContent(m.content),
     }));
-  const maxTokens =
-    opts.maxOutputTokens != null && opts.maxOutputTokens > 0
-      ? opts.maxOutputTokens
-      : 4096;
+  const fields = buildProviderInferenceFields("anthropic", capsFromOpts(cfg, opts));
   const res = await fetchFn(`${base}/v1/messages`, {
     method: "POST",
     signal: opts.signal,
@@ -123,10 +147,13 @@ async function* streamAnthropic(
     },
     body: JSON.stringify({
       model: cfg.modelId,
-      max_tokens: maxTokens,
       stream: true,
       system: system || undefined,
       messages: chatMsgs,
+      max_tokens: fields.max_tokens ?? 4096,
+      ...(fields.temperature != null ? { temperature: fields.temperature } : {}),
+      ...(fields.top_p != null ? { top_p: fields.top_p } : {}),
+      ...(fields.stop ? { stop_sequences: fields.stop } : {}),
     }),
   });
   if (!res.ok || !res.body) {
@@ -143,13 +170,7 @@ async function* streamOllama(
 ): AsyncGenerator<FakeChunk> {
   const fetchFn = cfg.fetchImpl ?? fetch;
   const base = (cfg.baseUrl ?? "http://127.0.0.1:11434").replace(/\/$/, "");
-  const options: Record<string, number> = {};
-  if (opts.numCtx != null && opts.numCtx > 0) {
-    options.num_ctx = opts.numCtx;
-  }
-  if (opts.maxOutputTokens != null && opts.maxOutputTokens > 0) {
-    options.num_predict = opts.maxOutputTokens;
-  }
+  const fields = buildProviderInferenceFields("ollama", capsFromOpts(cfg, opts));
   const res = await fetchFn(`${base}/api/chat`, {
     method: "POST",
     signal: opts.signal,
@@ -158,7 +179,7 @@ async function* streamOllama(
       model: cfg.modelId,
       stream: true,
       messages: messages.map(toOllamaMessage),
-      ...(Object.keys(options).length ? { options } : {}),
+      ...(fields.options ? { options: fields.options } : {}),
     }),
   });
   if (!res.ok || !res.body) {

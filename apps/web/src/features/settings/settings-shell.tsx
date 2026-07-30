@@ -1,8 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Moon, Sun } from "lucide-react";
-import { Button, Icon, IconButton } from "#/components/ui";
+import { Button, Icon } from "#/components/ui";
 import { RequireSession } from "#/features/auth/require-session";
-import { useTheme } from "#/features/theme/theme-provider";
+import {
+  SecondarySidebar,
+  SecondaryThemeButton,
+} from "#/features/shell/secondary-sidebar";
 
 const NAV = [
   { to: "/settings/general", label: "General" },
@@ -11,7 +13,7 @@ const NAV = [
   { to: "/settings/account", label: "Account" },
 ] as const;
 
-/** Settings chrome shares admin nav/link density tokens from global CSS. */
+/** Settings chrome shares chat sidebar wordmark + account footer. */
 export function SettingsShell({
   title,
   children,
@@ -21,20 +23,10 @@ export function SettingsShell({
   children: React.ReactNode;
   active: string;
 }) {
-  const { theme, toggleTheme } = useTheme();
   return (
     <RequireSession>
       <div className="admin-shell flex min-h-dvh bg-bg-app text-text-primary">
-        <aside className="hidden w-[var(--admin-nav-width)] shrink-0 border-r border-border-subtle bg-bg-sidebar p-4 md:flex md:flex-col">
-          <Link
-            to="/"
-            className="mb-2 px-1 text-sm font-semibold text-text-primary hover:text-text-secondary"
-          >
-            ← Chat
-          </Link>
-          <p className="mb-3 px-1 text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint">
-            Settings
-          </p>
+        <SecondarySidebar sectionLabel="Settings">
           <nav className="flex flex-col gap-0.5" aria-label="Settings">
             {NAV.map((item) => (
               <Link
@@ -47,33 +39,30 @@ export function SettingsShell({
               </Link>
             ))}
           </nav>
-        </aside>
+        </SecondarySidebar>
         <main className="mx-auto w-full max-w-2xl flex-1 p-6 md:p-10">
-          {/* Mobile: deep-linkable section nav */}
-          <nav
-            className="mb-4 flex flex-wrap gap-1 md:hidden"
-            aria-label="Settings sections"
-          >
-            {NAV.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                data-active={active === item.to ? "true" : "false"}
-                className="admin-nav-link !inline-flex !w-auto px-2.5 py-1.5 text-xs"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-          <header className="mb-6 flex items-start justify-between gap-3">
+          <div className="mb-4 flex items-start justify-between gap-3 md:hidden">
+            <nav
+              className="flex flex-wrap gap-1"
+              aria-label="Settings sections"
+            >
+              {NAV.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  data-active={active === item.to ? "true" : "false"}
+                  className="admin-nav-link !inline-flex !w-auto px-2.5 py-1.5 text-xs"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            <SecondaryThemeButton />
+          </div>
+          <header className="mb-6">
             <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
               {title}
             </h1>
-            <IconButton
-              icon={theme === "dark" ? Sun : Moon}
-              label="Toggle theme"
-              onClick={toggleTheme}
-            />
           </header>
           {children}
         </main>
@@ -108,6 +97,6 @@ export function SettingsPrimaryButton(
   return <Button {...props} />;
 }
 
-export function SettingsIcon({ icon }: { icon: typeof Moon }) {
-  return <Icon icon={icon} size="sm" />;
+export function SettingsIcon({ icon }: { icon: typeof Icon }) {
+  return <Icon icon={icon as never} size="sm" />;
 }

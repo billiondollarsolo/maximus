@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isModelRef,
+  modelIdFromRef,
   parseModelRef,
   serializeModelRef,
   type ModelRef,
@@ -50,5 +51,14 @@ describe("model-ref", () => {
   it("isModelRef type guard", () => {
     expect(isModelRef("openai:platform:gpt-4.1")).toBe(true);
     expect(isModelRef("not-a-ref")).toBe(false);
+  });
+
+  it("modelIdFromRef keeps full Ollama tags (never just 4b)", () => {
+    expect(modelIdFromRef("ollama:local:gemma3:4b")).toBe("gemma3:4b");
+    expect(modelIdFromRef("ollama:c1:qwen2.5:1.5b")).toBe("qwen2.5:1.5b");
+    expect(modelIdFromRef("ollama:local:library/llama3.2:latest")).toBe(
+      "library/llama3.2:latest",
+    );
+    expect(modelIdFromRef("openai:platform:gpt-4.1")).toBe("gpt-4.1");
   });
 });

@@ -75,6 +75,124 @@ describe("createLiveHttpAdapter", () => {
     );
   });
 
+  it("OpenAI body includes max_tokens and temperature from caps", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        body: new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'data: {"choices":[{"delta":{"content":"x"}}]}\n\ndata: [DONE]\n\n',
+              ),
+            );
+            c.close();
+          },
+        }),
+      })),
+    );
+    const adapter = createLiveHttpAdapter({
+      providerKind: "openai",
+      modelId: "gpt-4.1",
+      apiKey: "sk",
+      maxOutputTokens: 1024,
+      temperature: 0,
+      topP: 0.9,
+    });
+    for await (const _ of adapter.stream([{ role: "user", content: "hi" }])) {
+      // drain
+    }
+    const init = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]![1] as {
+      body: string;
+    };
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    expect(body.max_tokens).toBe(1024);
+    expect(body.temperature).toBe(0);
+    expect(body.top_p).toBe(0.9);
+  });
+
+  it("Anthropic body includes max_tokens and temperature", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        body: new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'event: message_start\ndata: {"type":"message_start"}\n\n' +
+                  'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"a"}}\n\n' +
+                  'event: message_stop\ndata: {"type":"message_stop"}\n\n',
+              ),
+            );
+            c.close();
+          },
+        }),
+      })),
+    );
+    const adapter = createLiveHttpAdapter({
+      providerKind: "anthropic",
+      modelId: "claude-sonnet-4",
+      apiKey: "sk",
+      maxOutputTokens: 2048,
+      temperature: 0.5,
+    });
+    for await (const _ of adapter.stream([{ role: "user", content: "hi" }])) {
+      // drain
+    }
+    const init = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]![1] as {
+      body: string;
+    };
+    const body = JSON.parse(init.body) as Record<string, unknown>;
+    expect(body.max_tokens).toBe(2048);
+    expect(body.temperature).toBe(0.5);
+  });
+
+  it("Ollama body includes options.num_ctx, num_predict, temperature", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        body: new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                JSON.stringify({ message: { content: "ok" }, done: true }) +
+                  "\n",
+              ),
+            );
+            c.close();
+          },
+        }),
+      })),
+    );
+    const adapter = createLiveHttpAdapter({
+      providerKind: "ollama",
+      modelId: "gemma3:4b",
+      baseUrl: "http://127.0.0.1:11434",
+      maxOutputTokens: 512,
+      numCtx: 4096,
+      temperature: 0.2,
+    });
+    for await (const _ of adapter.stream([{ role: "user", content: "hi" }])) {
+      // drain
+    }
+    const init = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]![1] as {
+      body: string;
+    };
+    const body = JSON.parse(init.body) as {
+      model: string;
+      options?: Record<string, number>;
+    };
+    expect(body.model).toBe("gemma3:4b");
+    expect(body.options).toMatchObject({
+      num_ctx: 4096,
+      num_predict: 512,
+      temperature: 0.2,
+    });
+  });
+
   it("sends image_url data URL for multimodal user content", async () => {
     const pngB64 =
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";

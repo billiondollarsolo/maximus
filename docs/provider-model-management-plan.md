@@ -1,300 +1,426 @@
-# Provider & model management plan
+# Provider & model management — implementation plan
 
-**Status:** draft for implementation  
-**Date:** 2026-07-30  
-**Context:** Maximus self-host chat; learn from OpenWebUI without copying marketplace/plugin sprawl.  
-**Audience:** implementers (task-driven work packages)
+**Status:** active implementation backlog  
+**Date:** 2026-07-30 (rev 2 — task-driven, code-aware)  
+**Audience:** implementers shipping Maximus self-host model ops  
+**Related:** `docs/admin-providers-models-pricing-plan.md`, `docs/runbook.md`, `docs/api.md`
+
+---
+
+## 0. How to use this document
+
+1. **One WP at a time** unless noted parallel-safe.  
+2. Each task is **checkbox + concrete artifact** (file, API action, test name).  
+3. Do not mark a WP done until **acceptance** and **verification** both pass.  
+4. Prefer small PRs: domain → gateway → db/API → UI → docs.  
+5. Never invent demo platform models; never auto-dump Ollama tags into chat.
+
+### Definition of done (every WP)
+
+- [ ] Code + unit/integration tests green  
+- [ ] Typecheck clean for touched packages  
+- [ ] Acceptance criteria checked against live or mock path  
+- [ ] No secrets in logs/export  
+- [ ] This doc’s WP checkboxes updated  
 
 ---
 
 ## 1. Goals
 
-1. **Chat picker shows only intentional offerings** — no demo placeholders, no auto-dump of every Ollama tag.
-2. **Each offering is a full profile** — id, display name, capabilities, token limits, pricing, enable/visibility.
-3. **Admin can discover then curate** — list tags / provider models in admin; register selected ones into chat.
-4. **Older and newer models coexist** — per-model context / max output / Ollama `num_ctx` (and later sampling).
-5. **Curated deploys** — hide raw bases, pin defaults, role allowlists (and later groups).
-6. **Operable** — bulk actions, import/export, clear errors when context is exceeded.
+| # | Goal | User-visible signal |
+| --- | --- | --- |
+| G1 | **Intentional chat catalog** | Picker = enabled + visible offerings only (platform only with keys) |
+| G2 | **Full offering profiles** | Each model has name, caps, limits, rates, enable/visibility |
+| G3 | **Discover → curate** | Admin lists Ollama tags; chat only sees imported offerings |
+| G4 | **Coexist old/new models** | Per-model `contextWindow` / `maxOutput` / `numCtx` / sampling |
+| G5 | **Curated deploys** | Hide raw bases, pin defaults, allowlists, agent presets |
+| G6 | **Operable** | Import/export, bulk ops, context refuse with clear errors |
+| G7 | **Honest labels** | Stats footer and pickers show **full** model ids (`gemma3:4b`, never `4b`) |
 
-### Non-goals (this plan)
+### Non-goals
 
-- Community model marketplace  
+- Community marketplace / plugins  
 - Fine-tuning / weight management  
-- Multi-tenant superadmin platform catalog editor  
-- Full OpenWebUI filter/plugin runtime  
+- Superadmin multi-tenant platform catalog editor  
+- Full OpenWebUI filter runtime  
 
 ---
 
-## 2. Current state (baseline)
+## 2. Current codebase inventory (2026-07-30)
 
-| Area | Today |
-| --- | --- |
-| Connection | BYOK: kind, baseUrl, encrypted secret, enable |
-| Offering | modelId, displayName, modelRef, capabilities JSON, rates, enable |
-| Capabilities | streaming, vision, imageGen, tools, **contextWindow**, **maxOutputTokens**, **numCtx** |
-| Chat catalog | Platform models **only if keys**; org models **enabled** + allowlist; **no** auto Ollama dump |
-| Admin add Ollama | Picker from `/api/tags` + custom id |
-| Providers UI | Models always listed per connection; icon actions |
-| Gateway | Passes max_tokens / num_predict / num_ctx from capabilities |
-| Gaps | Pretty-name stripping tags; no `/api/show` prefill; no sampling; no agents; weak picker UX; embeddings not filtered |
+Use this to skip rework. Update as WPs land.
+
+| Surface | Status | Key paths |
+| --- | --- | --- |
+| Full Ollama display names (`formatOllamaDisplayName`) | **Done** | `packages/domain/src/platform-catalog.ts` |
+| Stats footer full model id (`modelIdFromRef`) | **Done** | `packages/domain/src/model-ref.ts`, `apps/web/src/features/chat/message-list.tsx` |
+| Chat catalog composition (no auto tags) | **Done** | `packages/domain/src/models-for-user.ts`, `apps/web/src/server/build-model-catalog.ts` |
+| Embed heuristic + filter | **Done** | `packages/domain/src/embed-heuristic.ts` |
+| Capabilities parse/merge + sampling fields | **Mostly done** | `packages/domain/src/model-capabilities.ts` |
+| Org model defaults | **Mostly done** | `packages/domain/src/model-defaults.ts`, `api/admin/model-defaults.ts` |
+| Gateway body builder (limits + sampling) | **Mostly done** | `packages/provider-gateway/src/build-provider-body.ts` |
+| Ollama `list_tags` / `show_model` / `import_tags` | **Mostly done** | `list-ollama-models.ts`, `show-ollama-model.ts`, `api/admin/providers.ts` |
+| `is_visible` + agents schema | **Mostly done** | migration `003_model_visibility_agents.sql`, repos |
+| Searchable model select | **Mostly done** | `apps/web/src/features/chat/model-select.tsx` |
+| Context refuse | **Mostly done** | `packages/domain/src/context-budget.ts`, `stream-assistant.ts` |
+| Catalog export/import | **Partial** | domain + `api/admin/catalog-export.ts` — UI polish TBD |
+| Agents admin UI | **Partial** | API exists; UI depth TBD |
+| Chat-level param overrides | **Partial** | `conversations.settings` column; composer sheet TBD |
+| Docs / runbook for model ops | **Partial** | this plan; runbook gaps |
+| End-to-end verification + scratch evidence | **Open** | suite ×2, typecheck logs |
 
 ---
 
 ## 3. Target architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Connection (credentials + base URL)                        │
-│    openai | anthropic | openai_compatible | ollama          │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ discovers (admin only)
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Provider model candidates (ephemeral or cached)            │
-│    tags / remote list — NOT automatically in chat           │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ admin imports / creates
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Org offering (models row)                                  │
-│    modelRef, displayName, capabilities, params, pricing,    │
-│    isEnabled, isVisible, sortOrder                          │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ optional later
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Agent preset (workspace model)                             │
-│    base modelRef + system prompt + tools + defaults         │
-└───────────────────────────┬─────────────────────────────────┘
-                            │
-                            ▼
-                     Chat model picker
+┌──────────────────────────────────────────────────────────────┐
+│  Connection (BYOK: kind, baseUrl, secret, enable)            │
+│    openai | anthropic | openai_compatible | ollama           │
+└────────────────────────────┬─────────────────────────────────┘
+                             │ admin-only discover
+                             ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Provider candidates (ephemeral list_tags / remote list)     │
+│  NEVER auto-injected into chat catalog                       │
+└────────────────────────────┬─────────────────────────────────┘
+                             │ import_tags / create model
+                             ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Org offering (models row)                                   │
+│  modelRef, displayName, capabilities, rates,                 │
+│  isEnabled, isVisible, sortOrder                             │
+└────────────────────────────┬─────────────────────────────────┘
+                             │ optional
+                             ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Agent preset                                                │
+│  baseModelRef + systemPrompt + param overrides + access      │
+└────────────────────────────┬─────────────────────────────────┘
+                             ▼
+                      Chat model picker
+                 (enabled ∧ visible ∧ allowlist ∧ ¬embed)
 ```
 
-**Precedence for inference params**
+### Inference param resolve order (hard rule)
 
-1. Chat/session override (future)  
-2. Offering `capabilities` / `params`  
-3. Org global defaults (`org.settings.modelDefaults`)  
-4. Code defaults (e.g. Anthropic max_tokens 4096)
+```
+effective = merge(
+  CODE_DEFAULTS,                    // e.g. Anthropic max_tokens 4096
+  org.settings.modelDefaults,       // org-wide
+  offering.capabilities,            // per-model (wins over org)
+  agent.params,                     // if agent selected
+  conversation.settings.modelParams // chat override (wins)
+)
+```
+
+Later layers win for defined keys only (null/undefined = inherit).
+
+### Model ref contract
+
+```
+{providerKind}:{connectionId}:{modelId}
+```
+
+- `modelId` **may contain colons** (Ollama tags: `gemma3:4b`, `library/llama3.2:latest`).  
+- **Never** label UI with `ref.split(":").pop()` — that shows `4b`.  
+- Always use `parseModelRef` / `modelIdFromRef` / `formatOllamaDisplayName`.
 
 ---
 
 ## 4. Work packages (task-driven)
 
-Each WP has: outcome, tasks, acceptance criteria, dependencies, estimate (S/M/L).
+Sizes: **S** ≤ 0.5 day · **M** 0.5–2 days · **L** 2–4 days.
 
 ---
 
-### WP-M0 — Full Ollama names (hotfix)
+### WP-M0 — Full model names everywhere
 
-**Outcome:** UI never shows only the size tag (e.g. `4b`); always the full Ollama name/tag.
+**Outcome:** No surface shows only the size/quant suffix for Ollama (or any multi-colon model id).
 
-**Tasks**
+**Why:** `ollama:conn:gemma3:4b` + naive `.pop()` → `4b`. Operators and users cannot tell variants apart.
 
-1. [ ] `formatOllamaDisplayName` returns the full tag string (no strip-to-size, no drop of `:4b`).  
-2. [ ] Admin Ollama picker primary label = full tag (`gemma3:4b`).  
-3. [ ] Default `displayName` on pick = full tag (user can still rename).  
-4. [ ] Chat model select: wider max-width + `title` tooltip with full name.  
-5. [ ] Optional migration note: existing bad displayNames can be fixed in Edit or re-added.  
-6. [ ] Unit test: `gemma3:4b` → `gemma3:4b`; `qwen2.5:1.5b` → `qwen2.5:1.5b`; `llama3.2:latest` → `llama3.2:latest`.
+#### Tasks
 
-**Acceptance**
+- [x] **M0.1** `formatOllamaDisplayName(name)` returns full trimmed tag.  
+  File: `packages/domain/src/platform-catalog.ts`  
+  Tests: `platform-catalog.test.ts` (`gemma3:4b`, `qwen2.5:1.5b`, `llama3.2:latest`).
 
-- Picker and admin list show full tags.  
-- Two size variants of the same family remain distinguishable.
+- [x] **M0.2** `modelIdFromRef(ref)` returns full `modelId` after second colon.  
+  File: `packages/domain/src/model-ref.ts`  
+  Export from `packages/domain/src/index.ts`  
+  Tests: `model-ref.test.ts`.
 
-**Depends on:** nothing  
-**Size:** S  
+- [x] **M0.3** Generation stats footer uses `modelIdFromRef` + `title={modelRef}`.  
+  File: `apps/web/src/features/chat/message-list.tsx`  
+  Accept: footer shows `gemma3:4b` not `4b`.
+
+- [x] **M0.4** Model select secondary line uses `modelIdFromRef`.  
+  File: `apps/web/src/features/chat/model-select.tsx`.
+
+- [ ] **M0.5** Grep guard — no remaining `.split(":").pop()` for model labels.  
+  ```bash
+  rg 'split\(":"\)\.pop\(\)' apps packages --glob '*.{ts,tsx}'
+  ```
+  Fix any hits used for display.
+
+- [ ] **M0.6** Admin Ollama picker / import list primary label = full tag; default `displayName` = full tag.  
+  File: `apps/web/src/features/admin/providers-admin.tsx` (`formatOllamaLabel`).
+
+- [ ] **M0.7** Optional note in runbook: existing bad `displayName` values can be renamed in Edit.
+
+#### Acceptance
+
+- Stats footer for `ollama:*:gemma3:4b` shows `gemma3:4b`.  
+- Two size variants remain distinguishable in picker and stats.  
+- Unit tests green for M0.1–M0.2.
+
+#### Verification
+
+```bash
+pnpm --filter @maximus/domain exec vitest run src/model-ref.test.ts src/platform-catalog.test.ts
+rg 'split\(":"\)\.pop\(\)' apps/web packages --glob '*.{ts,tsx}'
+```
+
+**Depends on:** nothing · **Size:** S
 
 ---
 
-### WP-M1 — Prefill from Ollama `/api/show` + exclude non-chat models
+### WP-M1 — Ollama `/api/show` prefill + exclude non-chat models
 
-**Outcome:** Adding an Ollama model suggests real limits and never offers embeddings as chat models by default.
+**Outcome:** Adding Ollama models suggests real limits; embeddings never land in chat by default.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Gateway: `showOllamaModel({ baseUrl, name })` → parse `model_info` / `details` / `parameters` for context length when present.  
-2. [ ] Admin `list_tags` response optionally include `{ name, family?, parameterSize?, isEmbed? }`.  
-3. [ ] Heuristic: mark embeddings (`embed`, `nomic-embed`, `mxbai-embed`, `bge-`, capability flags).  
-4. [ ] Add-model picker: hide embeds by default; toggle “Show embedding models”.  
-5. [ ] On pick: prefill `contextWindow` / `numCtx` / `maxOutputTokens` (sensible defaults if unknown: 8192 / 2048).  
-6. [ ] Chat catalog: exclude offerings with `capabilities.embedding === true` or `modality: "embed"`.  
-7. [ ] Tests for show parser + embed filter.
+- [x] **M1.1** Gateway `showOllamaModel({ baseUrl, name })` → context / family / parameterSize / isEmbed.  
+  Files: `packages/provider-gateway/src/show-ollama-model.ts` + tests.
 
-**Acceptance**
+- [x] **M1.2** `listOllamaModels` returns metadata (`parameterSize`, family, embed heuristic).  
+  Files: `list-ollama-models.ts` + tests.
 
-- Embedding models not in chat dropdown unless explicitly allowed.  
-- New Ollama offerings get non-empty context defaults when Ollama reports them.
+- [x] **M1.3** Domain embed heuristic (`isEmbeddingModelName`, capability `embedding` / modality).  
+  Files: `embed-heuristic.ts`, `model-capabilities.ts`.
 
-**Depends on:** M0  
-**Size:** M  
+- [x] **M1.4** Admin API `list_tags` / `show_model` actions.  
+  File: `apps/web/src/routes/api/admin/providers.ts`.
+
+- [ ] **M1.5** Add-model dialog: hide embeds by default; toggle “Show embedding models”.  
+  On pick: call `show_model` (or use tag metadata) to prefill `contextWindow` / `numCtx` / `maxOutputTokens` (fallback 8192 / 8192 / 2048).  
+  File: `providers-admin.tsx`.
+
+- [x] **M1.6** Chat catalog excludes embeddings.  
+  File: `models-for-user.ts` / `compose-catalog` path.
+
+- [ ] **M1.7** Integration: mock show + form prefill path covered by test or documented manual checklist.
+
+#### Acceptance
+
+- Embedding tags not in chat dropdown unless explicitly allowed.  
+- New Ollama offering gets non-empty context when Ollama reports it.  
+- `show_model` failure degrades gracefully (empty prefill, no crash).
+
+#### Verification
+
+```bash
+pnpm --filter @maximus/provider-gateway exec vitest run src/show-ollama-model.test.ts src/list-ollama-models.test.ts
+pnpm --filter @maximus/domain exec vitest run src/embed-heuristic.test.ts src/models-for-user.test.ts
+```
+
+**Depends on:** M0 · **Size:** M
 
 ---
 
 ### WP-M2 — Searchable chat model picker + grouping
 
-**Outcome:** Chat model control scales past ~10 offerings.
+**Outcome:** Chat model control scales past ~10 offerings with keyboard a11y.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Replace native `<select>` with accessible combobox (search + keyboard).  
-2. [ ] Group options by connection name / platform.  
-3. [ ] Show secondary line: full modelId if displayName differs.  
-4. [ ] Empty state: “No models configured — Admin → Providers”.  
-5. [ ] Keep capability badges (vision / image).  
-6. [ ] A11y: listbox, aria-activedescendant, typeahead.  
-7. [ ] Mobile: full-width sheet or sufficient max-width.
+- [x] **M2.1** Combobox: search, keyboard nav, listbox roles.  
+  File: `model-select.tsx`.
 
-**Acceptance**
+- [x] **M2.2** Group by connection name / platform.  
+- [x] **M2.3** Secondary line when `displayName !== modelId`.  
+- [ ] **M2.4** Empty state copy: “No models configured — Admin → Providers”.  
+- [x] **M2.5** Capability badges (vision / image) near control.  
+- [ ] **M2.6** A11y pass: `aria-activedescendant`, typeahead, focus trap on open.  
+- [ ] **M2.7** Mobile: dropdown min width / full-width on small screens.  
+- [ ] **M2.8** Manual script: filter “gemma”, arrow keys, Enter selects.
 
-- Can filter “gemma” and pick `gemma3:4b` with keyboard only.  
-- Groups clear when multiple connections exist.
+#### Acceptance
 
-**Depends on:** M0  
-**Size:** M  
+- Keyboard-only pick of `gemma3:4b`.  
+- Groups clear with multiple connections.  
+- Empty org shows actionable empty state.
+
+**Depends on:** M0 · **Size:** M
 
 ---
 
 ### WP-M3 — Org-wide model defaults
 
-**Outcome:** Admins set once, apply to new offerings (and optionally bulk-update).
+**Outcome:** Admins set defaults once; new offerings inherit; explicit per-model still wins.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Schema/settings: `org.settings.modelDefaults`  
-   `{ contextWindow?, maxOutputTokens?, numCtx?, temperature?, topP? }`.  
-2. [ ] Admin UI: Providers or Settings → “Default model params”.  
-3. [ ] Create model: merge defaults under explicit form values.  
-4. [ ] Runtime resolve: offering caps → org defaults → code defaults.  
-5. [ ] Optional: “Apply defaults to all Ollama offerings” bulk action.  
-6. [ ] Audit: `org.model_defaults_updated`.
+- [x] **M3.1** Schema/settings shape: `org.settings.modelDefaults`  
+  `{ contextWindow?, maxOutputTokens?, numCtx?, temperature?, topP?, topK?, stop? }`.  
+  Files: `model-defaults.ts` + tests.
 
-**Acceptance**
+- [x] **M3.2** API `GET/PATCH` model-defaults (admin).  
+  File: `apps/web/src/routes/api/admin/model-defaults.ts`.
+
+- [ ] **M3.3** Admin UI: “Default model params” panel (Providers or Settings).  
+- [x] **M3.4** Create / import merges defaults under explicit form values.  
+- [x] **M3.5** Runtime resolve in `stream-assistant.ts` (org → offering).  
+- [ ] **M3.6** Optional bulk: “Apply defaults to all Ollama offerings”.  
+- [ ] **M3.7** Audit: `org.model_defaults_updated`.
+
+#### Acceptance
 
 - New Ollama model without filled context inherits org default.  
-- Explicit per-model value still wins.
+- Explicit per-model value still wins at stream time.
 
-**Depends on:** M1 (nice), current capabilities  
-**Size:** M  
+#### Verification
+
+```bash
+pnpm --filter @maximus/domain exec vitest run src/model-defaults.test.ts src/model-capabilities.test.ts
+```
+
+**Depends on:** M1 (nice) · **Size:** M
 
 ---
 
 ### WP-M4 — Sampling & stop sequences
 
-**Outcome:** Per-model (then chat) temperature / top_p / stop.
+**Outcome:** Per-model (then chat) temperature / top_p / stop flow to providers.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Extend capabilities or sibling `params` jsonb:  
-   `temperature`, `topP`, `topK`, `stop: string[]`, `frequencyPenalty`, `presencePenalty`.  
-2. [ ] Admin Add/Edit form fields (collapsed “Advanced”).  
-3. [ ] Gateway: map into OpenAI / Anthropic / Ollama option shapes.  
-4. [ ] Validate ranges (temp 0–2, top_p 0–1).  
-5. [ ] Tests per provider payload.  
-6. [ ] Docs: which params each provider honors.
+- [x] **M4.1** Capabilities/params: `temperature`, `topP`, `topK`, `stop[]`, penalties.  
+  File: `model-capabilities.ts` + `validateSamplingParams`.
 
-**Acceptance**
+- [ ] **M4.2** Admin Add/Edit: collapsed “Advanced sampling” fields + validation errors.  
+  File: `providers-admin.tsx`.
 
-- Setting temperature 0 on an offering is visible in outbound request (test with mock fetch).  
-- Invalid values rejected at API with clear error.
+- [x] **M4.3** Gateway maps into OpenAI / Anthropic / Ollama shapes.  
+  File: `build-provider-body.ts` + tests.
 
-**Depends on:** M3 optional  
-**Size:** M  
+- [ ] **M4.4** Document which params each provider honors (`docs/api.md` or runbook).  
+- [ ] **M4.5** Mock-fetch test: temperature `0` appears on outbound body for each kind.
+
+#### Acceptance
+
+- Setting temperature 0 on an offering is visible in outbound request.  
+- Invalid ranges rejected at API with clear error.
+
+**Depends on:** M3 optional · **Size:** M
 
 ---
 
 ### WP-M5 — Chat-level param overrides
 
-**Outcome:** User can tweak temp/max tokens for one conversation without changing org defaults.
+**Outcome:** User tweaks temp/max tokens for one conversation without changing org defaults.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Conversation settings or composer “⋯ → Model params” sheet.  
-2. [ ] Store on conversation: `settings.modelParams` jsonb (nullable = inherit).  
-3. [ ] Merge into streamAssistant resolve order.  
-4. [ ] Reset to model defaults control.  
-5. [ ] RBAC: all members can override for their chats (org can lock later).
+- [x] **M5.1** DB: `conversations.settings` jsonb (migration 003).  
+- [ ] **M5.2** Composer “⋯ → Model params” sheet (temp, max out, reset).  
+- [ ] **M5.3** Persist via conversation patch API; null fields = inherit.  
+- [ ] **M5.4** Merge into `stream-assistant` resolve order (top layer).  
+- [ ] **M5.5** UI badge: “Custom params” when override active.  
+- [ ] **M5.6** Tests: two chats same model, different max output → different payloads.
 
-**Acceptance**
+#### Acceptance
 
-- Two chats same model, different max output, different provider payloads.  
-- Clear UI that overrides are local to the chat.
+- Overrides local to chat; reset restores model defaults.  
+- Members can override (org lock deferred).
 
-**Depends on:** M4  
-**Size:** M  
+**Depends on:** M4 · **Size:** M
 
 ---
 
 ### WP-M6 — Import selected Ollama tags as offerings
 
-**Outcome:** Admin multi-selects tags → bulk create models with defaults.
+**Outcome:** Admin multi-selects tags → bulk create with defaults; chat stays intentional.
 
-**Tasks**
+#### Tasks
 
-1. [ ] UI: “Import from Ollama…” multi-select list (search, exclude embeds, exclude already-added).  
-2. [ ] API: `POST /api/admin/providers` `action: import_tags` `{ id, names: string[], defaults? }`.  
-3. [ ] Idempotent: skip existing modelRefs; return `{ created, skipped }`.  
-4. [ ] Apply org defaults + optional shared rates.  
-5. [ ] Audit event with counts (not full tag spam).  
-6. [ ] Integration test.
+- [x] **M6.1** API `import_tags` `{ id, names[], defaults? }` → `{ created, skipped }`.  
+  Idempotent on modelRef.  
+  File: `providers.ts` route.
 
-**Acceptance**
+- [x] **M6.2** Skip embeds by default (`isVisible: !isEmbed` or skip create).  
+- [ ] **M6.3** UI: “Import from Ollama…” multi-select, search, exclude already-added, exclude embeds toggle.  
+  File: `providers-admin.tsx` (partial — harden).
 
-- Import 5 tags → 5 offerings; re-import → 0 created, 5 skipped.  
-- Chat only shows imported enabled offerings.
+- [ ] **M6.4** After import, toast with counts; refresh models list.  
+- [x] **M6.5** Audit `provider.import_tags` with counts (not full tag spam).  
+- [ ] **M6.6** Integration test: import 5 → re-import 0 created / 5 skipped.
 
-**Depends on:** M1, M3  
-**Size:** M  
+#### Acceptance
+
+- Import 5 tags → 5 offerings; re-import → 0 created.  
+- Chat only shows imported enabled visible offerings.
+
+**Depends on:** M1, M3 · **Size:** M
 
 ---
 
 ### WP-M7 — Visibility vs enable + defaults / pins
 
-**Outcome:** Curated picker without deleting offerings.
+**Outcome:** Curate picker without deleting offerings.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Schema: `is_visible` (default true) separate from `is_enabled`.  
-2. [ ] Chat catalog: `isEnabled && isVisible` (+ allowlist).  
-3. [ ] Runtime may still resolve enabled-but-hidden if already selected on old chat (define policy: allow continue vs force switch).  
-4. [ ] Org settings: `defaultModelRefs[]`, `pinnedModelRefs[]`.  
-5. [ ] New chat uses first accessible default, else first catalog entry.  
-6. [ ] Admin toggles: Visible, Default, Pin.  
-7. [ ] Docs: curated deploy pattern (hide raw base, show friendly name).
+- [x] **M7.1** Schema `is_visible` (default true) ≠ `is_enabled`.  
+  Migration: `003_model_visibility_agents.sql`.
 
-**Acceptance**
+- [x] **M7.2** Chat catalog: `isEnabled && isVisible` (+ allowlist, −embed).  
+  File: `models-for-user.ts`.
 
-- Hidden model not in picker; disable hides and blocks new runs.  
+- [ ] **M7.3** Policy for old chats on hidden models: **allow continue if enabled**, hide from picker only. Document.  
+- [ ] **M7.4** Org settings: `defaultModelRefs[]`, `pinnedModelRefs[]`.  
+- [ ] **M7.5** New chat: first accessible default → else first catalog entry.  
+- [x] **M7.6** Admin toggle Visible (partial in providers UI).  
+- [ ] **M7.7** Admin Default / Pin toggles + sort pins to top of picker.  
+- [ ] **M7.8** Docs: curated deploy pattern (hide raw base, friendly displayName).
+
+#### Acceptance
+
+- Hidden model not in picker; disable blocks **new** runs.  
 - Default model pre-selected on empty composer.
 
-**Depends on:** M2  
-**Size:** M  
+**Depends on:** M2 · **Size:** M
 
 ---
 
 ### WP-M8 — Agent presets (“workspace models”)
 
-**Outcome:** Product surface = persona wrapping a base offering.
+**Outcome:** Personas wrap a base offering (system prompt + params + access).
 
-**Tasks**
+#### Tasks
 
-1. [ ] Table `agent_presets`: orgId, name, slug, baseModelRef, systemPrompt, params jsonb, isEnabled, isVisible, access.  
-2. [ ] Admin CRUD under Providers or new Agents page.  
-3. [ ] Chat picker: list agents and/or base models (config flag).  
-4. [ ] Runtime: inject system prompt + merge params on top of base offering.  
-5. [ ] Access: reuse allowlist or agent-specific role rules.  
-6. [ ] Fallback if base model disabled (clear error).  
-7. [ ] Tests: prompt assembly + param merge.
+- [x] **M8.1** Table/repo `agent_presets` (orgId, name, slug, baseModelRef, systemPrompt, params, flags).  
+  Migration 003 + `packages/db/src/repos/agents.ts`.
 
-**Acceptance**
+- [x] **M8.2** Resolve: inject system prompt + merge params; error if base disabled.  
+  File: `agents.resolve.test.ts`.
 
-- “Support bot” agent uses `gemma3:4b` with fixed system prompt.  
-- Changing base offering params affects agent unless agent overrides.
+- [x] **M8.3** Admin API CRUD.  
+  File: `apps/web/src/routes/api/admin/agents.ts`.
 
-**Depends on:** M4, M7  
-**Size:** L  
+- [ ] **M8.4** Admin UI page or Providers sub-tab for agents.  
+- [ ] **M8.5** Chat picker: list agents (config: agents-only / both / models-only).  
+- [ ] **M8.6** Access: reuse model allowlist on baseModelRef (never bypass).  
+- [ ] **M8.7** Tests: prompt assembly + param merge + disabled base error message.
+
+#### Acceptance
+
+- “Support bot” agent uses `gemma3:4b` + fixed system prompt.  
+- Disabled base → clear error, no silent fallback to another model.
+
+**Depends on:** M4, M7 · **Size:** L
 
 ---
 
@@ -302,66 +428,75 @@ Each WP has: outcome, tasks, acceptance criteria, dependencies, estimate (S/M/L)
 
 **Outcome:** Fewer provider 400s; honest UX near limits.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Estimate tokens (char/4 fallback; optional tiktoken later for OpenAI).  
-2. [ ] Before stream: if estimate > `contextWindow - maxOutput - headroom`, either:  
-   - **refuse** with actionable error, or  
-   - **trim** oldest non-system messages (org setting).  
-3. [ ] Default policy: refuse in v1 (safest); trim opt-in.  
-4. [ ] UI: subtle “context high” when > 70% of window.  
-5. [ ] Log/audit only on refuse (meta: modelRef, estimated tokens).  
-6. [ ] Tests with synthetic long history.
+- [x] **M9.1** Token estimate (char/4 fallback).  
+  File: `context-budget.ts` + tests.
 
-**Acceptance**
+- [x] **M9.2** Before stream: if estimate > `contextWindow - maxOutput - headroom` → **refuse**.  
+  File: `stream-assistant.ts`.
 
-- Oversized history never silently drops without policy.  
-- Error text tells user to start a new chat or raise context.
+- [ ] **M9.3** Error copy: model full name, estimated tokens, “start new chat or raise context”.  
+- [ ] **M9.4** Org setting later: trim opt-in (v1 refuse only — keep).  
+- [ ] **M9.5** UI “context high” when > 70% of window (composer hint).  
+- [ ] **M9.6** Audit/meta on refuse only (`modelRef`, estimated tokens).  
+- [ ] **M9.7** Synthetic long-history unit test through stream path (mock).
 
-**Depends on:** M1 (contextWindow populated)  
-**Size:** L  
+#### Acceptance
+
+- Oversized history never silently drops.  
+- Error includes full model name (not `4b`) and suggested fix.
+
+**Depends on:** M1 (context populated) · **Size:** L
 
 ---
 
 ### WP-M10 — Bulk ops + import/export
 
-**Outcome:** Backup and mass-edit offerings.
+**Outcome:** Backup and mass-edit offerings without secrets.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Export JSON: connections metadata (no secrets) + models + allowlist + prices.  
-2. [ ] Import JSON with dry-run + apply; conflict strategy (skip/overwrite).  
-3. [ ] Bulk: enable/disable, set context defaults, delete (with confirm).  
-4. [ ] Admin filters: enabled/disabled, kind, missing contextWindow.  
-5. [ ] Audit bulk actions with counts.
+- [x] **M10.1** Domain export shape (connections metadata, models, allowlist, prices — **no secrets**).  
+  Files: `catalog-export.ts` + tests.
 
-**Acceptance**
+- [x] **M10.2** API export/import endpoints.  
+  File: `api/admin/catalog-export.ts`, `repos/catalog-export.ts`.
 
-- Round-trip export/import on empty org restores model list.  
+- [ ] **M10.3** UI: Export JSON download; Import dry-run + apply (skip/overwrite).  
+- [ ] **M10.4** Bulk: enable/disable, set context defaults, delete w/ confirm.  
+- [ ] **M10.5** Admin filters: enabled/disabled, kind, missing `contextWindow`.  
+- [ ] **M10.6** Audit bulk with counts.  
+- [ ] **M10.7** Security test: export fixture never contains `apiKey` / ciphertext blobs.
+
+#### Acceptance
+
+- Round-trip on empty org restores model list.  
 - Secrets never appear in export.
 
-**Depends on:** M3, M7  
-**Size:** M  
+**Depends on:** M3, M7 · **Size:** M
 
 ---
 
 ### WP-M11 — Access control polish
 
-**Outcome:** Allowlists usable at scale; path to groups.
+**Outcome:** Allowlists usable at scale.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Allowlist UI: pick from full offering list (searchable), not free-typed refs only.  
-2. [ ] Show effective access matrix (role × model).  
-3. [ ] Document empty allowlist = all enabled.  
-4. [ ] Design only (no code): project/group-scoped models for later WP.
+- [ ] **M11.1** Allowlist UI: searchable pick from full offering list (not free-typed refs only).  
+  File: access-admin (Input path).
 
-**Acceptance**
+- [ ] **M11.2** Show effective access matrix (role × model) read-only view.  
+- [ ] **M11.3** Document: empty allowlist = all enabled+visible models.  
+  File: `docs/api.md` or runbook.  
+- [ ] **M11.4** Design note only: project/group-scoped models (no code).
 
-- Admin can allowlist `gemma3:4b` for members without typing modelRef.
+#### Acceptance
 
-**Depends on:** M2  
-**Size:** S–M  
+- Admin can allowlist `gemma3:4b` for members without typing full modelRef.
+
+**Depends on:** M2 · **Size:** S–M
 
 ---
 
@@ -369,39 +504,58 @@ Each WP has: outcome, tasks, acceptance criteria, dependencies, estimate (S/M/L)
 
 **Outcome:** Operators understand model config and failures.
 
-**Tasks**
+#### Tasks
 
-1. [ ] Runbook: Ollama private URLs, `num_ctx` cold start, context errors.  
-2. [ ] Overview attention: “N offerings missing contextWindow”.  
-3. [ ] API docs: capabilities shape + resolve order.  
-4. [ ] Security review: params cannot smuggle secrets; SSRF unchanged.
+- [ ] **M12.1** Runbook section: private Ollama URLs, `num_ctx` cold start, context refuse, full model names in stats.  
+  File: `docs/runbook.md`.
 
-**Depends on:** M9 partial  
-**Size:** S  
+- [ ] **M12.2** Overview attention: “N offerings missing contextWindow”.  
+  Files: overview domain/API if not already.
 
----
+- [ ] **M12.3** API docs: capabilities shape + resolve order.  
+  File: `docs/api.md`.
 
-## 5. Suggested implementation order
+- [ ] **M12.4** Security note: params cannot smuggle secrets; SSRF allowlist unchanged.  
+  Cross-link `docs/security-self-host.md`.
 
-```
-M0  Full names                          ──┐
-M1  /api/show + embed filter            ──┼─► M2 Searchable picker
-M3  Org defaults                        ──┤
-M4  Sampling params                     ──┼─► M5 Chat overrides
-M6  Bulk import tags                    ──┘
-M7  Visibility + pins                  ──► M8 Agents
-M9  Context budget
-M10 Bulk export/import
-M11 Allowlist UX
-M12 Docs / ops
-```
+- [ ] **M12.5** Update this plan’s inventory table after each release.
 
-**MVP slice for “feels like OpenWebUI without the bloat”:**  
-**M0 → M1 → M2 → M3 → M6 → M4** (then M7/M9 as quality).
+#### Acceptance
+
+- New operator can configure Ollama → import → chat using docs only.  
+- No undocumented admin-only actions for core path.
+
+**Depends on:** M9 partial · **Size:** S
 
 ---
 
-## 6. Data / API contracts (target)
+## 5. Implementation phases (recommended)
+
+```
+Phase A — Labels & catalog truth (ship first)
+  M0 full names ──► M1 show + embed ──► M2 picker polish
+
+Phase B — Params pipeline
+  M3 org defaults ──► M4 sampling ──► M5 chat overrides
+
+Phase C — Curation at scale
+  M6 import tags ──► M7 visibility/pins ──► M11 allowlist UX
+
+Phase D — Product surface
+  M8 agents
+
+Phase E — Ops hardness
+  M9 context budget ──► M10 export/import ──► M12 docs
+```
+
+**MVP “feels like OpenWebUI without bloat”:**  
+**M0 → M1 → M2 → M3 → M6 → M4** then M7/M9 for quality.
+
+Parallel-safe after Phase A domain stabilizes: M11 UI with M6; M12 docs anytime.
+
+---
+
+## 6. Data / API contracts
 
 ### 6.1 `models.capabilities` (jsonb)
 
@@ -417,43 +571,74 @@ M12 Docs / ops
   "numCtx": 8192,
   "temperature": 0.7,
   "topP": 0.9,
-  "stop": ["User:"]
+  "topK": 40,
+  "stop": ["User:"],
+  "frequencyPenalty": 0,
+  "presencePenalty": 0
 }
 ```
 
-Unknown keys ignored by parser (forward compatible).
+Unknown keys ignored (forward compatible). Parser: `parseCapabilities` / `buildCapabilities`.
 
-### 6.2 Resolve order (runtime)
+### 6.2 Admin provider actions (additive)
 
-```
-effectiveParams = merge(
-  CODE_DEFAULTS,
-  org.settings.modelDefaults,
-  offering.capabilities,
-  conversation.settings.modelParams  // future
-)
-```
+| Action | Body | Result |
+| --- | --- | --- |
+| `list_tags` | `{ id }` | `{ tags: [{ name, parameterSize?, family?, isEmbed? }] }` |
+| `show_model` | `{ id, modelName }` | show payload + parsed limits |
+| `import_tags` | `{ id, names: string[] }` | `{ created, skipped }` |
 
-### 6.3 Admin APIs (additive)
+### 6.3 Other admin routes
 
-| Action | Purpose |
+| Route | Purpose |
 | --- | --- |
-| `list_tags` | Exists — extend with metadata |
-| `show_model` | Ollama `/api/show` detail |
-| `import_tags` | Bulk create offerings |
-| `GET/PATCH model-defaults` | Org defaults |
+| `GET/PATCH /api/admin/model-defaults` | Org defaults |
+| `CRUD /api/admin/agents` | Agent presets |
+| `GET/POST /api/admin/catalog-export` | Secret-free export/import |
+| `PATCH /api/admin/models` | caps, rates, enable, visible |
+
+### 6.4 Chat catalog rules (non-negotiable)
+
+1. Platform models only when corresponding keys exist.  
+2. Org offerings: `isEnabled && isVisible && !embedding`.  
+3. Allowlist: empty = all pass; non-empty = intersection.  
+4. Never merge live Ollama `/api/tags` into chat catalog.  
+5. Display: full tag / full modelId via domain helpers.
 
 ---
 
 ## 7. Testing strategy
 
-| Layer | Coverage |
+| Layer | What to cover | Commands |
+| --- | --- | --- |
+| Domain | names, caps merge, embed, defaults, budget, catalog filter | `pnpm --filter @maximus/domain test` |
+| Gateway | body shapes for openai/anthropic/ollama; show/list parsers | `pnpm --filter @maximus/provider-gateway test` |
+| DB | visibility, agents resolve, import idempotency | `pnpm --filter @maximus/db test` |
+| Web unit | catalog build, route handlers where unit-tested | `pnpm --filter @maximus/web test` |
+| Typecheck | monorepo | `pnpm -r typecheck` (or package filters) |
+| Manual E2E | Ollama connect → import one tag → chat lists only that → stats show full name | browser / compose |
+
+### Evidence (for goal/completion runs)
+
+Write under scratch implementer dir (or CI artifacts):
+
+| Log | Contents |
 | --- | --- |
-| Domain | parse/merge capabilities; embed filter; name formatting |
-| Gateway | request body includes max_tokens / num_ctx / temperature (mock fetch) |
-| DB/API | create/patch capabilities; import idempotency; catalog membership |
-| UI | add from picker; edit limits; models always visible on providers page |
-| E2E | Ollama connection → import one tag → chat lists only that tag |
+| `provider-model-tests.log` | domain + gateway + db unit results |
+| `gateway-payloads.log` | build-provider-body test output |
+| `admin-ops.log` | import_tags / show_model / export dry notes |
+| `typecheck.log` | typecheck |
+| `tests-run1.log` / `tests-run2.log` | full suite twice |
+
+### Regression greps (M0 forever)
+
+```bash
+# Forbidden pattern for model labels
+rg 'split\(":"\)\.pop\(\)' apps packages --glob '*.{ts,tsx}'
+
+# Ensure helpers stay exported
+rg 'modelIdFromRef|formatOllamaDisplayName' packages/domain/src/index.ts
+```
 
 ---
 
@@ -461,26 +646,72 @@ effectiveParams = merge(
 
 | Risk | Mitigation |
 | --- | --- |
-| Large `num_ctx` makes Ollama feel “broken” (slow) | UI warning; default 8k; document cold start |
-| Wrong context from `/api/show` | Prefer admin edit; never hard-fail on missing |
-| Agents bypass allowlists | Always enforce on base modelRef |
-| Param sprawl | Keep advanced collapsed; org defaults reduce form fatigue |
-| Truncation policy wars | Start with refuse + clear error; trim opt-in |
+| Large `num_ctx` makes Ollama feel “down” | UI warning; default 8k; runbook cold-start note |
+| Wrong context from `/api/show` | Prefill only; admin can edit; never hard-fail |
+| Agents bypass allowlists | Always enforce on `baseModelRef` |
+| Param sprawl | Advanced collapsed; org defaults reduce form fatigue |
+| Silent truncation | Refuse-only v1; trim opt-in later |
+| Truncated model labels (`4b`) | `modelIdFromRef` + grep guard |
+| Secrets in export | Schema denylist + unit test fixture |
+| Migration 003 missing on old DBs | Document migrate path; Helm post-install job |
 
 ---
 
 ## 9. Success metrics
 
-- Chat picker count equals **enabled visible offerings** (manual audit).  
-- Zero “demo” platform models without keys.  
-- Admin can go from empty Ollama → 1 registered model → successful chat in &lt; 2 minutes.  
-- Context-exceeded errors include model name and suggested fix.  
-- No embedding models in default chat picker.
+- Chat picker count equals **enabled ∧ visible ∧ non-embed** offerings (manual audit).  
+- Zero demo platform models without keys.  
+- Empty Ollama → 1 registered model → successful chat in **&lt; 2 minutes**.  
+- Context-exceeded errors include **full** model name + suggested fix.  
+- Generation stats show `gemma3:4b` not `4b`.  
+- No embedding models in default chat picker.  
+- Export contains zero secret material.
 
 ---
 
-## 10. Immediate next step
+## 10. Task board (copy for session todos)
 
-Implement **WP-M0** (full names) if not already merged, then **WP-M1** (show + embed filter) and **WP-M2** (searchable picker) as the next stack.
+Use as sprint checklist; mark in this file when done.
 
-This document is the backlog source of truth for provider/model work; update WP checkboxes as tasks land.
+**Phase A**
+
+- [ ] M0.5–M0.7 remaining greps + admin labels + runbook note  
+- [ ] M1.5, M1.7 prefill UI + checklist  
+- [ ] M2.4, M2.6–M2.8 empty state + a11y + mobile  
+
+**Phase B**
+
+- [ ] M3.3, M3.6–M3.7 defaults UI + bulk + audit  
+- [ ] M4.2, M4.4–M4.5 sampling UI + docs + mock payload  
+- [ ] M5.2–M5.6 chat override sheet  
+
+**Phase C**
+
+- [ ] M6.3–M6.4, M6.6 import UI polish + test  
+- [ ] M7.3–M7.5, M7.7–M7.8 pins/defaults policy  
+- [ ] M11.1–M11.3 allowlist pick + docs  
+
+**Phase D**
+
+- [ ] M8.4–M8.7 agents UI + picker + tests  
+
+**Phase E**
+
+- [ ] M9.3–M9.7 refuse copy + high-water UI + audit  
+- [ ] M10.3–M10.7 export UI + bulk + secret test  
+- [ ] M12.1–M12.5 runbook/api/overview  
+
+**Verify**
+
+- [ ] Suite ×2 + typecheck + evidence logs  
+
+---
+
+## 11. Immediate next steps
+
+1. **Ship M0 remaining greps** (confirm no other truncated labels).  
+2. **Close M1.5** (show prefill in add dialog).  
+3. **M2 empty state + a11y** for chat picker.  
+4. Run verification suite and attach evidence if this is a completion goal.  
+
+This document is the backlog source of truth for provider/model work. Update inventory (§2) and checkboxes when tasks land.

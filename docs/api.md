@@ -48,7 +48,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/auth/me"
 | DELETE | `/api/auth/account` | Hard-delete account (`confirm: "DELETE"`) |
 | GET/PUT | `/api/me/instructions` | Personalization → chat system prompt |
 | GET/POST/PATCH/DELETE | `/api/projects` | Projects; PATCH can assign `conversationId` |
-| GET | `/api/models` | Allowed models (platform keys only + enabled org offerings; no auto Ollama dump) |
+| GET | `/api/models` | Allowed models + agents + `defaultModelRef` (platform keys only + enabled visible org offerings; no auto Ollama dump) |
 | GET | `/api/conversations` | List / `?id=` / `?q=` / `?scope=` / `?projectId=` |
 | SPA | `/` · `/c/{conversationId}` · `/projects` | Deep links |
 | PATCH | `/api/conversations` | Title, archive/unarchive (`archive: true\|false`), activeLeafId |
@@ -67,12 +67,40 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/auth/me"
 | GET | `/api/admin/overview/stream` | **SSE** live snapshot |
 | GET/PATCH | `/api/admin/overview/settings` | Probe settings |
 | POST | `/api/admin/overview/probe` | Manual probes |
-| CRUD | `/api/admin/providers` | BYOK + test |
-| CRUD | `/api/admin/models` | Models + allowlist |
+| CRUD | `/api/admin/providers` | BYOK + test; actions `list_tags`, `show_model`, `import_tags` (Ollama) |
+| CRUD | `/api/admin/models` | Models + allowlist (`isEnabled`, `isVisible`, capabilities) |
+| GET/PATCH | `/api/admin/model-defaults` | Org `modelDefaults`, `defaultModelRefs`, `pinnedModelRefs` |
+| CRUD | `/api/admin/agents` | Agent presets; `action: resolve` for disabled-base checks |
+| GET | `/api/admin/catalog-export` | Secret-free catalog export (connections metadata, models, allowlist, agents) |
+| POST | `/api/admin/catalog-export` | Import catalog `{ catalog, dryRun?, conflict?: "skip"\|"overwrite" }` — never restores secrets |
 | CRUD | `/api/admin/prices` | Pricing rows |
 | GET/POST | `/api/admin/members` | Members + invites |
 | GET | `/api/admin/usage` | Usage events |
 | GET | `/api/admin/audit` | Audit log (`?action=` `?since=` `?limit=`) |
+
+### Model capabilities (`models.capabilities` jsonb)
+
+```json
+{
+  "streaming": true,
+  "vision": false,
+  "tools": false,
+  "imageGen": false,
+  "embedding": false,
+  "contextWindow": 8192,
+  "maxOutputTokens": 2048,
+  "numCtx": 8192,
+  "temperature": 0.7,
+  "topP": 0.9,
+  "stop": ["User:"]
+}
+```
+
+**Resolve order (runtime):** code defaults → `org.settings.modelDefaults` → offering capabilities (+ agent params) → `conversation.settings.modelParams`.
+
+**Gateway mapping:** OpenAI-compat `max_tokens` / sampling; Anthropic `max_tokens`; Ollama `options.num_ctx` / `num_predict` / sampling.
+
+**Agent picker refs:** `agent:{presetId}` — stream resolves to base model; allowlist enforced on base.
 
 ## Live / SSE
 

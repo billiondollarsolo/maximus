@@ -266,19 +266,37 @@ describe("admin catalog repos", () => {
       modelRef,
     });
     const orgModels = await providerRepo.listModels(db, orgId);
-    const catalog = composeCatalog({
-      platform: defaultPlatformCatalog(),
-      orgModels: orgModels.map((m) => ({
-        modelRef: m.modelRef,
-        displayName: m.displayName,
-        providerKind: m.providerKind,
-        isEnabled: m.isEnabled,
-        sortOrder: m.sortOrder,
-      })),
+    const orgCatalog = orgModels.map((m) => ({
+      modelRef: m.modelRef,
+      displayName: m.displayName,
+      providerKind: m.providerKind,
+      isEnabled: m.isEnabled,
+      sortOrder: m.sortOrder,
+    }));
+
+    // No platform keys → chat has only intentional org offerings (no demos).
+    const emptyPlatform = composeCatalog({
+      platform: defaultPlatformCatalog({ providerMode: "live" }),
+      orgModels: orgCatalog,
     });
-    const forMember = modelsForUser(catalog, "member", []);
-    const refs = forMember.map((m) => m.modelRef);
-    expect(refs.some((r) => r.startsWith("openai:platform:"))).toBe(true);
-    expect(refs).toContain(modelRef);
+    const emptyRefs = modelsForUser(emptyPlatform, "member", []).map(
+      (m) => m.modelRef,
+    );
+    expect(emptyRefs.some((r) => r.startsWith("openai:platform:"))).toBe(false);
+    expect(emptyRefs).toContain(modelRef);
+
+    // With OpenAI key → platform cloud models merge with BYOK offerings.
+    const withKeys = composeCatalog({
+      platform: defaultPlatformCatalog({
+        providerMode: "live",
+        openai: true,
+      }),
+      orgModels: orgCatalog,
+    });
+    const keyedRefs = modelsForUser(withKeys, "member", []).map(
+      (m) => m.modelRef,
+    );
+    expect(keyedRefs.some((r) => r.startsWith("openai:platform:"))).toBe(true);
+    expect(keyedRefs).toContain(modelRef);
   });
 });

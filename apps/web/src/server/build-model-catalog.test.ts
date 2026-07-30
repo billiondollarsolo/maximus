@@ -157,4 +157,61 @@ describe("buildModelCatalog", () => {
     );
     expect(models.some((m) => m.modelRef.startsWith("anthropic:"))).toBe(false);
   });
+
+  it("excludes embedding org offerings from chat catalog", async () => {
+    const {
+      createDb,
+      newId,
+      organizations,
+      organizationsExt,
+      providerRepo,
+      testMigrate,
+    } = await import("@maximus/db");
+    await testMigrate(DATABASE_URL);
+    const db = createDb(DATABASE_URL);
+    const orgId = newId("org");
+    await db.insert(organizations).values({
+      id: orgId,
+      name: "Embed",
+      slug: orgId,
+    });
+    await db.insert(organizationsExt).values({ orgId, settings: {} });
+    const conn = await providerRepo.createProviderConnection(db, {
+      orgId,
+      kind: "ollama",
+      name: "Local",
+      baseUrl: "http://10.0.0.5:11434",
+      credentialsEncrypted: "x",
+      hasSecret: false,
+    });
+    await providerRepo.createModel(db, {
+      orgId,
+      connectionId: conn.id,
+      providerKind: "ollama",
+      modelId: "gemma3:4b",
+      displayName: "gemma3:4b",
+      modelRef: `ollama:${conn.id}:gemma3:4b`,
+    });
+    await providerRepo.createModel(db, {
+      orgId,
+      connectionId: conn.id,
+      providerKind: "ollama",
+      modelId: "nomic-embed-text",
+      displayName: "nomic-embed-text",
+      modelRef: `ollama:${conn.id}:nomic-embed-text`,
+      capabilities: { embedding: true, streaming: true },
+    });
+
+    const { models, defaultModelRef } = await buildModelCatalog({
+      db,
+      orgId,
+      role: "member",
+      env: env({ providerMode: "live" }),
+    });
+
+    const refs = models.map((m) => m.modelRef);
+    expect(refs).toContain(`ollama:${conn.id}:gemma3:4b`);
+    expect(refs).not.toContain(`ollama:${conn.id}:nomic-embed-text`);
+    expect(defaultModelRef).toBe(`ollama:${conn.id}:gemma3:4b`);
+  });
 });

@@ -269,6 +269,61 @@ export async function getModelByRef(db: Db, orgId: string, modelRef: string) {
   return row ?? null;
 }
 
+/**
+ * Idempotent bulk create of models on a connection (import_tags core).
+ * Skips when modelRef already exists for the org.
+ */
+export async function importModelsOnConnection(
+  db: Db,
+  input: {
+    orgId: string;
+    connectionId: string;
+    providerKind: string;
+    items: Array<{
+      modelId: string;
+      displayName: string;
+      capabilities?: Record<string, unknown>;
+      isEnabled?: boolean;
+      isVisible?: boolean;
+      inputUsdPer1m?: number | null;
+      outputUsdPer1m?: number | null;
+      sortOrder?: number;
+    }>;
+  },
+): Promise<{ created: number; skipped: number; modelRefs: string[] }> {
+  let created = 0;
+  let skipped = 0;
+  const modelRefs: string[] = [];
+  for (const item of input.items) {
+    const modelId = item.modelId.trim();
+    if (!modelId) continue;
+    const modelRef = `${input.providerKind}:${input.connectionId}:${modelId}`;
+    const already = await getModelByRef(db, input.orgId, modelRef);
+    if (already) {
+      skipped += 1;
+      modelRefs.push(modelRef);
+      continue;
+    }
+    await createModel(db, {
+      orgId: input.orgId,
+      connectionId: input.connectionId,
+      providerKind: input.providerKind,
+      modelId,
+      displayName: item.displayName || modelId,
+      modelRef,
+      capabilities: item.capabilities,
+      isEnabled: item.isEnabled,
+      isVisible: item.isVisible,
+      inputUsdPer1m: item.inputUsdPer1m,
+      outputUsdPer1m: item.outputUsdPer1m,
+      sortOrder: item.sortOrder,
+    });
+    created += 1;
+    modelRefs.push(modelRef);
+  }
+  return { created, skipped, modelRefs };
+}
+
 export async function createModel(
   db: Db,
   input: {
@@ -281,6 +336,7 @@ export async function createModel(
     capabilities?: Record<string, unknown>;
     sortOrder?: number;
     isEnabled?: boolean;
+    isVisible?: boolean;
     inputUsdPer1m?: number | null;
     outputUsdPer1m?: number | null;
   },
@@ -298,6 +354,7 @@ export async function createModel(
       capabilities: input.capabilities ?? { streaming: true },
       sortOrder: input.sortOrder ?? 0,
       isEnabled: input.isEnabled ?? true,
+      isVisible: input.isVisible ?? true,
       inputUsdPer1m:
         input.inputUsdPer1m == null ? null : String(input.inputUsdPer1m),
       outputUsdPer1m:
@@ -315,6 +372,7 @@ export async function updateModel(
     displayName?: string;
     capabilities?: Record<string, unknown>;
     isEnabled?: boolean;
+    isVisible?: boolean;
     sortOrder?: number;
     inputUsdPer1m?: number | null;
     outputUsdPer1m?: number | null;
@@ -324,6 +382,7 @@ export async function updateModel(
     displayName?: string;
     capabilities?: Record<string, unknown>;
     isEnabled?: boolean;
+    isVisible?: boolean;
     sortOrder?: number;
     inputUsdPer1m?: string | null;
     outputUsdPer1m?: string | null;
@@ -331,6 +390,7 @@ export async function updateModel(
   if (input.displayName !== undefined) patch.displayName = input.displayName;
   if (input.capabilities !== undefined) patch.capabilities = input.capabilities;
   if (input.isEnabled !== undefined) patch.isEnabled = input.isEnabled;
+  if (input.isVisible !== undefined) patch.isVisible = input.isVisible;
   if (input.sortOrder !== undefined) patch.sortOrder = input.sortOrder;
   if (input.inputUsdPer1m !== undefined) {
     patch.inputUsdPer1m =

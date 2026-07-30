@@ -80,12 +80,26 @@ describe("admin console cohesion", () => {
     expect(src).not.toContain("Pricing");
   });
 
-  it("settings shell reuses admin-nav-link density", () => {
-    const src = readFileSync(
+  it("admin + settings keep chat sidebar wordmark and account chrome", () => {
+    const secondary = readFileSync(
+      join(root, "features/shell/secondary-sidebar.tsx"),
+      "utf8",
+    );
+    expect(secondary).toContain("Wordmark");
+    expect(secondary).toContain("SidebarUserMenu");
+    expect(secondary).toContain("Back to chat");
+
+    const admin = readFeature("admin-shell.tsx");
+    expect(admin).toContain("SecondarySidebar");
+    expect(admin).toContain("sectionLabel=\"Admin\"");
+
+    const settings = readFileSync(
       join(root, "features/settings/settings-shell.tsx"),
       "utf8",
     );
-    expect(src).toContain("admin-nav-link");
-    expect(src).toContain("admin-shell");
+    expect(settings).toContain("admin-nav-link");
+    expect(settings).toContain("admin-shell");
+    expect(settings).toContain("SecondarySidebar");
+    expect(settings).toContain("sectionLabel=\"Settings\"");
   });
 });

@@ -8,7 +8,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
-import { siblingBranchMeta } from "@maximus/domain";
+import { modelIdFromRef, siblingBranchMeta } from "@maximus/domain";
 import { BrandMark } from "#/components/layout/brand-mark";
 import { Button, IconButton } from "#/components/ui";
 import { MarkdownRenderer } from "#/components/markdown/markdown-renderer";
@@ -52,10 +52,18 @@ function GenerationFooter({ metrics }: { metrics: GenerationMetricsUi }) {
   if (metrics.providerKind) {
     bits.push(metrics.providerKind);
   }
-  const modelShort = metrics.modelRef?.split(":").pop();
-  if (modelShort) bits.push(modelShort);
+  // Full model id (e.g. gemma3:4b) — never split(":").pop() which yields "4b".
+  const modelLabel = metrics.modelRef
+    ? modelIdFromRef(metrics.modelRef)
+    : "";
+  if (modelLabel) bits.push(modelLabel);
   return (
-    <p className="mt-2 text-[11px] tabular-nums text-text-faint">{bits.join(" · ")}</p>
+    <p
+      className="mt-2 text-[11px] tabular-nums text-text-faint"
+      title={metrics.modelRef || undefined}
+    >
+      {bits.join(" · ")}
+    </p>
   );
 }
 

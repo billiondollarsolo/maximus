@@ -58,6 +58,8 @@ export const models = pgTable(
       .notNull()
       .default({ streaming: true }),
     isEnabled: boolean("is_enabled").notNull().default(true),
+    /** When false, hidden from picker (still runnable if already selected). */
+    isVisible: boolean("is_visible").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     /** Per-offering rates; null falls back to model_prices pattern table. */
     inputUsdPer1m: numeric("input_usd_per_1m", { precision: 12, scale: 6 }),
@@ -67,6 +69,27 @@ export const models = pgTable(
     }),
   },
   (t) => [uniqueIndex("models_org_ref_uidx").on(t.orgId, t.modelRef)],
+);
+
+export const agentPresets = pgTable(
+  "agent_presets",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    baseModelRef: text("base_model_ref").notNull(),
+    systemPrompt: text("system_prompt"),
+    params: jsonb("params").$type<Record<string, unknown>>().notNull().default({}),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    isVisible: boolean("is_visible").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("agent_presets_org_slug_uidx").on(t.orgId, t.slug)],
 );
 
 export const modelAllowlists = pgTable(
@@ -113,6 +136,8 @@ export const conversations = pgTable("conversations", {
   titleSource: text("title_source"),
   modelRef: text("model_ref"),
   activeLeafId: text("active_leaf_id"),
+  /** e.g. { modelParams: { temperature, maxOutputTokens } } */
+  settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

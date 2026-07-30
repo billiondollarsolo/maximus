@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { assembleSystemPrompts } from "./system-prompt.js";
 
 describe("assembleSystemPrompts", () => {
-  it("orders platform → org → project → user", () => {
+  it("orders platform → org → project → agent → user", () => {
     expect(
       assembleSystemPrompts({
         platform: "p",
         org: "o",
         project: "proj",
+        agent: "Be a support bot",
         userAbout: "dev",
         userPreferred: "concise",
       }),
@@ -15,6 +16,7 @@ describe("assembleSystemPrompts", () => {
       "p",
       "o",
       "proj",
+      "Be a support bot",
       "About the user: dev\nPreferred response style: concise",
     ]);
   });

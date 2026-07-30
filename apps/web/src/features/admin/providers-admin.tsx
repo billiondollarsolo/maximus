@@ -46,6 +46,9 @@ export type ProviderModelCaps = {
   contextWindow?: number;
   maxOutputTokens?: number;
   numCtx?: number;
+  temperature?: number;
+  topP?: number;
+  stop?: string[];
 };
 
 export type ProviderModel = {
@@ -54,6 +57,7 @@ export type ProviderModel = {
   modelId: string;
   displayName: string;
   isEnabled: boolean;
+  isVisible?: boolean;
   inputUsdPer1m: number | null;
   outputUsdPer1m: number | null;
   capabilities?: ProviderModelCaps | Record<string, unknown> | null;
@@ -100,6 +104,12 @@ export function ProvidersAdmin() {
   } | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [defaultsCw, setDefaultsCw] = useState("");
+  const [defaultsMaxOut, setDefaultsMaxOut] = useState("");
+  const [defaultsTemp, setDefaultsTemp] = useState("");
+  const [defaultsTopP, setDefaultsTopP] = useState("");
+  const [defaultRefs, setDefaultRefs] = useState("");
+  const [pinnedRefs, setPinnedRefs] = useState("");
 
   const refresh = useCallback(async () => {
     const res = await fetch("/api/admin/providers", {
@@ -120,9 +130,36 @@ export function ProvidersAdmin() {
     setLoading(false);
   }, []);
 
+  const refreshDefaults = useCallback(async () => {
+    const res = await fetch("/api/admin/model-defaults", {
+      credentials: "same-origin",
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      modelDefaults?: {
+        contextWindow?: number;
+        maxOutputTokens?: number;
+        temperature?: number;
+        topP?: number;
+      };
+      defaultModelRefs?: string[];
+      pinnedModelRefs?: string[];
+    };
+    const md = data.modelDefaults ?? {};
+    setDefaultsCw(md.contextWindow != null ? String(md.contextWindow) : "");
+    setDefaultsMaxOut(
+      md.maxOutputTokens != null ? String(md.maxOutputTokens) : "",
+    );
+    setDefaultsTemp(md.temperature != null ? String(md.temperature) : "");
+    setDefaultsTopP(md.topP != null ? String(md.topP) : "");
+    setDefaultRefs((data.defaultModelRefs ?? []).join("\n"));
+    setPinnedRefs((data.pinnedModelRefs ?? []).join("\n"));
+  }, []);
+
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+    void refreshDefaults();
+  }, [refresh, refreshDefaults]);
 
   async function apiJson(
     url: string,
@@ -435,6 +472,30 @@ export function ProvidersAdmin() {
         },
       }),
       modelHelper.display({
+        id: "visible",
+        header: "Visible",
+        cell: (ctx) => {
+          const m = ctx.row.original;
+          const vis = m.isVisible !== false;
+          return (
+            <Switch
+              checked={vis}
+              aria-label={`${m.displayName} visible in picker`}
+              onCheckedChange={(next) => {
+                void (async () => {
+                  const r = await apiJson("/api/admin/models", {
+                    method: "PATCH",
+                    body: JSON.stringify({ id: m.id, isVisible: next }),
+                  });
+                  if (!r.ok) setError(r.error ?? "Failed");
+                  else await refresh();
+                })();
+              }}
+            />
+          );
+        },
+      }),
+      modelHelper.display({
         id: "actions",
         header: () => <span className="sr-only">Actions</span>,
         cell: (ctx) => {
@@ -483,15 +544,164 @@ export function ProvidersAdmin() {
         title="Providers"
         description="Connections hold credentials. Models are offerings on a connection—with their own enable state and pricing."
         actions={
-          <Button type="button" onClick={() => setAddOpen(true)}>
-            <Icon icon={Plus} size="sm" />
-            Add provider
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() =>
+                void (async () => {
+                  setBusy(true);
+                  setError(null);
+                  const res = await fetch("/api/admin/catalog-export", {
+                    credentials: "same-origin",
+                  });
+                  setBusy(false);
+                  if (!res.ok) {
+                    setError("Export failed");
+                    return;
+                  }
+                  const payload = await res.json();
+                  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+                    type: "application/json",
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `maximus-catalog-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  setInfo("Catalog exported (secrets stripped)");
+                })()
+              }
+            >
+              Export catalog
+            </Button>
+            <Button type="button" onClick={() => setAddOpen(true)}>
+              <Icon icon={Plus} size="sm" />
+              Add provider
+            </Button>
+          </div>
         }
       />
 
       {error ? <AdminAlert tone="error">{error}</AdminAlert> : null}
       {info ? <AdminAlert tone="success">{info}</AdminAlert> : null}
+
+      <AdminSection
+        title="Org model defaults"
+        description="Applied to new imports/offerings and used at stream time when the model omits a value. Explicit per-model caps win. Default/pinned refs (one per line) drive new-chat selection."
+      >
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <Label htmlFor="def-cw">Default context window</Label>
+            <Input
+              id="def-cw"
+              inputMode="numeric"
+              value={defaultsCw}
+              onChange={(e) => setDefaultsCw(e.target.value)}
+              placeholder="8192"
+            />
+          </div>
+          <div>
+            <Label htmlFor="def-mo">Default max output</Label>
+            <Input
+              id="def-mo"
+              inputMode="numeric"
+              value={defaultsMaxOut}
+              onChange={(e) => setDefaultsMaxOut(e.target.value)}
+              placeholder="2048"
+            />
+          </div>
+          <div>
+            <Label htmlFor="def-temp">Default temperature</Label>
+            <Input
+              id="def-temp"
+              inputMode="decimal"
+              value={defaultsTemp}
+              onChange={(e) => setDefaultsTemp(e.target.value)}
+              placeholder="0.7"
+            />
+          </div>
+          <div>
+            <Label htmlFor="def-top-p">Default top_p</Label>
+            <Input
+              id="def-top-p"
+              inputMode="decimal"
+              value={defaultsTopP}
+              onChange={(e) => setDefaultsTopP(e.target.value)}
+              placeholder="0.9"
+            />
+          </div>
+          <div className="sm:col-span-3">
+            <Label htmlFor="def-refs">Default model refs (priority order)</Label>
+            <textarea
+              id="def-refs"
+              className="min-h-[4rem] w-full rounded-md border border-border-subtle bg-bg-app px-2 py-1.5 font-mono text-xs text-text-primary"
+              value={defaultRefs}
+              onChange={(e) => setDefaultRefs(e.target.value)}
+              placeholder="ollama:conn:gemma3:4b"
+            />
+          </div>
+          <div className="sm:col-span-3">
+            <Label htmlFor="pin-refs">Pinned model refs</Label>
+            <textarea
+              id="pin-refs"
+              className="min-h-[3rem] w-full rounded-md border border-border-subtle bg-bg-app px-2 py-1.5 font-mono text-xs text-text-primary"
+              value={pinnedRefs}
+              onChange={(e) => setPinnedRefs(e.target.value)}
+              placeholder="openai:platform:gpt-4.1"
+            />
+          </div>
+        </div>
+        <div className="mt-3">
+          <Button
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void (async () => {
+                setBusy(true);
+                setError(null);
+                const modelDefaults: Record<string, number> = {};
+                const cw = Number(defaultsCw);
+                const mo = Number(defaultsMaxOut);
+                const temp = Number(defaultsTemp);
+                const tp = Number(defaultsTopP);
+                if (Number.isFinite(cw) && cw > 0)
+                  modelDefaults.contextWindow = Math.floor(cw);
+                if (Number.isFinite(mo) && mo > 0)
+                  modelDefaults.maxOutputTokens = Math.floor(mo);
+                if (Number.isFinite(temp) && temp >= 0)
+                  modelDefaults.temperature = temp;
+                if (Number.isFinite(tp) && tp >= 0 && tp <= 1)
+                  modelDefaults.topP = tp;
+                const r = await apiJson("/api/admin/model-defaults", {
+                  method: "PATCH",
+                  body: JSON.stringify({
+                    modelDefaults,
+                    defaultModelRefs: defaultRefs
+                      .split("\n")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                    pinnedModelRefs: pinnedRefs
+                      .split("\n")
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  }),
+                });
+                setBusy(false);
+                if (!r.ok) setError(r.error ?? "Failed to save defaults");
+                else {
+                  setInfo("Model defaults saved");
+                  await refreshDefaults();
+                }
+              })()
+            }
+          >
+            Save defaults
+          </Button>
+        </div>
+      </AdminSection>
 
       {loading ? (
         <p className="text-sm text-text-muted">Loading…</p>
@@ -523,10 +733,78 @@ export function ProvidersAdmin() {
           title={`Models · ${conn.name}`}
           description={`${conn.kind}${conn.baseUrl ? ` · ${conn.baseUrl}` : ""}${selectedId === conn.id ? " · selected" : ""}. Context / max output apply on chat.`}
           actions={
-            <Button type="button" onClick={() => setModelParent(conn)}>
-              <Icon icon={Plus} size="sm" />
-              Add model
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {conn.kind === "ollama" ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() =>
+                    void (async () => {
+                      setBusy(true);
+                      setError(null);
+                      const list = await apiJson("/api/admin/providers", {
+                        method: "POST",
+                        body: JSON.stringify({
+                          action: "list_tags",
+                          id: conn.id,
+                        }),
+                      });
+                      if (!list.ok) {
+                        setBusy(false);
+                        setError(list.error ?? "list_tags failed");
+                        return;
+                      }
+                      const data = list.data as {
+                        tags?: Array<{ name: string; isEmbed?: boolean }>;
+                        models?: string[];
+                      };
+                      const names = (data.tags ?? [])
+                        .filter((t) => !t.isEmbed)
+                        .map((t) => t.name);
+                      if (!names.length && data.models?.length) {
+                        names.push(
+                          ...data.models.filter(
+                            (n) => !/embed/i.test(n),
+                          ),
+                        );
+                      }
+                      if (!names.length) {
+                        setBusy(false);
+                        setInfo("No non-embedding tags to import");
+                        return;
+                      }
+                      const r = await apiJson("/api/admin/providers", {
+                        method: "POST",
+                        body: JSON.stringify({
+                          action: "import_tags",
+                          id: conn.id,
+                          names,
+                        }),
+                      });
+                      setBusy(false);
+                      if (!r.ok) {
+                        setError(r.error ?? "Import failed");
+                        return;
+                      }
+                      const res = r.data as {
+                        created?: number;
+                        skipped?: number;
+                      };
+                      setInfo(
+                        `Imported ${res.created ?? 0} models (${res.skipped ?? 0} skipped)`,
+                      );
+                      await refresh();
+                    })()
+                  }
+                >
+                  Import tags
+                </Button>
+              ) : null}
+              <Button type="button" onClick={() => setModelParent(conn)}>
+                <Icon icon={Plus} size="sm" />
+                Add model
+              </Button>
+            </div>
           }
         >
           <DataTable
@@ -996,10 +1274,21 @@ function parseOptionalInt(s: string): number | null {
   return Math.floor(n);
 }
 
+function parseOptionalFloat(s: string): number | null {
+  const t = s.trim();
+  if (!t) return null;
+  const n = Number(t);
+  if (!Number.isFinite(n)) return null;
+  return n;
+}
+
 function capsFromForm(input: {
   contextWindow: string;
   maxOutput: string;
   numCtx: string;
+  temperature: string;
+  topP: string;
+  stop: string;
   vision: boolean;
   tools: boolean;
   isOllama: boolean;
@@ -1013,10 +1302,19 @@ function capsFromForm(input: {
   const cw = parseOptionalInt(input.contextWindow);
   const mo = parseOptionalInt(input.maxOutput);
   const nc = parseOptionalInt(input.numCtx);
+  const temp = parseOptionalFloat(input.temperature);
+  const topP = parseOptionalFloat(input.topP);
+  const stop = input.stop
+    .split(/[\n,]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (cw != null) out.contextWindow = cw;
   if (mo != null) out.maxOutputTokens = mo;
   if (input.isOllama && nc != null) out.numCtx = nc;
   else if (input.isOllama && cw != null) out.numCtx = cw;
+  if (temp != null) out.temperature = temp;
+  if (topP != null) out.topP = topP;
+  if (stop.length) out.stop = stop;
   return out;
 }
 
@@ -1044,10 +1342,16 @@ function AddModelDialog({
   const [contextWindow, setContextWindow] = useState("");
   const [maxOutput, setMaxOutput] = useState("");
   const [numCtx, setNumCtx] = useState("");
+  const [temperature, setTemperature] = useState("");
+  const [topP, setTopP] = useState("");
+  const [stop, setStop] = useState("");
   const [vision, setVision] = useState(false);
   const [tools, setTools] = useState(false);
   /** Ollama: discovered tags from /api/tags */
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<
+    Array<{ name: string; isEmbed?: boolean; parameterSize?: string }>
+  >([]);
+  const [showEmbeds, setShowEmbeds] = useState(false);
   const [tagsLoading, setTagsLoading] = useState(false);
   const [tagsError, setTagsError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -1068,11 +1372,15 @@ function AddModelDialog({
     setContextWindow(isOllama ? "8192" : "");
     setMaxOutput(isOllama ? "2048" : "4096");
     setNumCtx("");
+    setTemperature("");
+    setTopP("");
+    setStop("");
     setVision(false);
     setTools(false);
     setQuery("");
     setCustomMode(conn.kind !== "ollama");
     setTags([]);
+    setShowEmbeds(false);
     setTagsError(null);
 
     if (conn.kind !== "ollama") return;
@@ -1089,6 +1397,11 @@ function AddModelDialog({
         });
         const data = (await res.json().catch(() => ({}))) as {
           models?: string[];
+          tags?: Array<{
+            name: string;
+            isEmbed?: boolean;
+            parameterSize?: string;
+          }>;
           error?: string;
         };
         if (cancelled) return;
@@ -1098,7 +1411,14 @@ function AddModelDialog({
           setCustomMode(true);
           return;
         }
-        const list = Array.isArray(data.models) ? data.models : [];
+        const fromTags = Array.isArray(data.tags) ? data.tags : [];
+        const list =
+          fromTags.length > 0
+            ? fromTags
+            : (Array.isArray(data.models) ? data.models : []).map((name) => ({
+                name,
+                isEmbed: /embed/i.test(name),
+              }));
         setTags(list);
         if (list.length === 0) {
           setTagsError("No models on this Ollama host — pull one or enter an id");
@@ -1120,17 +1440,52 @@ function AddModelDialog({
 
   const filteredTags = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = q
-      ? tags.filter((t) => t.toLowerCase().includes(q))
-      : tags;
-    return list;
-  }, [tags, query]);
+    return tags.filter((t) => {
+      if (!showEmbeds && t.isEmbed) return false;
+      if (q && !t.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [tags, query, showEmbeds]);
 
   function pickTag(name: string) {
     setModelId(name);
     setDisplayName(formatOllamaLabel(name));
     setCustomMode(false);
     setQuery("");
+    if (!conn) return;
+    // Prefill limits from Ollama /api/show when available.
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/providers", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "show_model",
+            id: conn.id,
+            modelName: name,
+          }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json().catch(() => ({}))) as {
+          contextWindow?: number;
+          numCtx?: number;
+          maxOutputTokens?: number;
+        };
+        if (data.contextWindow != null) {
+          setContextWindow(String(data.contextWindow));
+        }
+        if (data.numCtx != null) setNumCtx(String(data.numCtx));
+        else if (data.contextWindow != null) {
+          setNumCtx(String(data.contextWindow));
+        }
+        if (data.maxOutputTokens != null) {
+          setMaxOutput(String(data.maxOutputTokens));
+        }
+      } catch {
+        /* keep form defaults */
+      }
+    })();
   }
 
   return (
@@ -1164,6 +1519,14 @@ function AddModelDialog({
               {tagsError ? (
                 <p className="text-xs text-amber-500/90">{tagsError}</p>
               ) : null}
+              <label className="flex items-center gap-2 text-xs text-text-muted">
+                <input
+                  type="checkbox"
+                  checked={showEmbeds}
+                  onChange={(e) => setShowEmbeds(e.target.checked)}
+                />
+                Show embedding models
+              </label>
               <div
                 className="max-h-48 overflow-y-auto rounded-md border border-border-subtle bg-bg-elevated"
                 role="listbox"
@@ -1181,7 +1544,8 @@ function AddModelDialog({
                   </p>
                 ) : (
                   <ul className="divide-y divide-border-subtle">
-                    {filteredTags.map((name) => {
+                    {filteredTags.map((t) => {
+                      const name = t.name;
                       const already = registered.has(name);
                       const selected = modelId === name;
                       return (
@@ -1206,6 +1570,13 @@ function AddModelDialog({
                               <span className="block truncate font-mono text-sm font-medium text-text-primary">
                                 {name}
                               </span>
+                              {t.parameterSize || t.isEmbed ? (
+                                <span className="block text-[10px] text-text-faint">
+                                  {[t.parameterSize, t.isEmbed ? "embed" : null]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </span>
+                              ) : null}
                             </span>
                             {already ? (
                               <Badge className="shrink-0 text-[10px]">added</Badge>
@@ -1331,9 +1702,35 @@ function AddModelDialog({
             <span className="font-mono text-text-secondary">{modelId}</span>
           </p>
         ) : null}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Temperature (0–2)">
+            <Input
+              value={temperature}
+              onChange={(e) => setTemperature(e.target.value)}
+              placeholder="inherit / e.g. 0.7"
+              inputMode="decimal"
+            />
+          </Field>
+          <Field label="Top P (0–1)">
+            <Input
+              value={topP}
+              onChange={(e) => setTopP(e.target.value)}
+              placeholder="inherit / e.g. 0.9"
+              inputMode="decimal"
+            />
+          </Field>
+          <Field label="Stop sequences (comma or newline)">
+            <Input
+              value={stop}
+              onChange={(e) => setStop(e.target.value)}
+              placeholder="User:, Assistant:"
+            />
+          </Field>
+        </div>
         <p className="text-[11px] text-text-faint">
           Context window is the model’s max input budget. Max output caps the
-          completion. For Ollama, context is sent as{" "}
+          completion. Sampling fields (temperature, top_p, stop) go on outbound
+          provider requests. For Ollama, context is{" "}
           <code className="font-mono">num_ctx</code> (slow first load if large).
         </p>
         <DialogFooter>
@@ -1357,6 +1754,9 @@ function AddModelDialog({
                   contextWindow,
                   maxOutput,
                   numCtx,
+                  temperature,
+                  topP,
+                  stop,
                   vision,
                   tools,
                   isOllama: Boolean(isOllama),
@@ -1394,6 +1794,9 @@ function EditModelDialog({
   const [contextWindow, setContextWindow] = useState("");
   const [maxOutput, setMaxOutput] = useState("");
   const [numCtx, setNumCtx] = useState("");
+  const [temperature, setTemperature] = useState("");
+  const [topP, setTopP] = useState("");
+  const [stop, setStop] = useState("");
   const [vision, setVision] = useState(false);
   const [tools, setTools] = useState(false);
 
@@ -1420,6 +1823,11 @@ function EditModelDialog({
         caps.maxOutputTokens != null ? String(caps.maxOutputTokens) : "",
       );
       setNumCtx(caps.numCtx != null ? String(caps.numCtx) : "");
+      setTemperature(
+        caps.temperature != null ? String(caps.temperature) : "",
+      );
+      setTopP(caps.topP != null ? String(caps.topP) : "");
+      setStop(Array.isArray(caps.stop) ? caps.stop.join(", ") : "");
       setVision(caps.vision === true);
       setTools(caps.tools === true);
     }
@@ -1469,6 +1877,29 @@ function EditModelDialog({
               />
             </Field>
           ) : null}
+          <Field label="Temperature (0–2)">
+            <Input
+              value={temperature}
+              onChange={(e) => setTemperature(e.target.value)}
+              placeholder="e.g. 0"
+              inputMode="decimal"
+            />
+          </Field>
+          <Field label="Top P (0–1)">
+            <Input
+              value={topP}
+              onChange={(e) => setTopP(e.target.value)}
+              placeholder="e.g. 0.9"
+              inputMode="decimal"
+            />
+          </Field>
+          <Field label="Stop sequences">
+            <Input
+              value={stop}
+              onChange={(e) => setStop(e.target.value)}
+              placeholder="comma-separated"
+            />
+          </Field>
           <Field label="Input $/1M">
             <Input
               value={inputRate}
@@ -1522,6 +1953,9 @@ function EditModelDialog({
                   contextWindow,
                   maxOutput,
                   numCtx,
+                  temperature,
+                  topP,
+                  stop,
                   vision,
                   tools,
                   isOllama: Boolean(isOllama),

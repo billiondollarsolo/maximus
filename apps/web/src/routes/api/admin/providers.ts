@@ -1,8 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth, requireOrgRole } from "@maximus/auth";
-import { getDb, providerRepo, usageRepo } from "@maximus/db";
+import { getDb, getOrgSettings, providerRepo, usageRepo } from "@maximus/db";
 import {
   AppError,
+  buildCapabilities,
+  formatOllamaDisplayName,
+  isEmbeddingModelName,
+  parseModelDefaults,
   serializeModelRef,
   validateProviderConnection,
   type ProviderKind,
@@ -12,6 +16,7 @@ import {
   decryptSecret,
   encryptSecret,
   listOllamaModels,
+  showOllamaModel,
   testProviderConnection,
 } from "@maximus/provider-gateway";
 import { sessionFromRequest } from "#/server/cookies";
@@ -100,6 +105,7 @@ export const Route = createFileRoute("/api/admin/providers")({
                   modelId: m.modelId,
                   displayName: m.displayName,
                   isEnabled: m.isEnabled,
+                  isVisible: m.isVisible ?? true,
                   capabilities: m.capabilities,
                   sortOrder: m.sortOrder,
                   inputUsdPer1m:
@@ -127,12 +133,20 @@ export const Route = createFileRoute("/api/admin/providers")({
           const ctx = await requireAuth(sessionFromRequest(request), db);
           requireOrgRole(ctx, "admin");
           const body = (await request.json()) as {
-            action?: "rotate" | "test" | "create" | "list_tags";
+            action?:
+              | "rotate"
+              | "test"
+              | "create"
+              | "list_tags"
+              | "show_model"
+              | "import_tags";
             id?: string;
             kind?: ProviderKind;
             name?: string;
             baseUrl?: string;
             apiKey?: string;
+            modelName?: string;
+            names?: string[];
             models?: Array<{
               modelId: string;
               displayName?: string;
@@ -174,8 +188,102 @@ export const Route = createFileRoute("/api/admin/providers")({
             });
             return jsonOk({
               models: tags.map((t) => t.name),
+              tags: tags.map((t) => ({
+                name: t.name,
+                isEmbed: t.isEmbed,
+                family: t.family,
+                parameterSize: t.parameterSize,
+              })),
               baseUrl: existing.baseUrl,
             });
+          }
+
+          if (body.action === "show_model" && body.id && body.modelName) {
+            const existing = await providerRepo.getProviderConnectionForOrg(
+              db,
+              ctx.orgId,
+              body.id,
+            );
+            if (!existing) throw new AppError("NOT_FOUND", "Connection not found");
+            if (existing.kind !== "ollama" || !existing.baseUrl) {
+              throw new AppError("VALIDATION", "show_model requires ollama + baseUrl");
+            }
+            const details = await showOllamaModel({
+              baseUrl: existing.baseUrl,
+              name: body.modelName,
+              allowPrivateBaseUrls: env.allowPrivateBaseUrls,
+            });
+            return jsonOk({ details });
+          }
+
+          if (body.action === "import_tags" && body.id && Array.isArray(body.names)) {
+            const existing = await providerRepo.getProviderConnectionForOrg(
+              db,
+              ctx.orgId,
+              body.id,
+            );
+            if (!existing) throw new AppError("NOT_FOUND", "Connection not found");
+            if (existing.kind !== "ollama") {
+              throw new AppError("VALIDATION", "import_tags requires ollama");
+            }
+            const settings = await getOrgSettings(db, ctx.orgId);
+            const defaults = parseModelDefaults(settings.modelDefaults);
+            const items: Array<{
+              modelId: string;
+              displayName: string;
+              capabilities: Record<string, unknown>;
+              isEnabled: boolean;
+              isVisible: boolean;
+            }> = [];
+            for (const rawName of body.names) {
+              const modelId = String(rawName ?? "").trim();
+              if (!modelId) continue;
+              const isEmbed = isEmbeddingModelName(modelId);
+              const show = existing.baseUrl
+                ? await showOllamaModel({
+                    baseUrl: existing.baseUrl,
+                    name: modelId,
+                    allowPrivateBaseUrls: env.allowPrivateBaseUrls,
+                  }).catch(() => null)
+                : null;
+              const caps = buildCapabilities({
+                streaming: !isEmbed,
+                embedding: isEmbed,
+                contextWindow:
+                  show?.contextWindow ?? defaults.contextWindow ?? 8192,
+                maxOutputTokens: defaults.maxOutputTokens ?? 2048,
+                numCtx:
+                  show?.contextWindow ??
+                  defaults.numCtx ??
+                  defaults.contextWindow ??
+                  8192,
+                temperature: defaults.temperature ?? null,
+                topP: defaults.topP ?? null,
+              });
+              items.push({
+                modelId,
+                displayName: formatOllamaDisplayName(modelId),
+                capabilities: caps,
+                isEnabled: !isEmbed,
+                isVisible: !isEmbed,
+              });
+            }
+            const { created, skipped } =
+              await providerRepo.importModelsOnConnection(db, {
+                orgId: ctx.orgId,
+                connectionId: existing.id,
+                providerKind: "ollama",
+                items,
+              });
+            await usageRepo.insertAuditEvent(db, {
+              orgId: ctx.orgId,
+              actorUserId: ctx.user.id,
+              action: "provider.import_tags",
+              resourceType: "provider_connection",
+              resourceId: existing.id,
+              meta: { created, skipped },
+            });
+            return jsonOk({ created, skipped });
           }
 
           if (body.action === "rotate" && body.id && body.apiKey != null) {

@@ -1,4 +1,5 @@
 import { assertSafeBaseUrl } from "./ssrf.js";
+import { isEmbeddingModelName } from "@maximus/domain";
 
 export type ListOllamaModelsInput = {
   baseUrl: string;
@@ -10,6 +11,9 @@ export type ListOllamaModelsInput = {
 export type OllamaModelTag = {
   /** Full tag name from Ollama, e.g. `llama3.2:latest` */
   name: string;
+  isEmbed: boolean;
+  parameterSize?: string;
+  family?: string;
 };
 
 /**
@@ -43,7 +47,11 @@ export async function listOllamaModels(
     });
     if (!res.ok) return [];
     const body = (await res.json()) as {
-      models?: Array<{ name?: string; model?: string }>;
+      models?: Array<{
+        name?: string;
+        model?: string;
+        details?: { family?: string; parameter_size?: string };
+      }>;
     };
     const models = Array.isArray(body.models) ? body.models : [];
     const out: OllamaModelTag[] = [];
@@ -52,7 +60,12 @@ export async function listOllamaModels(
       const name = (m.name ?? m.model ?? "").trim();
       if (!name || seen.has(name)) continue;
       seen.add(name);
-      out.push({ name });
+      out.push({
+        name,
+        isEmbed: isEmbeddingModelName(name),
+        parameterSize: m.details?.parameter_size,
+        family: m.details?.family,
+      });
     }
     return out;
   } catch {

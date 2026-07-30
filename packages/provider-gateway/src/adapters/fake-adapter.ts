@@ -11,6 +11,12 @@ export type StreamOpts = {
   maxOutputTokens?: number;
   /** Ollama num_ctx (and similar). */
   numCtx?: number;
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
+  stop?: string[];
 };
 
 export type FakeTextAdapter = {

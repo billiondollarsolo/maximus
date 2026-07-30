@@ -173,6 +173,7 @@ export const Route = createFileRoute("/api/admin/models")({
             displayName?: string;
             capabilities?: Record<string, unknown>;
             isEnabled?: boolean;
+            isVisible?: boolean;
             sortOrder?: number;
             inputUsdPer1m?: number | null;
             outputUsdPer1m?: number | null;
@@ -184,6 +185,7 @@ export const Route = createFileRoute("/api/admin/models")({
             displayName: body.displayName,
             capabilities: body.capabilities,
             isEnabled: body.isEnabled,
+            isVisible: body.isVisible,
             sortOrder: body.sortOrder,
             inputUsdPer1m: body.inputUsdPer1m,
             outputUsdPer1m: body.outputUsdPer1m,

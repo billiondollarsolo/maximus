@@ -212,7 +212,7 @@ export function AccessAdmin() {
 
       <AdminSection
         title="Platform models"
-        description="Gated by credentials (live) or demo defaults (fake). Ollama entries come from live /api/tags discovery — not a static list."
+        description="Gated by credentials (live). Platform cloud models appear only when API keys are set. Ollama tags are never auto-listed here — register offerings under Providers."
       >
         <DataTable
           data={platform}

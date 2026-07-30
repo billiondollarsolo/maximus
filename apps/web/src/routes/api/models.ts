@@ -14,13 +14,30 @@ export const Route = createFileRoute("/api/models")({
           const env = serverEnv();
           const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
-          const { models, platform } = await buildModelCatalog({
-            db,
-            orgId: ctx.orgId,
-            role: ctx.role,
-            env,
+          const { models, platform, agents, defaultModelRef } =
+            await buildModelCatalog({
+              db,
+              orgId: ctx.orgId,
+              role: ctx.role,
+              env,
+            });
+          // Picker options: base offerings + agent presets (agent:{id}).
+          const pickerModels = [
+            ...agents.map((a) => ({
+              modelRef: a.modelRef,
+              displayName: a.displayName,
+              providerKind: "agent",
+              connectionName: "Agents",
+              capabilities: {},
+            })),
+            ...models,
+          ];
+          return jsonOk({
+            models: pickerModels,
+            platform,
+            agents,
+            defaultModelRef,
           });
-          return jsonOk({ models, platform });
         } catch (err) {
           return jsonError(err);
         }

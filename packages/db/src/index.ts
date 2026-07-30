@@ -6,6 +6,14 @@ export * as messageRepo from "./repos/messages.js";
 export * as usageRepo from "./repos/usage.js";
 export * as providerRepo from "./repos/providers.js";
 export * as pricesRepo from "./repos/prices.js";
+export * as agentsRepo from "./repos/agents.js";
+export { resolveAgentForRun } from "./repos/agents.js";
+export {
+  exportOrgCatalog,
+  importOrgCatalog,
+  type CatalogExportPayload,
+  type ImportOrgCatalogResult,
+} from "./repos/catalog-export.js";
 export * as feedbackRepo from "./repos/feedback.js";
 export * as membersRepo from "./repos/members.js";
 export * as usageQueryRepo from "./repos/usage-query.js";

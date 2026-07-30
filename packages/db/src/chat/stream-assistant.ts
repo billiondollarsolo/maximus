@@ -4,9 +4,14 @@ import {
   computeCostMicros,
   effectiveMaxOutputTokens,
   effectiveNumCtx,
+  estimateMessagesTokens,
+  modelIdFromRef,
   parseModelRef,
+  resolveEffectiveParams,
+  shouldRefuseForContext,
   textParts,
 } from "@maximus/domain";
+import { getOrgSettings } from "../repos/org-settings.js";
 import {
   createFakeTextAdapter,
   createLiveHttpAdapter,
@@ -21,10 +26,23 @@ import * as conversationRepo from "../repos/conversations.js";
 import * as messageRepo from "../repos/messages.js";
 import * as usageRepo from "../repos/usage.js";
 import * as providerRepo from "../repos/providers.js";
+import {
+  getAgentPreset,
+  resolveAgentForRun,
+} from "../repos/agents.js";
 import { getCustomInstructions } from "../repos/user-settings.js";
 import type { StreamAssistantInput } from "./chat-turn-types.js";
 import type { ChatActor, ChatTurnEvent } from "./chat-turn-types.js";
 import { resolveModelCapabilities } from "./resolve-model-capabilities.js";
+
+/** Agent picker refs: `agent:{presetId}` — resolved to base model + prompt/params. */
+export function isAgentModelRef(modelRef: string): boolean {
+  return modelRef.startsWith("agent:") && modelRef.length > "agent:".length;
+}
+
+export function agentIdFromModelRef(modelRef: string): string {
+  return modelRef.slice("agent:".length);
+}
 
 export async function* streamAssistant(args: {
   db: Db;
@@ -42,7 +60,46 @@ export async function* streamAssistant(args: {
     role: (r.role as AllowlistRule["role"]) ?? null,
   }));
 
-  const ref = parseModelRef(args.modelRef);
+  let inferenceModelRef = args.modelRef;
+  let agentSystemPrompt: string | null = null;
+  let agentParams: Record<string, unknown> | null = null;
+
+  if (isAgentModelRef(args.modelRef)) {
+    const agent = await getAgentPreset(
+      args.db,
+      args.ctx.orgId,
+      agentIdFromModelRef(args.modelRef),
+    );
+    if (!agent) {
+      throw new AppError("VALIDATION", "Agent preset not found");
+    }
+    const base = await providerRepo.getModelByRef(
+      args.db,
+      args.ctx.orgId,
+      agent.baseModelRef,
+    );
+    const resolvedAgent = resolveAgentForRun({
+      agent: {
+        name: agent.name,
+        baseModelRef: agent.baseModelRef,
+        systemPrompt: agent.systemPrompt,
+        params: (agent.params ?? {}) as Record<string, unknown>,
+        isEnabled: agent.isEnabled,
+      },
+      baseOffering: base
+        ? { modelRef: base.modelRef, isEnabled: base.isEnabled }
+        : null,
+    });
+    if (!resolvedAgent.ok) {
+      throw new AppError("VALIDATION", resolvedAgent.error);
+    }
+    // Allowlist is enforced on the base offering, never bypassed via agent.
+    inferenceModelRef = resolvedAgent.baseModelRef;
+    agentSystemPrompt = resolvedAgent.systemPrompt;
+    agentParams = resolvedAgent.params;
+  }
+
+  const ref = parseModelRef(inferenceModelRef);
   let connection = null;
   if (ref.connectionId !== "platform") {
     const conn = await providerRepo.getProviderConnection(
@@ -70,7 +127,7 @@ export async function* streamAssistant(args: {
 
   const mode = args.input.providerMode ?? "fake";
   const resolved = resolveAdapter({
-    modelRef: args.modelRef,
+    modelRef: inferenceModelRef,
     role: args.ctx.role,
     allowlist,
     connection,
@@ -85,15 +142,69 @@ export async function* streamAssistant(args: {
   });
   const system = assembleSystemPrompts({
     platform: "You are Maximus, a helpful enterprise assistant.",
+    agent: agentSystemPrompt ?? undefined,
     userAbout: custom?.aboutUser,
     userPreferred: custom?.preferredResponse,
   });
 
-  const caps = await resolveModelCapabilities(
+  const offeringCaps = await resolveModelCapabilities(
     args.db,
     args.ctx.orgId,
-    args.modelRef,
+    inferenceModelRef,
   );
+  const orgSettings = await getOrgSettings(args.db, args.ctx.orgId);
+  const orgDefaults =
+    orgSettings.modelDefaults && typeof orgSettings.modelDefaults === "object"
+      ? (orgSettings.modelDefaults as Record<string, unknown>)
+      : null;
+  // Conversation override (if present on settings)
+  let conversationOverride: Record<string, unknown> | null = null;
+  const conv = await conversationRepo.getConversation(
+    args.db,
+    args.conversationId,
+  );
+  const convSettings = (conv as { settings?: Record<string, unknown> } | null)
+    ?.settings;
+  if (
+    convSettings?.modelParams &&
+    typeof convSettings.modelParams === "object"
+  ) {
+    conversationOverride = convSettings.modelParams as Record<string, unknown>;
+  }
+
+  // Merge agent params over offering, under conversation override.
+  const offeringWithAgent = agentParams
+    ? { ...offeringCaps, ...agentParams }
+    : offeringCaps;
+
+  const caps = resolveEffectiveParams({
+    orgDefaults: orgDefaults
+      ? {
+          contextWindow:
+            typeof orgDefaults.contextWindow === "number"
+              ? orgDefaults.contextWindow
+              : undefined,
+          maxOutputTokens:
+            typeof orgDefaults.maxOutputTokens === "number"
+              ? orgDefaults.maxOutputTokens
+              : undefined,
+          numCtx:
+            typeof orgDefaults.numCtx === "number"
+              ? orgDefaults.numCtx
+              : undefined,
+          temperature:
+            typeof orgDefaults.temperature === "number"
+              ? orgDefaults.temperature
+              : undefined,
+          topP:
+            typeof orgDefaults.topP === "number" ? orgDefaults.topP : undefined,
+        }
+      : null,
+    offering: offeringWithAgent,
+    conversationOverride: conversationOverride
+      ? (conversationOverride as never)
+      : null,
+  });
   const maxOutputTokens = effectiveMaxOutputTokens(caps);
   const numCtx = effectiveNumCtx(caps);
 
@@ -117,6 +228,12 @@ export async function* streamAssistant(args: {
       apiKey: live.apiKey ?? resolved.credentials.apiKey,
       maxOutputTokens,
       numCtx,
+      temperature: caps.temperature,
+      topP: caps.topP,
+      topK: caps.topK,
+      frequencyPenalty: caps.frequencyPenalty,
+      presencePenalty: caps.presencePenalty,
+      stop: caps.stop,
     });
   }
 
@@ -124,6 +241,31 @@ export async function* streamAssistant(args: {
     ...system.map((s) => ({ role: "system", content: s })),
     ...args.history,
   ];
+
+  const estimated = estimateMessagesTokens(
+    messages.map((m) => ({
+      content:
+        typeof m.content === "string"
+          ? m.content
+          : m.content
+              .filter((p) => p.type === "text")
+              .map((p) => ("text" in p ? p.text : ""))
+              .join("\n"),
+    })),
+  );
+  const modelLabel = modelIdFromRef(inferenceModelRef);
+  const budgetCheck = shouldRefuseForContext({
+    estimatedInputTokens: estimated,
+    contextWindow: caps.contextWindow,
+    maxOutputTokens,
+    modelLabel,
+  });
+  if (budgetCheck.refuse) {
+    throw new AppError(
+      "VALIDATION",
+      budgetCheck.reason ?? "Prompt exceeds model context window",
+    );
+  }
 
   let full = "";
   let inputTokens = 0;
@@ -136,6 +278,12 @@ export async function* streamAssistant(args: {
       signal: args.input.signal,
       maxOutputTokens,
       numCtx,
+      temperature: caps.temperature,
+      topP: caps.topP,
+      topK: caps.topK,
+      frequencyPenalty: caps.frequencyPenalty,
+      presencePenalty: caps.presencePenalty,
+      stop: caps.stop,
     })) {
       if (chunk.type === "text") {
         if (firstTokenAt == null) firstTokenAt = Date.now();

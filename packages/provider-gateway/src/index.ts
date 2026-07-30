@@ -33,6 +33,12 @@ export {
   type OllamaModelTag,
 } from "./list-ollama-models.js";
 export {
+  showOllamaModel,
+  type ShowOllamaModelInput,
+  type OllamaModelDetails,
+} from "./show-ollama-model.js";
+export { buildProviderInferenceFields } from "./build-provider-body.js";
+export {
   toOpenAiChatMessages,
   toAnthropicUserContent,
   toOllamaMessage,

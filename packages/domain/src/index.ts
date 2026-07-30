@@ -8,6 +8,7 @@ export {
   parseModelRef,
   serializeModelRef,
   isModelRef,
+  modelIdFromRef,
   type ModelRef,
   type ProviderKind,
 } from "./model-ref.js";
@@ -33,13 +34,33 @@ export {
 export {
   parseCapabilities,
   buildCapabilities,
+  mergeCapabilities,
   effectiveNumCtx,
   effectiveMaxOutputTokens,
   modelAcceptsImages,
   modelCanGenerateImages,
   contentHasImages,
+  isEmbeddingCapability,
+  validateSamplingParams,
   type ModelCapabilities,
 } from "./model-capabilities.js";
+export { isEmbeddingModelName } from "./embed-heuristic.js";
+export {
+  estimateTokensFromText,
+  estimateMessagesTokens,
+  shouldRefuseForContext,
+  type ContextBudgetInput,
+} from "./context-budget.js";
+export {
+  parseModelDefaults,
+  resolveEffectiveParams,
+  pickDefaultModelRef,
+  type ModelDefaults,
+} from "./model-defaults.js";
+export {
+  sanitizeConnectionForExport,
+  assertExportHasNoSecrets,
+} from "./catalog-export.js";
 export { assertVisionAllowed } from "./assert-vision.js";
 export {
   pathToRoot,
@@ -96,6 +117,7 @@ export {
 export {
   modelsForUser,
   type CatalogModel,
+  type ModelsForUserOptions,
 } from "./models-for-user.js";
 export {
   defaultPlatformCatalog,

@@ -54,3 +54,20 @@ export function isModelRef(value: string): boolean {
     return false;
   }
 }
+
+/**
+ * Display label for a model ref: the full modelId (preserves Ollama tags like
+ * `gemma3:4b`). Never use `.split(":").pop()` — that collapses tags to `4b`.
+ */
+export function modelIdFromRef(value: string): string {
+  try {
+    return parseModelRef(value).modelId;
+  } catch {
+    const first = value.indexOf(":");
+    const second = first === -1 ? -1 : value.indexOf(":", first + 1);
+    if (first > 0 && second > first + 1 && second < value.length - 1) {
+      return value.slice(second + 1);
+    }
+    return value.trim();
+  }
+}

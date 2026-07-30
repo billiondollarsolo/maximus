@@ -108,6 +108,43 @@ After the first user, bootstrap returns **FORBIDDEN** — use invites.
 3. Update any SSO client secrets the same way when enabled.  
 4. Never commit keys; use a secret manager for multi-node.
 
+## Provider & model ops (Ollama + offerings)
+
+### Intentional chat catalog
+
+- Chat picker lists **enabled + visible + non-embedding** org offerings, plus platform cloud models **only when** platform API keys are set.
+- Ollama `/api/tags` is **never** auto-dumped into chat. Admin must **Import tags** or **Add model** under Providers.
+- Labels always keep the **full Ollama tag** (e.g. `gemma3:4b`, not `4b`). Generation stats use the same full model id.
+
+### Discover → curate
+
+1. Admin → Providers → add Ollama connection (`baseUrl`, e.g. `http://host.docker.internal:11434`).  
+2. **Import tags** (skips embeddings by default) or **Add model** and pick a tag.  
+3. On pick, Maximus calls Ollama `/api/show` when possible to prefill `contextWindow` / `numCtx`.  
+4. Toggle **Visible** / **Enabled** per offering; set org defaults + default/pinned model refs on the Providers page.  
+5. **Export catalog** downloads secret-free JSON (no API keys / ciphertext).
+
+### Inference param resolve order
+
+```
+code defaults → org modelDefaults → offering capabilities (+ agent params) → conversation modelParams
+```
+
+### Ollama `num_ctx` cold start
+
+Raising `num_ctx` (or first load of a large context) can make Ollama feel “down” for minutes while weights/KV cache allocate. Prefer modest defaults (e.g. 8192) unless the operator has GPU headroom. This is expected provider behavior, not a Maximus hang.
+
+### Context refuse
+
+When an offering has `contextWindow` set and the estimated prompt exceeds  
+`contextWindow - maxOutput - headroom`, the stream **refuses** with an actionable error naming the model (full tag) and suggesting a new chat or higher context. Silent truncation is not the default.
+
+### Agent presets
+
+Admin API: `/api/admin/agents`. Chat refs use `agent:{presetId}`; the stream resolves to the base offering, injects the agent system prompt, merges agent params, and **fails clearly** if the base model is disabled/missing. Allowlists apply to the **base** model ref.
+
+See [provider-model-management-plan.md](./provider-model-management-plan.md) and [api.md](./api.md).
+
 ## Backup
 
 ```bash

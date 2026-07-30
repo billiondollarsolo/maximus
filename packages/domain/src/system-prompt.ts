@@ -2,6 +2,8 @@ export function assembleSystemPrompts(input: {
   platform?: string | null;
   org?: string | null;
   project?: string | null;
+  /** Agent preset system prompt (after org/project, before user personalization). */
+  agent?: string | null;
   userAbout?: string | null;
   userPreferred?: string | null;
 }): string[] {
@@ -13,6 +15,7 @@ export function assembleSystemPrompts(input: {
   push(input.platform);
   push(input.org);
   push(input.project);
+  push(input.agent);
   if (input.userAbout?.trim() || input.userPreferred?.trim()) {
     const bits: string[] = [];
     if (input.userAbout?.trim()) bits.push(`About the user: ${input.userAbout.trim()}`);

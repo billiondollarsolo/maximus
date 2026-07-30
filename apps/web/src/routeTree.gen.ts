@@ -35,8 +35,11 @@ import { Route as SettingsAccountRouteImport } from './routes/settings.account'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsGeneralRouteImport } from './routes/settings.general'
 import { Route as SettingsPersonalizationRouteImport } from './routes/settings.personalization'
+import { Route as ApiAdminAgentsRouteImport } from './routes/api/admin/agents'
 import { Route as ApiAdminAuditRouteImport } from './routes/api/admin/audit'
+import { Route as ApiAdminCatalogExportRouteImport } from './routes/api/admin/catalog-export'
 import { Route as ApiAdminMembersRouteImport } from './routes/api/admin/members'
+import { Route as ApiAdminModelDefaultsRouteImport } from './routes/api/admin/model-defaults'
 import { Route as ApiAdminModelsRouteImport } from './routes/api/admin/models'
 import { Route as ApiAdminOverviewRouteImport } from './routes/api/admin/overview'
 import { Route as ApiAdminPricesRouteImport } from './routes/api/admin/prices'
@@ -185,14 +188,29 @@ const SettingsPersonalizationRoute = SettingsPersonalizationRouteImport.update({
   path: '/settings/personalization',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminAgentsRoute = ApiAdminAgentsRouteImport.update({
+  id: '/api/admin/agents',
+  path: '/api/admin/agents',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminAuditRoute = ApiAdminAuditRouteImport.update({
   id: '/api/admin/audit',
   path: '/api/admin/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminCatalogExportRoute = ApiAdminCatalogExportRouteImport.update({
+  id: '/api/admin/catalog-export',
+  path: '/api/admin/catalog-export',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminMembersRoute = ApiAdminMembersRouteImport.update({
   id: '/api/admin/members',
   path: '/api/admin/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminModelDefaultsRoute = ApiAdminModelDefaultsRouteImport.update({
+  id: '/api/admin/model-defaults',
+  path: '/api/admin/model-defaults',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAdminModelsRoute = ApiAdminModelsRouteImport.update({
@@ -309,8 +327,11 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/api/': typeof ApiIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
+  '/api/admin/catalog-export': typeof ApiAdminCatalogExportRoute
   '/api/admin/members': typeof ApiAdminMembersRoute
+  '/api/admin/model-defaults': typeof ApiAdminModelDefaultsRoute
   '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/overview': typeof ApiAdminOverviewRouteWithChildren
   '/api/admin/prices': typeof ApiAdminPricesRoute
@@ -356,8 +377,11 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/api': typeof ApiIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
+  '/api/admin/catalog-export': typeof ApiAdminCatalogExportRoute
   '/api/admin/members': typeof ApiAdminMembersRoute
+  '/api/admin/model-defaults': typeof ApiAdminModelDefaultsRoute
   '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/overview': typeof ApiAdminOverviewRouteWithChildren
   '/api/admin/prices': typeof ApiAdminPricesRoute
@@ -404,8 +428,11 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/api/': typeof ApiIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
+  '/api/admin/catalog-export': typeof ApiAdminCatalogExportRoute
   '/api/admin/members': typeof ApiAdminMembersRoute
+  '/api/admin/model-defaults': typeof ApiAdminModelDefaultsRoute
   '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/overview': typeof ApiAdminOverviewRouteWithChildren
   '/api/admin/prices': typeof ApiAdminPricesRoute
@@ -453,8 +480,11 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/'
     | '/settings/'
+    | '/api/admin/agents'
     | '/api/admin/audit'
+    | '/api/admin/catalog-export'
     | '/api/admin/members'
+    | '/api/admin/model-defaults'
     | '/api/admin/models'
     | '/api/admin/overview'
     | '/api/admin/prices'
@@ -500,8 +530,11 @@ export interface FileRouteTypes {
     | '/admin'
     | '/api'
     | '/settings'
+    | '/api/admin/agents'
     | '/api/admin/audit'
+    | '/api/admin/catalog-export'
     | '/api/admin/members'
+    | '/api/admin/model-defaults'
     | '/api/admin/models'
     | '/api/admin/overview'
     | '/api/admin/prices'
@@ -547,8 +580,11 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/'
     | '/settings/'
+    | '/api/admin/agents'
     | '/api/admin/audit'
+    | '/api/admin/catalog-export'
     | '/api/admin/members'
+    | '/api/admin/model-defaults'
     | '/api/admin/models'
     | '/api/admin/overview'
     | '/api/admin/prices'
@@ -595,8 +631,11 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   ApiIndexRoute: typeof ApiIndexRoute
   SettingsIndexRoute: typeof SettingsIndexRoute
+  ApiAdminAgentsRoute: typeof ApiAdminAgentsRoute
   ApiAdminAuditRoute: typeof ApiAdminAuditRoute
+  ApiAdminCatalogExportRoute: typeof ApiAdminCatalogExportRoute
   ApiAdminMembersRoute: typeof ApiAdminMembersRoute
+  ApiAdminModelDefaultsRoute: typeof ApiAdminModelDefaultsRoute
   ApiAdminModelsRoute: typeof ApiAdminModelsRoute
   ApiAdminOverviewRoute: typeof ApiAdminOverviewRouteWithChildren
   ApiAdminPricesRoute: typeof ApiAdminPricesRoute
@@ -797,6 +836,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsPersonalizationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/agents': {
+      id: '/api/admin/agents'
+      path: '/api/admin/agents'
+      fullPath: '/api/admin/agents'
+      preLoaderRoute: typeof ApiAdminAgentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/audit': {
       id: '/api/admin/audit'
       path: '/api/admin/audit'
@@ -804,11 +850,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminAuditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/catalog-export': {
+      id: '/api/admin/catalog-export'
+      path: '/api/admin/catalog-export'
+      fullPath: '/api/admin/catalog-export'
+      preLoaderRoute: typeof ApiAdminCatalogExportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/members': {
       id: '/api/admin/members'
       path: '/api/admin/members'
       fullPath: '/api/admin/members'
       preLoaderRoute: typeof ApiAdminMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/model-defaults': {
+      id: '/api/admin/model-defaults'
+      path: '/api/admin/model-defaults'
+      fullPath: '/api/admin/model-defaults'
+      preLoaderRoute: typeof ApiAdminModelDefaultsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/admin/models': {
@@ -975,8 +1035,11 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   ApiIndexRoute: ApiIndexRoute,
   SettingsIndexRoute: SettingsIndexRoute,
+  ApiAdminAgentsRoute: ApiAdminAgentsRoute,
   ApiAdminAuditRoute: ApiAdminAuditRoute,
+  ApiAdminCatalogExportRoute: ApiAdminCatalogExportRoute,
   ApiAdminMembersRoute: ApiAdminMembersRoute,
+  ApiAdminModelDefaultsRoute: ApiAdminModelDefaultsRoute,
   ApiAdminModelsRoute: ApiAdminModelsRoute,
   ApiAdminOverviewRoute: ApiAdminOverviewRouteWithChildren,
   ApiAdminPricesRoute: ApiAdminPricesRoute,
