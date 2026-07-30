@@ -75,12 +75,16 @@ kubectl apply -f deploy/helm/maximus/examples/cnpg-cluster.yaml
 
 ## Ingress & TLS
 
+Helm does **not** embed Caddy ACME (that’s Compose). Use Ingress + either automated cert-manager or a user-provided Secret. Details: [tls.md](./tls.md).
+
+### Automated LE (cert-manager) — auto-renew
+
 ```yaml
 ingress:
   enabled: true
   className: nginx
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-prod  # or DNS-01 Cloudflare/R53 issuer
   hosts:
     - host: chat.example.com
       paths:
@@ -90,6 +94,15 @@ ingress:
     - secretName: maximus-tls
       hosts: [chat.example.com]
 ```
+
+### User-provided certs
+
+```bash
+kubectl create secret tls maximus-tls --cert=tls.crt --key=tls.key -n YOUR_NS
+# set ingress.tls[].secretName: maximus-tls
+```
+
+Rotate by replacing the Secret contents; reload Ingress if needed.
 
 For SSE (chat + admin overview streams), ensure the ingress **does not buffer** event streams (proxy timeouts high enough; disable response buffering if needed).
 
