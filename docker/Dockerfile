@@ -32,6 +32,6 @@ EXPOSE 3000
 WORKDIR /app
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
   CMD curl -fsS http://127.0.0.1:3000/api/health || exit 1
-COPY --chown=maximus:maximus docker/entrypoint.sh /app/docker/entrypoint.sh
+COPY --chown=maximus:maximus docker/entrypoint.sh docker/serve.mjs /app/docker/
 # entrypoint not executable until host chmod; run via sh
 ENTRYPOINT ["sh", "/app/docker/entrypoint.sh"]
