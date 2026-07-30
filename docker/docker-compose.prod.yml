@@ -76,6 +76,7 @@ services:
       - internal
 
   migrate:
+    image: ${IMAGE:-maximus-web:local}
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -93,6 +94,9 @@ services:
       - internal
 
   web:
+    # Prefer published GHCR tag, e.g. IMAGE=ghcr.io/billiondollarsolo/maximus:0.1.2
+    # Without IMAGE, `docker compose up --build` builds maximus-web:local.
+    image: ${IMAGE:-maximus-web:local}
     build:
       context: ..
       dockerfile: docker/Dockerfile

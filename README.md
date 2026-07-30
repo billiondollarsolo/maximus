@@ -107,7 +107,7 @@ Ops / ports / demo mode: **[docs/runbook.md](./docs/runbook.md)**
 Tagged releases push multi-label images via GitHub Actions:
 
 ```text
-ghcr.io/billiondollarsolo/maximus:0.1.1
+ghcr.io/billiondollarsolo/maximus:0.1.2
 ghcr.io/billiondollarsolo/maximus:latest
 ```
 
