@@ -37,7 +37,7 @@ docker compose -f docker/docker-compose.prod.yml up -d --build
 ```bash
 curl -X POST http://localhost:3000/api/auth/bootstrap \
   -H 'content-type: application/json' \
-  -d '{"email":"admin@localhost","password":"change-me","orgName":"Maximus"}'
+  -d '{"email":"admin@localhost","password":"change-me-now","orgName":"Maximus"}'
 ```
 
 ## Chat (fake provider)

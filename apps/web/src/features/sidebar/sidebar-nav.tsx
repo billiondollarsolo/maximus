@@ -9,8 +9,8 @@ import {
   Sun,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Button, Icon, IconButton, Separator } from "#/components/ui";
+import { useEffect, useRef, useState } from "react";
+import { Button, Icon, IconButton, Input, Separator } from "#/components/ui";
 import { Wordmark } from "#/components/layout/wordmark";
 import { useTheme } from "#/features/theme/theme-provider";
 import { ConversationList } from "./conversation-list";
@@ -23,6 +23,8 @@ export function SidebarNav({
   activeId,
   onSelectConversation,
   conversations,
+  searchQuery = "",
+  onSearchQueryChange,
 }: {
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -30,9 +32,13 @@ export function SidebarNav({
   activeId?: string | null;
   onSelectConversation?: (id: string) => void;
   conversations?: FakeConversation[];
+  searchQuery?: string;
+  onSearchQueryChange?: (q: string) => void;
 }) {
   const { theme, toggleTheme } = useTheme();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void fetch("/api/auth/me", { credentials: "same-origin" })
@@ -40,6 +46,18 @@ export function SidebarNav({
       .then((d: { role?: string } | null) => {
         setIsAdmin(d?.role === "admin" || d?.role === "owner");
       });
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+        queueMicrotask(() => searchRef.current?.focus());
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   return (
@@ -73,14 +91,51 @@ export function SidebarNav({
           </Button>
         )}
         {collapsed ? (
-          <IconButton icon={Search} label="Search chats" />
+          <IconButton
+            icon={Search}
+            label="Search chats"
+            onClick={() => {
+              onToggleCollapsed();
+              setSearchOpen(true);
+            }}
+          />
         ) : (
-          <Button variant="ghost" className="mt-1 w-full justify-start text-text-muted">
+          <Button
+            variant="ghost"
+            className="mt-1 w-full justify-start text-text-muted"
+            onClick={() => {
+              setSearchOpen(true);
+              queueMicrotask(() => searchRef.current?.focus());
+            }}
+          >
             <Icon icon={Search} size="sm" />
             Search chats
+            <kbd className="ml-auto hidden text-[10px] text-text-muted sm:inline">
+              ⌘K
+            </kbd>
           </Button>
         )}
       </div>
+
+      {!collapsed && (searchOpen || searchQuery) ? (
+        <div className="px-2 pt-2">
+          <label className="sr-only" htmlFor="sidebar-search">
+            Search conversations
+          </label>
+          <Input
+            id="sidebar-search"
+            ref={searchRef}
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange?.(e.target.value)}
+            placeholder="Search chats…"
+            className="h-9"
+            autoComplete="off"
+          />
+          {conversations && conversations.length === 0 && searchQuery ? (
+            <p className="mt-2 px-1 text-xs text-text-muted">No chats found</p>
+          ) : null}
+        </div>
+      ) : null}
 
       {!collapsed ? (
         <div className="mt-3 px-4">

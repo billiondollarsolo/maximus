@@ -52,6 +52,71 @@ export function listSiblings(
     .sort((a, b) => a.position - b.position);
 }
 
+/**
+ * From nodeId, repeatedly follow the child with max `position` until a leaf.
+ * Returns that leaf id. If node is missing, returns nodeId.
+ */
+export function tipOfSubtree(
+  messages: TreeMessage[],
+  nodeId: string,
+): string {
+  const byParent = new Map<string | null, TreeMessage[]>();
+  for (const m of messages) {
+    const list = byParent.get(m.parentMessageId) ?? [];
+    list.push(m);
+    byParent.set(m.parentMessageId, list);
+  }
+  if (!messages.some((m) => m.id === nodeId)) return nodeId;
+
+  let cur = nodeId;
+  const seen = new Set<string>();
+  while (true) {
+    if (seen.has(cur)) throw new Error("cycle in message tree");
+    seen.add(cur);
+    const children = byParent.get(cur) ?? [];
+    if (children.length === 0) return cur;
+    let best = children[0]!;
+    for (let i = 1; i < children.length; i++) {
+      const c = children[i]!;
+      if (c.position > best.position) best = c;
+    }
+    cur = best.id;
+  }
+}
+
+/**
+ * Move to the previous (-1) or next (+1) sibling branch tip.
+ * Returns null if fewer than 2 siblings or the move is out of range.
+ */
+export function selectSiblingBranch(
+  messages: TreeMessage[],
+  currentMessageId: string,
+  direction: -1 | 1,
+): string | null {
+  const siblings = listSiblings(messages, currentMessageId);
+  if (siblings.length < 2) return null;
+  const idx = siblings.findIndex((m) => m.id === currentMessageId);
+  if (idx < 0) return null;
+  const next = idx + direction;
+  if (next < 0 || next >= siblings.length) return null;
+  return tipOfSubtree(messages, siblings[next]!.id);
+}
+
+/**
+ * 1-based index of messageId among siblings (by position) and total count.
+ * Null when fewer than 2 siblings (no branch UI).
+ */
+export function siblingBranchMeta(
+  messages: TreeMessage[],
+  messageId: string,
+): { index: number; total: number } | null {
+  const siblings = listSiblings(messages, messageId);
+  if (siblings.length < 2) return null;
+  const idx = siblings.findIndex((m) => m.id === messageId);
+  if (idx < 0) return null;
+  return { index: idx + 1, total: siblings.length };
+}
+
 export type RegeneratePlan = {
   parentMessageId: string;
   position: number;

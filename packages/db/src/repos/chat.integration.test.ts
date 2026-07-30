@@ -97,4 +97,41 @@ describe("chat repos integration", () => {
     });
     expect(price).not.toBeNull();
   });
+
+  it("searchConversations is scoped to user and matches title", async () => {
+    const otherUser = newId("user");
+    await db.insert(users).values({
+      id: otherUser,
+      name: "Other",
+      email: `${otherUser}@test.local`,
+    });
+    await db.insert(members).values({
+      id: newId("mem"),
+      organizationId: orgId,
+      userId: otherUser,
+      role: "member",
+    });
+
+    const mine = await conversationRepo.createConversation(db, {
+      orgId,
+      userId,
+      title: `UniqueNeedle-${userId}`,
+      titleSource: "user",
+    });
+    await conversationRepo.createConversation(db, {
+      orgId,
+      userId: otherUser,
+      title: `UniqueNeedle-${userId}`,
+      titleSource: "user",
+    });
+
+    const hits = await conversationRepo.searchConversations(db, {
+      orgId,
+      userId,
+      query: "UniqueNeedle",
+    });
+    expect(hits.some((c) => c.id === mine.id)).toBe(true);
+    expect(hits.every((c) => c.userId === userId)).toBe(true);
+    expect(hits.every((c) => c.orgId === orgId)).toBe(true);
+  });
 });

@@ -4,8 +4,6 @@ import { conversationRepo, createDb, messageRepo } from "@maximus/db";
 import {
   AppError,
   canWriteConversation,
-  listActiveBranch,
-  type TreeMessage,
 } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
@@ -35,18 +33,12 @@ export const Route = createFileRoute("/api/conversations")({
             ) {
               throw new AppError("NOT_FOUND", "Conversation not found");
             }
+            // Full tree so client can switch branches (WP42)
             const msgs = await messageRepo.listMessagesForConversation(db, id);
-            const tree: TreeMessage[] = msgs.map((m) => ({
-              id: m.id,
-              parentMessageId: m.parentMessageId,
-              role: m.role as TreeMessage["role"],
-              position: m.position,
-            }));
-            const active = listActiveBranch(tree, conv.activeLeafId);
-            const activeIds = new Set(active.map((m) => m.id));
             return jsonOk({
               conversation: conv,
-              messages: msgs.filter((m) => activeIds.has(m.id)),
+              messages: msgs,
+              activeLeafId: conv.activeLeafId,
             });
           }
           const q = url.searchParams.get("q");
@@ -75,6 +67,7 @@ export const Route = createFileRoute("/api/conversations")({
             id: string;
             title?: string;
             archive?: boolean;
+            activeLeafId?: string | null;
           };
           const conv = await conversationRepo.getConversation(db, body.id);
           if (
@@ -89,10 +82,21 @@ export const Route = createFileRoute("/api/conversations")({
           ) {
             throw new AppError("NOT_FOUND", "Conversation not found");
           }
+          if (body.activeLeafId) {
+            const msgs = await messageRepo.listMessagesForConversation(
+              db,
+              body.id,
+            );
+            if (!msgs.some((m) => m.id === body.activeLeafId)) {
+              throw new AppError("VALIDATION", "activeLeafId not in conversation");
+            }
+          }
           const updated = await conversationRepo.updateConversation(db, body.id, {
             title: body.title,
             titleSource: body.title != null ? "user" : undefined,
             archivedAt: body.archive ? new Date() : undefined,
+            activeLeafId:
+              body.activeLeafId !== undefined ? body.activeLeafId : undefined,
           });
           return jsonOk({ conversation: updated });
         } catch (err) {

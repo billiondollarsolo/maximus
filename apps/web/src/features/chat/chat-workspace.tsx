@@ -1,5 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Menu } from "lucide-react";
+import {
+  listActiveBranch,
+  selectSiblingBranch,
+  type TreeMessage,
+} from "@maximus/domain";
 import { IconButton } from "#/components/ui";
 import { AppShell } from "#/components/layout/app-shell";
 import { SidebarNav } from "#/features/sidebar/sidebar-nav";
@@ -9,8 +14,26 @@ import { MessageList, type UiMessage } from "./message-list";
 
 type ConvRow = { id: string; title: string | null; updatedAt: string };
 
+type ServerMsg = {
+  id: string;
+  role: string;
+  parentMessageId: string | null;
+  position: number;
+  content: Array<{ type: string; text?: string }>;
+  status: string;
+};
+
+function textFromContent(
+  content: Array<{ type: string; text?: string }>,
+): string {
+  return content
+    .filter((p) => p.type === "text")
+    .map((p) => p.text ?? "")
+    .join("\n");
+}
+
 /**
- * ChatGPT-faithful workspace wired to server-authoritative /api/chat.
+ * ChatGPT-faithful workspace: server-authoritative chat + branch switcher.
  */
 export function ChatWorkspace() {
   const [collapsed, setCollapsed] = useState(false);
@@ -19,16 +42,28 @@ export function ChatWorkspace() {
   const [modelRef, setModelRef] = useState("openai:platform:gpt-4.1");
   const [draft, setDraft] = useState("");
   const [composerKey, setComposerKey] = useState(0);
-  const [messages, setMessages] = useState<UiMessage[]>([]);
+  const [treeMsgs, setTreeMsgs] = useState<ServerMsg[]>([]);
+  const [activeLeafId, setActiveLeafId] = useState<string | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [history, setHistory] = useState<ConvRow[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [abort, setAbort] = useState<AbortController | null>(null);
 
-  const refreshHistory = useCallback(async () => {
-    const res = await fetch("/api/conversations");
+  const refreshHistory = useCallback(async (q?: string) => {
+    const qs =
+      q && q.trim()
+        ? `?q=${encodeURIComponent(q.trim())}`
+        : "";
+    const res = await fetch(`/api/conversations${qs}`, {
+      credentials: "same-origin",
+    });
     if (!res.ok) return;
     const data = (await res.json()) as {
-      conversations: Array<{ id: string; title: string | null; updatedAt: string }>;
+      conversations: Array<{
+        id: string;
+        title: string | null;
+        updatedAt: string;
+      }>;
     };
     setHistory(
       data.conversations.map((c) => ({
@@ -43,35 +78,64 @@ export function ChatWorkspace() {
     void refreshHistory();
   }, [refreshHistory]);
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void refreshHistory(searchQuery);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [searchQuery, refreshHistory]);
+
+  const tree: TreeMessage[] = useMemo(
+    () =>
+      treeMsgs.map((m) => ({
+        id: m.id,
+        parentMessageId: m.parentMessageId,
+        role: m.role as TreeMessage["role"],
+        position: m.position,
+      })),
+    [treeMsgs],
+  );
+
+  const displayMessages: UiMessage[] = useMemo(() => {
+    const branch = listActiveBranch(tree, activeLeafId);
+    const byId = new Map(treeMsgs.map((m) => [m.id, m]));
+    return branch.map((node) => {
+      const full = byId.get(node.id);
+      return {
+        id: node.id,
+        role: node.role as UiMessage["role"],
+        content: full ? textFromContent(full.content) : "",
+        status: full?.status,
+        parentMessageId: node.parentMessageId,
+        position: node.position,
+      };
+    });
+  }, [tree, treeMsgs, activeLeafId]);
+
   async function loadConversation(id: string) {
     setActiveId(id);
     setMobileOpen(false);
-    const res = await fetch(`/api/conversations?id=${encodeURIComponent(id)}`);
+    const res = await fetch(
+      `/api/conversations?id=${encodeURIComponent(id)}`,
+      { credentials: "same-origin" },
+    );
     if (!res.ok) return;
     const data = (await res.json()) as {
-      messages: Array<{
-        id: string;
-        role: string;
-        content: Array<{ type: string; text?: string }>;
-        status: string;
-      }>;
+      messages: ServerMsg[];
+      activeLeafId: string | null;
     };
-    setMessages(
-      data.messages.map((m) => ({
-        id: m.id,
-        role: m.role as UiMessage["role"],
-        content: m.content
-          .filter((p) => p.type === "text")
-          .map((p) => p.text ?? "")
-          .join("\n"),
-        status: m.status,
-      })),
+    setTreeMsgs(data.messages);
+    setActiveLeafId(
+      data.activeLeafId ??
+        data.messages[data.messages.length - 1]?.id ??
+        null,
     );
   }
 
   function newChat() {
     setActiveId(null);
-    setMessages([]);
+    setTreeMsgs([]);
+    setActiveLeafId(null);
     setDraft("");
     setComposerKey((k) => k + 1);
     setMobileOpen(false);
@@ -80,8 +144,21 @@ export function ChatWorkspace() {
   async function postFeedback(messageId: string, rating: "up" | "down") {
     await fetch("/api/feedback", {
       method: "POST",
+      credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messageId, rating }),
+    });
+  }
+
+  async function switchBranch(messageId: string, direction: -1 | 1) {
+    const leaf = selectSiblingBranch(tree, messageId, direction);
+    if (!leaf || !activeId) return;
+    setActiveLeafId(leaf);
+    await fetch("/api/conversations", {
+      method: "PATCH",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: activeId, activeLeafId: leaf }),
     });
   }
 
@@ -95,21 +172,51 @@ export function ChatWorkspace() {
     setAbort(ac);
     setStreaming(true);
     const tempUserId = `tmp_u_${Date.now()}`;
+    const tempAsstId = `tmp_a_${Date.now()}`;
+    const target = targetMessageId
+      ? treeMsgs.find((m) => m.id === targetMessageId)
+      : undefined;
+    // edit-fork: sibling of edited user; send: under current leaf; regenerate: sibling of assistant
+    const tempUserParent =
+      mode === "edit"
+        ? (target?.parentMessageId ?? null)
+        : activeLeafId;
+    const tempAsstParent =
+      mode === "regenerate"
+        ? (target?.parentMessageId ?? null)
+        : tempUserId;
+
+    // Optimistic linear preview only
     if (mode !== "regenerate") {
-      setMessages((m) => [
-        ...m,
-        { id: tempUserId, role: "user", content: text, status: "complete" },
+      setTreeMsgs((prev) => [
+        ...prev,
+        {
+          id: tempUserId,
+          role: "user",
+          parentMessageId: tempUserParent,
+          position: 999,
+          content: [{ type: "text", text }],
+          status: "complete",
+        },
       ]);
     }
-    const tempAsstId = `tmp_a_${Date.now()}`;
-    setMessages((m) => [
-      ...m,
-      { id: tempAsstId, role: "assistant", content: "", status: "streaming" },
+    setTreeMsgs((prev) => [
+      ...prev,
+      {
+        id: tempAsstId,
+        role: "assistant",
+        parentMessageId: tempAsstParent,
+        position: 999,
+        content: [{ type: "text", text: "" }],
+        status: "streaming",
+      },
     ]);
+    setActiveLeafId(tempAsstId);
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           input: { text, attachmentIds },
@@ -120,7 +227,6 @@ export function ChatWorkspace() {
             targetMessageId,
           },
         }),
-        // mode edit/regenerate handled server-side
         signal: ac.signal,
       });
       if (!res.ok || !res.body) {
@@ -154,21 +260,35 @@ export function ChatWorkspace() {
               setActiveId(ev.conversationId);
             }
             if (ev.type === "text" && ev.text) {
-              setMessages((ms) =>
+              setTreeMsgs((ms) =>
                 ms.map((m) =>
                   m.id === tempAsstId
-                    ? { ...m, content: m.content + ev.text }
+                    ? {
+                        ...m,
+                        content: [
+                          {
+                            type: "text",
+                            text:
+                              (m.content[0]?.text ?? "") + (ev.text ?? ""),
+                          },
+                        ],
+                      }
                     : m,
                 ),
               );
             }
             if (ev.type === "done") {
-              setMessages((ms) =>
+              setTreeMsgs((ms) =>
                 ms.map((m) =>
                   m.id === tempAsstId
                     ? {
                         ...m,
-                        content: ev.content ?? m.content,
+                        content: [
+                          {
+                            type: "text",
+                            text: ev.content ?? m.content[0]?.text ?? "",
+                          },
+                        ],
                         status: ev.status ?? "complete",
                       }
                     : m,
@@ -181,7 +301,7 @@ export function ChatWorkspace() {
         }
       }
       if (convId) await loadConversation(convId);
-      await refreshHistory();
+      await refreshHistory(searchQuery);
     } finally {
       setStreaming(false);
       setAbort(null);
@@ -205,6 +325,8 @@ export function ChatWorkspace() {
             title: h.title ?? "New chat",
             updatedAt: h.updatedAt,
           }))}
+          searchQuery={searchQuery}
+          onSearchQueryChange={setSearchQuery}
         />
       }
     >
@@ -221,7 +343,7 @@ export function ChatWorkspace() {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        {messages.length === 0 ? (
+        {displayMessages.length === 0 ? (
           <EmptyState
             onSuggestion={(text) => {
               setDraft(text);
@@ -230,10 +352,12 @@ export function ChatWorkspace() {
           />
         ) : (
           <MessageList
-            messages={messages}
+            messages={displayMessages}
+            tree={tree}
             onRegenerate={(id) => void send("", "regenerate", id)}
             onEdit={(id, text) => void send(text, "edit", id)}
             onFeedback={(id, rating) => void postFeedback(id, rating)}
+            onBranch={(id, dir) => void switchBranch(id, dir)}
           />
         )}
 

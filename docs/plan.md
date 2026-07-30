@@ -1564,11 +1564,13 @@ Estimate is relative (S/M/L), not calendar commitments.
 
 ### 21.2 Phase 4 gate (enterprise-ready product)
 
-- [x] Login/invite/settings/admin **pages** — WP18/WP20 (member 403 UI)
-- [x] Dynamic model catalog UI — `modelsForUser` + `/api/models` + ModelSelect WP19
-- [x] Security headers + same-origin guard + Secure cookies + session revoke WP21
+Scaffolded and usable; residual polish remains (prefer WP lists over overstating “done”).
+
+- [~] Login/invite/settings/admin **pages** — present + member 403; personalization not persisted; admin dense UX incomplete (WP18/WP20)
+- [~] Dynamic model catalog UI — API + ModelSelect; residual hardcoded default modelRef in workspace (WP19)
+- [~] Security headers + same-origin guard on mutations + Secure cookies + logout revoke (WP21); export headers residual fixed in later commits when noted
 - [x] `/api/health` (postgres + valkey)
-- [x] `docker/Dockerfile` + `docker-compose.prod.yml` + Caddy TLS scaffold WP23
+- [~] `docker/Dockerfile` (non-root) + `docker-compose.prod.yml` + Caddy scaffold — migrate one-shot / Valkey auth / digests open (WP23)
 - [ ] Playwright E1–E8 WP28
 - [ ] Encryption rotation CLI + dual-key read WP22
 - [ ] OTel + structured logs WP26
@@ -1634,14 +1636,15 @@ Product depth beyond first-ship chat OS. **Canonical detail:** §41–§48 and W
 
 | Area | Shipped | Residual polish |
 | --- | --- | --- |
-| Auth UX | Login/bootstrap/invite pages; status API; session revoke on logout; bootstrap **FORBIDDEN whenever any users exist** (no passwordless re-bootstrap for known emails) | Valkey login lockout; multi-session list |
-| Settings | general / personalization / data / account | persist personalization to prompt assembly |
-| Admin SPA | overview, members, providers, models, usage, audit + **403 for members** | denser tables, charts, confirm dialogs |
-| Models | `modelsForUser`, `GET /api/models`, dynamic ModelSelect + vision badge | full capability badges, mid-chat model persist UX |
-| Security | headers on API helpers, same-origin `guardMutation`, Secure cookies, admin APIs on `jsonOk` | CSP nonces, body limits, magic-byte upload, login RL |
-| Deploy | Dockerfile (non-root user), prod compose, Caddyfile, `/api/health` | migrate one-shot, pin digests, Valkey password, backup scripts |
-| DRY | domain contracts + shared server helpers on auth/admin | remaining chat routes, ESLint boundary bans |
-| E2E | 105 unit/integration tests green | Playwright E1–E8, visual regression |
+| Auth UX | Login/bootstrap/invite pages; status API; logout revoke; bootstrap **FORBIDDEN when any users exist** | Valkey login lockout; revoke prior sessions on login; multi-session list |
+| Settings | general / personalization / data / account shells | persist personalization → prompt assembly |
+| Admin SPA | overview, members, providers, models, usage, audit + **403 for members** | denser tables, charts, confirm dialogs, org settings |
+| Models | `modelsForUser`, `GET /api/models`, dynamic ModelSelect + vision badge | remove hardcoded default modelRef; capability badges; mid-chat persist |
+| Security | `guardMutation` on all mutation APIs; headers via `jsonOk`/`jsonError`/SSE; Secure cookies | CSP nonces, body limits, magic-byte, login RL |
+| Deploy | Dockerfile **non-root**, prod compose, Caddy, `/api/health` | migrate one-shot, pin digests, Valkey password, backup scripts |
+| DRY | domain contracts; shared server helpers on auth/admin/chat mutations | export headers; ESLint boundary bans |
+| Chat polish | Message actions; **branch switcher `‹ n/m ›`**; sidebar title search + ⌘K focus; full tree load | virtualization, message-body search, projects UI |
+| E2E | unit/integration suite | Playwright E1–E8, visual regression |
 
 ### 23.3 Immediate next (finish then expand)
 
@@ -3515,13 +3518,13 @@ Legend: **Shipped** · **Partial** · **Open** · Wave: Now / Next / Then / Late
 | Composer + model chip | Partial | Now | WP19 | Dynamic models only |
 | Stream assistant + stop | Partial | Now | WP42 | Abort works; retry bubble |
 | Edit / regenerate (server) | Shipped | — | WP8 | Branch plans pure |
-| Branch switcher `‹ 1/N ›` | Open | Now | WP42 | When siblings > 1 |
+| Branch switcher `‹ 1/N ›` | Partial | Now | WP42 | Domain + UI wired; persist activeLeafId |
 | Thumbs up/down | Partial | Now | WP9 | API + UI polish |
 | Markdown + code copy | Partial | Now | WP9/25 | Stable stream render |
 | Attachments paperclip | Partial | Next | WP44 | Preview chips; vision bytes |
 | ⌘K command palette | Open | Now | WP41 | Search + nav actions |
-| Full-text chat search | Open | Now | WP41 | Title + body (tsvector v1) |
-| Keyboard map (App D) | Partial | Now | WP25/41 | Core shortcuts wired |
+| Full-text chat search | Partial | Now | WP41 | Title ILIKE + sidebar UI; body tsvector later |
+| Keyboard map (App D) | Partial | Now | WP25/41 | ⌘K focuses search; more shortcuts residual |
 | Projects folders UI | Open | Now | WP43 | Schema exists |
 | Custom instructions persist | Partial | Now | WP43 | Settings → prompt assembly |
 | LLM auto-title | Open | Next | WP45 | Non-blocking; respect user title |

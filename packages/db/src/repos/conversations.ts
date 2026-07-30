@@ -86,7 +86,14 @@ export async function searchConversations(
   db: Db,
   input: { orgId: string; userId: string; query: string },
 ) {
-  const q = `%${input.query}%`;
+  const q = `%${input.query.trim()}%`;
+  if (!input.query.trim()) {
+    return listConversations(db, {
+      orgId: input.orgId,
+      userId: input.userId,
+    });
+  }
+  // Title match first (v1). Message-body full-text is WP41 follow-on.
   return db
     .select()
     .from(conversations)

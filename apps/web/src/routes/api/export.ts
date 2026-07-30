@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
 import { createDb, exportConversation } from "@maximus/db";
-import { AppError, isAppError } from "@maximus/domain";
+import { AppError } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { jsonError, jsonOk } from "#/server/api";
+import { withSecurityHeaders } from "#/server/security";
 
 export const Route = createFileRoute("/api/export")({
   server: {
@@ -19,7 +21,7 @@ export const Route = createFileRoute("/api/export")({
             | "md"
             | "json";
           if (!id) {
-            return Response.json({ error: "id required" }, { status: 400 });
+            throw new AppError("VALIDATION", "id required");
           }
           const result = await exportConversation(
             db,
@@ -31,22 +33,18 @@ export const Route = createFileRoute("/api/export")({
             { id, format },
           );
           if (result.format === "json") {
-            return Response.json(result.body);
+            return jsonOk(result.body);
           }
-          return new Response(result.body, {
-            headers: {
-              "Content-Type": "text/markdown; charset=utf-8",
-              "Content-Disposition": `attachment; filename="${id}.md"`,
-            },
-          });
+          return withSecurityHeaders(
+            new Response(result.body, {
+              headers: {
+                "Content-Type": "text/markdown; charset=utf-8",
+                "Content-Disposition": `attachment; filename="${id}.md"`,
+              },
+            }),
+          );
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },
