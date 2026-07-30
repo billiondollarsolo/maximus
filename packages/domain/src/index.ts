@@ -80,4 +80,7 @@ export {
   modelsForUser,
   type CatalogModel,
 } from "./models-for-user.js";
-export { defaultPlatformCatalog } from "./platform-catalog.js";
+export {
+  defaultPlatformCatalog,
+  defaultPlatformModelRef,
+} from "./platform-catalog.js";

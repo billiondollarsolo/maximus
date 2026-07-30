@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
 import { createDb, getOrgRateLimitFailOpen, runChatTurn } from "@maximus/db";
-import { isAppError } from "@maximus/domain";
+import { defaultPlatformModelRef, isAppError } from "@maximus/domain";
 import { assertRateLimit, createLimiter } from "@maximus/rate-limit";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/chat")({
 
           const text = body.input?.text ?? body.text ?? "";
           const modelRef =
-            body.forwardedProps?.modelRef ?? "openai:platform:gpt-4.1";
+            body.forwardedProps?.modelRef ?? defaultPlatformModelRef();
 
           const stream = new ReadableStream({
             async start(controller) {

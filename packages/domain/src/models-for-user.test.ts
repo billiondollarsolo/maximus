@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { modelsForUser } from "./models-for-user.js";
+import {
+  defaultPlatformCatalog,
+  defaultPlatformModelRef,
+} from "./platform-catalog.js";
 
 const catalog = [
   {
@@ -47,3 +51,15 @@ describe("modelsForUser", () => {
     expect(out.map((m) => m.modelRef)).toEqual(["openai:platform:gpt-4.1"]);
   });
 });
+
+describe("defaultPlatformModelRef", () => {
+  it("returns first enabled catalog model (single source of truth)", () => {
+    const ref = defaultPlatformModelRef();
+    const cat = defaultPlatformCatalog();
+    expect(ref).toBe(cat.find((m) => m.isEnabled)!.modelRef);
+    expect(ref.length).toBeGreaterThan(0);
+    // not a magic string duplicated only in call sites
+    expect(cat.some((m) => m.modelRef === ref)).toBe(true);
+  });
+});
+

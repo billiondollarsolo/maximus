@@ -44,6 +44,7 @@ export function ModelSelect({
       <label className="relative inline-flex items-center">
         <span className="sr-only">Model</span>
         <select
+          aria-label="Model"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="appearance-none rounded-lg border border-border-subtle bg-bg-elevated py-1.5 pl-3 pr-8 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"

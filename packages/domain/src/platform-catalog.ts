@@ -26,3 +26,10 @@ export function defaultPlatformCatalog(): CatalogModel[] {
     },
   ];
 }
+
+/** First enabled platform model ref — single source for UI/API fallbacks. */
+export function defaultPlatformModelRef(): string {
+  const catalog = defaultPlatformCatalog();
+  const enabled = catalog.find((m) => m.isEnabled);
+  return (enabled ?? catalog[0])!.modelRef;
+}

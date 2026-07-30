@@ -1,0 +1,42 @@
+import type { OrgRole } from "@maximus/domain";
+
+export type ChatActor = {
+  user: { id: string; email: string; name: string };
+  orgId: string;
+  role: OrgRole;
+};
+
+export type ChatTurnInput = {
+  text: string;
+  attachmentIds?: string[];
+  conversationId?: string;
+  modelRef: string;
+  projectId?: string;
+  mode?: "send" | "regenerate" | "edit";
+  targetMessageId?: string;
+  /** Client-supplied prior messages — IGNORED (server-authoritative). */
+  clientMessages?: unknown;
+};
+
+export type ChatTurnEvent =
+  | {
+      type: "meta";
+      conversationId: string;
+      userMessageId: string;
+      assistantMessageId: string;
+    }
+  | { type: "text"; text: string }
+  | { type: "done"; status: "complete" | "aborted" | "error"; content: string }
+  | { type: "error"; message: string; code?: string };
+
+export type StreamAssistantInput = {
+  encryptionKey?: string;
+  providerMode?: "live" | "fake";
+  platform?: {
+    openaiApiKey?: string;
+    anthropicApiKey?: string;
+    ollamaBaseUrl?: string;
+  };
+  allowPrivateBaseUrls?: boolean;
+  signal?: AbortSignal;
+};
