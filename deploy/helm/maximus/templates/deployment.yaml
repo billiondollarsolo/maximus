@@ -57,6 +57,10 @@ spec:
               value: "0"
             - name: MIGRATE_ONLY
               value: "0"
+            - name: TRUST_PROXY
+              value: {{ .Values.trustProxy | quote }}
+            - name: TRUSTED_PROXY_HOPS
+              value: {{ .Values.trustedProxyHops | quote }}
             - name: ENCRYPTION_KEY
               valueFrom:
                 secretKeyRef:

@@ -207,7 +207,18 @@ If a corporate load balancer terminates TLS and forwards to Caddy or only to `we
 - Prefer terminating TLS at **one** place (edge LB **or** Caddy).  
 - Set `APP_URL=https://public-host`.  
 - Do not double-buffer SSE (see [deploy-helm.md](./deploy-helm.md)).  
-- `TRUST_PROXY` / client IP from `X-Forwarded-*` is still a roadmap item for rate-limit accuracy.
+- Set **`TRUST_PROXY=true`** (Compose prod default) so the app honors `X-Forwarded-For` / `X-Forwarded-Proto` / `X-Forwarded-Host` for client IP (login throttle) and CSRF origin checks.  
+- Optional `TRUSTED_PROXY_HOPS` (default `1`).
+
+## Kubernetes cert-manager samples
+
+| File | Use |
+| --- | --- |
+| [cert-manager-http01.yaml](../deploy/helm/maximus/examples/cert-manager-http01.yaml) | LE HTTP-01 ClusterIssuer |
+| [cert-manager-cloudflare-dns01.yaml](../deploy/helm/maximus/examples/cert-manager-cloudflare-dns01.yaml) | LE DNS-01 Cloudflare |
+| [cert-manager-route53-dns01.yaml](../deploy/helm/maximus/examples/cert-manager-route53-dns01.yaml) | LE DNS-01 Route 53 |
+
+cert-manager **auto-renews** certificates and updates TLS Secrets.
 
 ---
 

@@ -5,7 +5,12 @@ import { verifyPassword } from "./password.js";
 import { createSession } from "./session.js";
 
 export async function loginWithPassword(
-  input: { email: string; password: string },
+  input: {
+    email: string;
+    password: string;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  },
   db: Db = getDb(),
 ): Promise<{ sessionToken: string; userId: string; orgId: string }> {
   const email = input.email?.toLowerCase().trim();
@@ -39,6 +44,9 @@ export async function loginWithPassword(
   if (!mem) throw new AppError("FORBIDDEN", "No organization membership");
 
   // New session on each login (rotation)
-  const sessionToken = await createSession(db, user.id, mem.organizationId);
+  const sessionToken = await createSession(db, user.id, mem.organizationId, {
+    ipAddress: input.ipAddress,
+    userAgent: input.userAgent,
+  });
   return { sessionToken, userId: user.id, orgId: mem.organizationId };
 }

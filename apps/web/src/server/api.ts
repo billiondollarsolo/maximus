@@ -20,7 +20,7 @@ export function jsonOk(data: unknown, init?: ResponseInit): Response {
   return withSecurityHeaders(Response.json(data, init));
 }
 
-/** Guard mutating API requests (same-origin). */
+/** Guard mutating API requests (same-origin), respecting TRUST_PROXY. */
 export function guardMutation(request: Request): void {
   const env = serverEnv();
   assertSameOrigin(request, env.appUrl);

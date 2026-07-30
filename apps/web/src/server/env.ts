@@ -16,6 +16,12 @@ export function serverEnv() {
     rateLimitFailOpen: process.env.RATE_LIMIT_FAIL_OPEN === "true",
     userPerMin: Number(process.env.RATE_LIMIT_USER_PER_MIN ?? 60),
     orgPerMin: Number(process.env.RATE_LIMIT_ORG_PER_MIN ?? 600),
+    /** Honor X-Forwarded-* from Caddy / cloud LB / Ingress */
+    trustProxy:
+      process.env.TRUST_PROXY === "1" ||
+      process.env.TRUST_PROXY === "true" ||
+      process.env.TRUST_PROXY === "yes",
+    trustedProxyHops: Number(process.env.TRUSTED_PROXY_HOPS ?? 1),
     s3: {
       endpoint: process.env.S3_ENDPOINT ?? "http://localhost:9000",
       accessKey: process.env.S3_ACCESS_KEY ?? "maximus",

@@ -19,6 +19,8 @@ function env(partial: Record<string, unknown> = {}) {
     rateLimitFailOpen: false,
     userPerMin: 60,
     orgPerMin: 600,
+    trustProxy: false,
+    trustedProxyHops: 1,
     s3: {
       endpoint: "http://localhost:9000",
       accessKey: "a",

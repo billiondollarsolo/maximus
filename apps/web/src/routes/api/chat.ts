@@ -8,6 +8,7 @@ import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
 import { guardMutation, jsonError } from "#/server/api";
 import { withSecurityHeaders } from "#/server/security";
+import { clientIpFromRequest } from "#/server/proxy";
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -29,10 +30,15 @@ export const Route = createFileRoute("/api/chat")({
           try {
             await assertRateLimit(
               limiter,
-              { userId: ctx.user.id, orgId: ctx.orgId },
+              {
+                userId: ctx.user.id,
+                orgId: ctx.orgId,
+                ip: clientIpFromRequest(request),
+              },
               {
                 userPerMin: env.userPerMin,
                 orgPerMin: env.orgPerMin,
+                ipPerMin: Number(process.env.RATE_LIMIT_IP_PER_MIN ?? 120),
                 failOpen,
               },
             );

@@ -102,6 +102,22 @@ objectStorage:
 migrate:
   enabled: true
 
+# Optional first-owner bootstrap (empty DB only; re-run is safe → 403 OK)
+bootstrap:
+  enabled: false
+  # Prefer existingSecret in production
+  existingSecret: ""
+  emailKey: email
+  passwordKey: password
+  email: ""
+  password: ""
+  name: Owner
+  orgName: Maximus
+
+# Behind Ingress / LB
+trustProxy: true
+trustedProxyHops: 1
+
 service:
   type: ClusterIP
   port: 3000

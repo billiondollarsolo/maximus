@@ -27,6 +27,7 @@ export async function createSession(
   db: Db,
   userId: string,
   activeOrganizationId?: string | null,
+  meta?: { ipAddress?: string | null; userAgent?: string | null },
 ): Promise<string> {
   const token = newId("sess");
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 14);
@@ -36,6 +37,8 @@ export async function createSession(
     userId,
     expiresAt,
     activeOrganizationId: activeOrganizationId ?? null,
+    ipAddress: meta?.ipAddress ?? null,
+    userAgent: meta?.userAgent ?? null,
   });
   return token;
 }

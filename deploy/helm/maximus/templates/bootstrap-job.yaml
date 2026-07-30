@@ -1,0 +1,68 @@
+{{- if .Values.bootstrap.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "maximus.fullname" . }}-bootstrap
+  labels:
+    {{- include "maximus.labels" . | nindent 4 }}
+  annotations:
+    # After install only — safe to re-run (API no-ops when users exist)
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 5
+  template:
+    metadata:
+      labels:
+        {{- include "maximus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: curlimages/curl:8.11.1
+          env:
+            # Public origin for CSRF Origin header (must match app APP_URL)
+            - name: APP_URL
+              value: {{ .Values.app.url | quote }}
+            # In-cluster service — more reliable than hairpin via Ingress
+            - name: INTERNAL_URL
+              value: {{ printf "http://%s:%v" (include "maximus.fullname" .) .Values.service.port | quote }}
+            - name: BOOTSTRAP_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-bootstrap" (include "maximus.fullname" .)) .Values.bootstrap.existingSecret }}
+                  key: {{ .Values.bootstrap.emailKey | default "email" }}
+            - name: BOOTSTRAP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (printf "%s-bootstrap" (include "maximus.fullname" .)) .Values.bootstrap.existingSecret }}
+                  key: {{ .Values.bootstrap.passwordKey | default "password" }}
+            - name: BOOTSTRAP_NAME
+              value: {{ .Values.bootstrap.name | default "Owner" | quote }}
+            - name: BOOTSTRAP_ORG_NAME
+              value: {{ .Values.bootstrap.orgName | default "Maximus" | quote }}
+            - name: BOOTSTRAP_RETRIES
+              value: "60"
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              BASE="${INTERNAL_URL}"
+              i=0
+              while [ "$i" -lt "${BOOTSTRAP_RETRIES}" ]; do
+                if curl -fsS "$BASE/api/health" >/dev/null 2>&1; then break; fi
+                i=$((i+1)); sleep 3
+              done
+              CODE=$(curl -sS -o /tmp/out.json -w "%{http_code}" \
+                -X POST "$BASE/api/auth/bootstrap" \
+                -H "content-type: application/json" \
+                -H "origin: $APP_URL" \
+                -d "{\"email\":\"$BOOTSTRAP_EMAIL\",\"password\":\"$BOOTSTRAP_PASSWORD\",\"name\":\"$BOOTSTRAP_NAME\",\"orgName\":\"$BOOTSTRAP_ORG_NAME\"}" \
+                || echo 000)
+              echo "bootstrap HTTP $CODE"
+              cat /tmp/out.json || true
+              case "$CODE" in 200|201|403) exit 0 ;; *) exit 1 ;; esac
+{{- end }}

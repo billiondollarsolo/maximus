@@ -102,6 +102,8 @@ describe("buildOverviewSnapshot (injected checks)", () => {
         rateLimitFailOpen: false,
         userPerMin: 60,
         orgPerMin: 600,
+        trustProxy: false,
+        trustedProxyHops: 1,
         s3: {
           endpoint: "http://localhost:9000",
           accessKey: "maximus",
@@ -165,6 +167,8 @@ describe("buildOverviewSnapshot (injected checks)", () => {
         rateLimitFailOpen: false,
         userPerMin: 60,
         orgPerMin: 600,
+        trustProxy: false,
+        trustedProxyHops: 1,
         s3: {
           endpoint: "http://localhost:9000",
           accessKey: "maximus",

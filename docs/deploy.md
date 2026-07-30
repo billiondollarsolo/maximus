@@ -73,15 +73,27 @@ docker compose -f docker/docker-compose.prod.yml --env-file .env.prod up -d --bu
 
 Open `https://YOUR_DOMAIN/login` and complete **Create workspace**.
 
-Or:
+Or one-shot API (empty DB only):
 
 ```bash
 curl -X POST "https://YOUR_DOMAIN/api/auth/bootstrap" \
   -H 'content-type: application/json' \
+  -H "origin: https://YOUR_DOMAIN" \
   -d '{"email":"you@example.com","password":"your-long-password","orgName":"My Team","name":"You"}'
 ```
 
-Password minimum: **10 characters**. Bootstrap is **disabled** after the first user exists.
+**Optional automated first owner** (Compose):
+
+```bash
+# .env.prod
+BOOTSTRAP_EMAIL=you@example.com
+BOOTSTRAP_PASSWORD=your-long-password
+COMPOSE_PROFILES=bundled,bootstrap   # add bootstrap profile
+./scripts/up-prod.sh
+```
+
+Helm: `bootstrap.enabled=true` + email/password (or `bootstrap.existingSecret`).  
+Password minimum: **10 characters**. Bootstrap is **disabled** after the first user exists (re-run is safe).
 
 ## 4. Invite teammates
 

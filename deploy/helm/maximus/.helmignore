@@ -1,4 +1,5 @@
+# Patterns to ignore when packaging (Helm 4: avoid !negation — breaks chart load)
 *.md
-!README.md
 .DS_Store
 .git
+examples/

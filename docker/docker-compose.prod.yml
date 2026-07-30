@@ -41,6 +41,8 @@ x-app-env: &app-env
   S3_BUCKET: ${S3_BUCKET:-maximus-uploads}
   S3_REGION: ${S3_REGION:-us-east-1}
   S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+  TRUST_PROXY: ${TRUST_PROXY:-true}
+  TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
 
 services:
   caddy:
@@ -97,6 +99,8 @@ services:
       <<: *app-env
       RUN_MIGRATE: "0"
       MIGRATE_ONLY: "0"
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     depends_on:
       postgres:
         condition: service_healthy
@@ -116,6 +120,29 @@ services:
       retries: 8
       start_period: 50s
     logging: *default-logging
+    networks:
+      - internal
+
+  # Optional first-owner bootstrap (empty DB only). Enable:
+  #   COMPOSE_PROFILES=bundled,bootstrap   (or external + bootstrap)
+  #   BOOTSTRAP_EMAIL / BOOTSTRAP_PASSWORD in .env.prod
+  bootstrap:
+    profiles: ["bootstrap"]
+    image: curlimages/curl:8.11.1
+    environment:
+      APP_URL: http://web:3000
+      BOOTSTRAP_EMAIL: ${BOOTSTRAP_EMAIL:-}
+      BOOTSTRAP_PASSWORD: ${BOOTSTRAP_PASSWORD:-}
+      BOOTSTRAP_NAME: ${BOOTSTRAP_NAME:-Owner}
+      BOOTSTRAP_ORG_NAME: ${BOOTSTRAP_ORG_NAME:-Maximus}
+      BOOTSTRAP_RETRIES: ${BOOTSTRAP_RETRIES:-40}
+    volumes:
+      - ../scripts/bootstrap-first-owner.sh:/bootstrap.sh:ro
+    entrypoint: ["sh", "/bootstrap.sh"]
+    depends_on:
+      web:
+        condition: service_healthy
+    restart: "no"
     networks:
       - internal
 

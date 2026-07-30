@@ -120,10 +120,29 @@ For SSE (chat + admin overview streams), ensure the ingress **does not buffer** 
 
 Full defaults: [`deploy/helm/maximus/values.yaml`](../deploy/helm/maximus/values.yaml).
 
+## Optional first-owner bootstrap
+
+```bash
+helm upgrade --install maximus ./deploy/helm/maximus \
+  --set bootstrap.enabled=true \
+  --set bootstrap.email=owner@example.com \
+  --set bootstrap.password='long-password-here' \
+  # …image, secrets.encryptionKey, etc.
+```
+
+Or `bootstrap.existingSecret` with keys `email` / `password`.  
+Job is post-install; **403 when users exist is success** (idempotent).
+
 ## After install
 
 1. `curl -fsS https://YOUR_HOST/api/health`  
-2. Open `/login` → bootstrap owner  
+2. Bootstrap (UI, Job, or API) if not automated  
 3. Admin → Overview → confirm PG / Valkey / object store tiles  
 
-See also [deploy-external.md](./deploy-external.md) and [deploy.md](./deploy.md) (Compose).
+### TLS samples
+
+- [cert-manager-http01.yaml](../deploy/helm/maximus/examples/cert-manager-http01.yaml)  
+- [cert-manager-cloudflare-dns01.yaml](../deploy/helm/maximus/examples/cert-manager-cloudflare-dns01.yaml)  
+- [cert-manager-route53-dns01.yaml](../deploy/helm/maximus/examples/cert-manager-route53-dns01.yaml)  
+
+See also [deploy-external.md](./deploy-external.md), [tls.md](./tls.md), and [deploy.md](./deploy.md) (Compose).

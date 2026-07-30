@@ -1,4 +1,5 @@
 import { AppError } from "@maximus/domain";
+import { effectiveRequestOrigin, trustProxyEnabled } from "./proxy";
 
 /** Apply enterprise security headers to a Response. */
 export function withSecurityHeaders(res: Response, opts?: { hsts?: boolean }): Response {
@@ -62,6 +63,11 @@ export function assertSameOrigin(request: Request, appUrl: string): void {
       throw new AppError("FORBIDDEN", "Invalid Referer");
     }
     throw new AppError("FORBIDDEN", "Cross-origin request blocked");
+  }
+  // Behind trusted proxy without Origin (some LBs): accept Forwarded host = APP_URL
+  if (trustProxyEnabled()) {
+    const eff = effectiveRequestOrigin(request);
+    if (eff && eff === app.origin) return;
   }
   // No Origin/Referer — allow non-browser clients (curl/tests) in non-production
   if (process.env.NODE_ENV === "production") {
