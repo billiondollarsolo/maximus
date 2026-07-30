@@ -4,12 +4,12 @@ import { conversationRepo, createDb, messageRepo } from "@maximus/db";
 import {
   AppError,
   canWriteConversation,
-  isAppError,
   listActiveBranch,
   type TreeMessage,
 } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { guardMutation, jsonError, jsonOk } from "#/server/api";
 
 export const Route = createFileRoute("/api/conversations")({
   server: {
@@ -44,7 +44,7 @@ export const Route = createFileRoute("/api/conversations")({
             }));
             const active = listActiveBranch(tree, conv.activeLeafId);
             const activeIds = new Set(active.map((m) => m.id));
-            return Response.json({
+            return jsonOk({
               conversation: conv,
               messages: msgs.filter((m) => activeIds.has(m.id)),
             });
@@ -60,19 +60,14 @@ export const Route = createFileRoute("/api/conversations")({
                 orgId: ctx.orgId,
                 userId: ctx.user.id,
               });
-          return Response.json({ conversations: items });
+          return jsonOk({ conversations: items });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
       PATCH: async ({ request }) => {
         try {
+          guardMutation(request);
           const env = serverEnv();
           const db = createDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
@@ -99,15 +94,9 @@ export const Route = createFileRoute("/api/conversations")({
             titleSource: body.title != null ? "user" : undefined,
             archivedAt: body.archive ? new Date() : undefined,
           });
-          return Response.json({ conversation: updated });
+          return jsonOk({ conversation: updated });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },

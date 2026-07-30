@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
 import { attachments, createDb, newId } from "@maximus/db";
-import { AppError, isAppError } from "@maximus/domain";
+import { AppError } from "@maximus/domain";
 import { createStorageClient } from "@maximus/storage";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { guardMutation, jsonError, jsonOk } from "#/server/api";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 const ALLOWED = new Set([
@@ -21,6 +22,7 @@ export const Route = createFileRoute("/api/uploads")({
     handlers: {
       POST: async ({ request }) => {
         try {
+          guardMutation(request);
           const env = serverEnv();
           const db = createDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
@@ -30,7 +32,7 @@ export const Route = createFileRoute("/api/uploads")({
             sizeBytes?: number;
           };
           if (!body.filename || !body.mime || body.sizeBytes == null) {
-            return Response.json({ error: "invalid body" }, { status: 400 });
+            throw new AppError("VALIDATION", "invalid body");
           }
           if (body.sizeBytes > MAX_BYTES) {
             throw new AppError("VALIDATION", "File too large");
@@ -51,15 +53,13 @@ export const Route = createFileRoute("/api/uploads")({
             sizeBytes: body.sizeBytes,
           });
           const uploadUrl = await storage.presignPut(key, body.mime);
-          return Response.json({ attachmentId: id, uploadUrl, storageKey: key });
+          return jsonOk({
+            attachmentId: id,
+            uploadUrl,
+            storageKey: key,
+          });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },

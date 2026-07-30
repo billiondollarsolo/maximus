@@ -6,19 +6,17 @@ import {
   messageRepo,
   conversationRepo,
 } from "@maximus/db";
-import {
-  AppError,
-  canWriteConversation,
-  isAppError,
-} from "@maximus/domain";
+import { AppError, canWriteConversation } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { guardMutation, jsonError, jsonOk } from "#/server/api";
 
 export const Route = createFileRoute("/api/feedback")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         try {
+          guardMutation(request);
           const env = serverEnv();
           const db = createDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
@@ -26,8 +24,11 @@ export const Route = createFileRoute("/api/feedback")({
             messageId?: string;
             rating?: "up" | "down";
           };
-          if (!body.messageId || (body.rating !== "up" && body.rating !== "down")) {
-            return Response.json({ error: "invalid body" }, { status: 400 });
+          if (
+            !body.messageId ||
+            (body.rating !== "up" && body.rating !== "down")
+          ) {
+            throw new AppError("VALIDATION", "invalid body");
           }
           const msg = await messageRepo.getMessage(db, body.messageId);
           if (!msg) throw new AppError("NOT_FOUND", "Message not found");
@@ -52,15 +53,9 @@ export const Route = createFileRoute("/api/feedback")({
             userId: ctx.user.id,
             rating: body.rating,
           });
-          return Response.json({ feedback: row });
+          return jsonOk({ feedback: row });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },

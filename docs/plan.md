@@ -1611,7 +1611,7 @@ Product depth beyond first-ship chat OS (can interleave with Phase 4 polish).
 
 | Area | Shipped | Residual polish |
 | --- | --- | --- |
-| Auth UX | Login/bootstrap/invite pages; status API; session revoke on logout; bootstrap locked when users exist | Valkey login lockout; multi-session list |
+| Auth UX | Login/bootstrap/invite pages; status API; session revoke on logout; bootstrap **FORBIDDEN whenever any users exist** (no passwordless re-bootstrap for known emails) | Valkey login lockout; multi-session list |
 | Settings | general / personalization / data / account | persist personalization to prompt assembly |
 | Admin SPA | overview, members, providers, models, usage, audit + **403 for members** | denser tables, charts, confirm dialogs |
 | Models | `modelsForUser`, `GET /api/models`, dynamic ModelSelect + vision badge | full capability badges, mid-chat model persist UX |

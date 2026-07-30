@@ -1,4 +1,4 @@
-import { count, eq } from "drizzle-orm";
+import { count } from "drizzle-orm";
 import {
   getDb,
   members,
@@ -24,7 +24,7 @@ export async function needsBootstrap(db: Db = getDb()): Promise<boolean> {
 /**
  * Bootstrap first owner + org.
  * Only allowed when the users table is empty (first deploy).
- * Idempotent: same email after bootstrap logs them in via createSession.
+ * Never mints a session for an existing user — use loginWithPassword.
  */
 export async function bootstrapOwner(
   input: {
@@ -48,32 +48,12 @@ export async function bootstrapOwner(
   const [userCount] = await db.select({ n: count() }).from(users);
   const totalUsers = userCount?.n ?? 0;
 
-  const [existing] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, input.email.toLowerCase().trim()))
-    .limit(1);
-
-  if (existing) {
-    // Only allow re-bootstrap login for the first owner when others may not exist,
-    // or always if this exact user already exists (dev convenience).
-    const [mem] = await db
-      .select()
-      .from(members)
-      .where(eq(members.userId, existing.id))
-      .limit(1);
-    const token = await createSession(db, existing.id, mem?.organizationId);
-    return {
-      userId: existing.id,
-      orgId: mem?.organizationId ?? "",
-      sessionToken: token,
-    };
-  }
-
+  // Fail closed: any existing users means bootstrap is permanently closed.
+  // Do not special-case existing emails (that was a passwordless takeover path).
   if (totalUsers > 0) {
     throw new AppError(
       "FORBIDDEN",
-      "Bootstrap is only allowed when no users exist; use invite",
+      "Bootstrap is only allowed when no users exist; use login or invite",
     );
   }
 
@@ -83,10 +63,11 @@ export async function bootstrapOwner(
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+  const email = input.email.toLowerCase().trim();
 
   await db.insert(users).values({
     id: userId,
-    email: input.email.toLowerCase().trim(),
+    email,
     name: input.name ?? "Owner",
     emailVerified: true,
   });

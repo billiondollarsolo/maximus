@@ -121,7 +121,7 @@ describe("auth invite-only + roles", () => {
 
     expect(() => publicSignUpDisabled()).toThrow(AppError);
 
-    // Second bootstrap with a new email must fail (users already exist)
+    // New email when users exist
     await expect(
       bootstrapOwner(
         {
@@ -132,6 +132,59 @@ describe("auth invite-only + roles", () => {
         db,
       ),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("bootstrap with EXISTING email does not mint session (wrong or any password)", async () => {
+    // Ensure a known user exists in DB
+    const knownEmail = `known-${newId()}@test.local`;
+    const knownPassword = "KnownPass99!";
+    await createOwnerWhenDbNotEmpty(db, {
+      email: knownEmail,
+      password: knownPassword,
+      name: "Known",
+      orgName: "KnownOrg",
+    });
+
+    // Wrong password must not session (and must not succeed silently)
+    await expect(
+      bootstrapOwner(
+        {
+          email: knownEmail,
+          password: "WrongPassword99!",
+          name: "Attacker",
+        },
+        db,
+      ),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    // Correct password also must not session via bootstrap — only login may
+    await expect(
+      bootstrapOwner(
+        {
+          email: knownEmail,
+          password: knownPassword,
+          name: "Attacker",
+        },
+        db,
+      ),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    // Login with correct password still works (auth path is separate)
+    const login = await loginWithPassword(
+      { email: knownEmail, password: knownPassword },
+      db,
+    );
+    expect(login.sessionToken).toBeTruthy();
+    const ctx = await getAuthContext(login.sessionToken, db);
+    expect(ctx?.user.email).toBe(knownEmail);
+
+    // Login with wrong password does not session
+    await expect(
+      loginWithPassword(
+        { email: knownEmail, password: "WrongPassword99!" },
+        db,
+      ),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("rejects short bootstrap password", async () => {
@@ -147,6 +200,8 @@ describe("auth invite-only + roles", () => {
       expect.fail("should throw");
     } catch (e) {
       expect(isAppError(e)).toBe(true);
+      // Empty DB → VALIDATION; non-empty → FORBIDDEN (users exist checked first after password length)
+      // Password length is checked BEFORE user count, so always VALIDATION for short passwords.
       expect(e).toMatchObject({ code: "VALIDATION" });
     }
   });

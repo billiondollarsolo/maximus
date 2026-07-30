@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
 import { createDb, getOrgRateLimitFailOpen, runChatTurn } from "@maximus/db";
-import { AppError, isAppError } from "@maximus/domain";
+import { isAppError } from "@maximus/domain";
 import { assertRateLimit, createLimiter } from "@maximus/rate-limit";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { guardMutation, jsonError } from "#/server/api";
+import { withSecurityHeaders } from "#/server/security";
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -16,6 +18,7 @@ export const Route = createFileRoute("/api/chat")({
         request.signal.addEventListener("abort", () => abortController.abort());
 
         try {
+          guardMutation(request);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           // D16: fail-closed by default; org.settings.rateLimitFailOpen may open
           const orgFailOpen = await getOrgRateLimitFailOpen(db, ctx.orgId);
@@ -98,21 +101,17 @@ export const Route = createFileRoute("/api/chat")({
             },
           });
 
-          return new Response(stream, {
-            headers: {
-              "Content-Type": "text/event-stream",
-              "Cache-Control": "no-cache",
-              Connection: "keep-alive",
-            },
-          });
+          return withSecurityHeaders(
+            new Response(stream, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+              },
+            }),
+          );
         } catch (err) {
-          if (err instanceof AppError || isAppError(err)) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Internal error" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },
