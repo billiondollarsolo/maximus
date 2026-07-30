@@ -1,0 +1,141 @@
+# Maximus Helm values
+# Prefer external/cloud-native data services in production.
+# See docs/deploy-helm.md and examples/cnpg-cluster.yaml
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: maximus-web
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+replicaCount: 1
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Application
+app:
+  url: https://chat.example.com
+  providerMode: live
+  cookieSecure: true
+  allowPrivateBaseUrls: false
+  rateLimit:
+    failOpen: false
+    userPerMin: 60
+    orgPerMin: 600
+  # Optional platform LLM keys (or use Admin BYOK)
+  openaiApiKey: ""
+  anthropicApiKey: ""
+  ollamaBaseUrl: ""
+
+# Secrets: set via --set-file / existingSecret or values (prefer external secret)
+# encryptionKey must be 32-byte base64 (scripts/generate-secrets.sh)
+secrets:
+  # If set, use this existing Secret (keys: ENCRYPTION_KEY, DATABASE_URL, VALKEY_URL, S3_*, …)
+  existingSecret: ""
+  encryptionKey: ""
+  betterAuthSecret: ""
+
+# --- Postgres ---
+# Chart-bundled simple Postgres (dev/small only). Production: CloudNativePG / RDS / Cloud SQL.
+postgresql:
+  enabled: true
+  image: postgres:16-alpine
+  auth:
+    username: maximus
+    password: changeme
+    database: maximus
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: ""
+
+# When postgresql.enabled=false, set full URL (or put DATABASE_URL in existingSecret)
+externalDatabase:
+  url: ""
+  # e.g. postgres://maximus:pass@maximus-rw.default.svc:5432/maximus
+
+# --- Valkey / Redis ---
+redis:
+  enabled: true
+  image: valkey/valkey:8-alpine
+  auth:
+    password: changeme
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+
+externalRedis:
+  url: ""
+  # e.g. redis://:pass@valkey.cache.svc:6379
+
+# --- Object storage ---
+# mode: minio (in-cluster) | external (S3/R2/GCS-compat)
+objectStorage:
+  mode: minio
+  minio:
+    enabled: true
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    rootUser: maximus
+    rootPassword: maximussecret
+    bucket: maximus-uploads
+    persistence:
+      enabled: true
+      size: 50Gi
+      storageClass: ""
+  external:
+    endpoint: ""
+    accessKey: ""
+    secretKey: ""
+    bucket: maximus-uploads
+    region: us-east-1
+    forcePathStyle: true
+
+migrate:
+  enabled: true
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: chat.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: maximus-tls
+  #    hosts:
+  #      - chat.example.com
+
+resources: {}
+#  limits:
+#    cpu: 1
+#    memory: 1Gi
+#  requests:
+#    cpu: 100m
+#    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podSecurityContext:
+  fsGroup: 10001
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001

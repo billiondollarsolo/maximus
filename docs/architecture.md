@@ -22,3 +22,12 @@ Auth: session cookie **or** `Authorization: Bearer` / `X-Session-Token` (token f
 ## Deep-link rule
 
 Every user-facing page has a stable URL (chat threads, settings, admin). Do not hide product state only in React memory. Map: [spa-routes.md](./spa-routes.md).
+
+## Deploy surfaces
+
+| Path | Location |
+| --- | --- |
+| Compose (bundled or external PG/S3/Valkey) | `docker/docker-compose.prod.yml` · [deploy.md](./deploy.md) · [deploy-external.md](./deploy-external.md) |
+| Helm | `deploy/helm/maximus` · [deploy-helm.md](./deploy-helm.md) |
+
+Infrastructure URLs are **env/secrets only** (not Admin UI forms). Overview reports connectivity.

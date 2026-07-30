@@ -1,0 +1,29 @@
+# Example CloudNativePG Cluster for Maximus (install CNPG operator first).
+# https://cloudnative-pg.io/
+#
+# After the cluster is Ready, set:
+#   postgresql.enabled=false
+#   externalDatabase.url=postgres://maximus:…@maximus-pg-rw.default.svc:5432/maximus
+#
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: maximus-pg
+  namespace: default
+spec:
+  instances: 2
+  # postgresql image managed by operator
+  storage:
+    size: 20Gi
+  bootstrap:
+    initdb:
+      database: maximus
+      owner: maximus
+      secret:
+        name: maximus-pg-app
+  # Create maximus-pg-app Secret with username/password before apply
+---
+# Optional: Pooler for many web replicas
+# apiVersion: postgresql.cnpg.io/v1
+# kind: Pooler
+# ...

@@ -120,7 +120,7 @@ Open `https://YOUR_DOMAIN` → bootstrap owner → invite the team.
 | **route53** | DNS in AWS Route 53 |
 | **local** | LAN / laptop smoke (internal CA) |
 
-**[docs/deploy.md](./docs/deploy.md)** · **[docs/tls.md](./docs/tls.md)**
+**[docs/deploy.md](./docs/deploy.md)** · **[docs/deploy-external.md](./docs/deploy-external.md)** · **[docs/deploy-helm.md](./docs/deploy-helm.md)** · **[docs/tls.md](./docs/tls.md)**
 
 ```
                     ┌─────────────┐
@@ -142,7 +142,9 @@ Open `https://YOUR_DOMAIN` → bootstrap owner → invite the team.
 | Doc | What you’ll get |
 | --- | --- |
 | [docs/quickstart.md](./docs/quickstart.md) | Local install in ~10 minutes |
-| [docs/deploy.md](./docs/deploy.md) | Production compose & env |
+| [docs/deploy.md](./docs/deploy.md) | Production Compose & env |
+| [docs/deploy-external.md](./docs/deploy-external.md) | External Postgres / Valkey / S3 |
+| [docs/deploy-helm.md](./docs/deploy-helm.md) | Kubernetes Helm chart |
 | [docs/tls.md](./docs/tls.md) | ACME modes, DNS challenges |
 | [docs/runbook.md](./docs/runbook.md) | Health, demo mode, probes, backup |
 | [docs/api.md](./docs/api.md) | HTTP/SSE surface, auth, catalog |

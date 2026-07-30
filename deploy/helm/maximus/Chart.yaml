@@ -1,0 +1,15 @@
+apiVersion: v2
+name: maximus
+description: Self-hosted Maximus AI workspace (ChatGPT-class UX)
+type: application
+version: 0.1.0
+appVersion: "0.0.0"
+keywords:
+  - ai
+  - chat
+  - self-hosted
+home: https://github.com/billiondollarsolo/maximus
+sources:
+  - https://github.com/billiondollarsolo/maximus
+maintainers:
+  - name: Maximus contributors

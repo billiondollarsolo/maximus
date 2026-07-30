@@ -70,6 +70,12 @@ Overview shows a **Demo mode** banner when `PROVIDER_MODE=fake`, or when live mo
 | `GIT_SHA` | — | Short build identity |
 | `OVERVIEW_SSE_INTERVAL_MS` | `5000` | Admin overview recompute cadence |
 
+### External Postgres / S3 / Valkey
+
+Infrastructure is configured via **env** (`DATABASE_URL`, `VALKEY_URL`, `S3_*`), not the Admin UI.  
+Compose: `DEPLOY_MODE=external` · Helm: `postgresql.enabled=false` + external URLs.  
+See [deploy-external.md](./deploy-external.md) and [deploy-helm.md](./deploy-helm.md).
+
 ### Local 1601x stack (isolated ports)
 
 When Postgres/Valkey/RustFS are on host ports **16011–16014** (e.g. e2e-smoke) and the app on **16010**:

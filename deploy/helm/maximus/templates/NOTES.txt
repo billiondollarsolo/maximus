@@ -1,0 +1,23 @@
+Maximus {{ .Chart.AppVersion }} installed as {{ include "maximus.fullname" . }}.
+
+1. Ensure the image is built/pushed:
+   docker build -f docker/Dockerfile -t {{ .Values.image.repository }}:{{ .Values.image.tag }} .
+   # push to your registry and set image.repository / image.tag
+
+2. App URL: {{ .Values.app.url }}
+   {{- if .Values.ingress.enabled }}
+   Ingress host(s): {{ range .Values.ingress.hosts }}{{ .host }} {{ end }}
+   {{- end }}
+
+3. Data plane:
+   Postgres: {{ if .Values.postgresql.enabled }}in-cluster StatefulSet (dev/small){{ else }}external (CloudNativePG / RDS / …){{ end }}
+   Valkey:   {{ if .Values.redis.enabled }}in-cluster{{ else }}external{{ end }}
+   Object:   {{ .Values.objectStorage.mode }}
+
+4. Bootstrap owner: open {{ .Values.app.url }}/login (first user only).
+
+5. Health: curl -fsS {{ .Values.app.url }}/api/health
+
+Production tip: set postgresql.enabled=false and point externalDatabase.url at
+CloudNativePG (see examples/cnpg-cluster.yaml) or a managed database.
+Docs: docs/deploy-helm.md · docs/deploy-external.md

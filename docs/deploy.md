@@ -1,6 +1,8 @@
 # Production deploy (Docker Compose)
 
-Maximus is designed for **self-host first**: one VPS or home server, invite-only org, Caddy TLS, private Postgres/Valkey/RustFS.
+Maximus is designed for **self-host first**: one VPS or home server, invite-only org, Caddy TLS, private or **external** Postgres/Valkey/S3.
+
+Also available: **[Helm / Kubernetes](./deploy-helm.md)** · **[External data plane](./deploy-external.md)**
 
 ## Architecture
 
@@ -8,12 +10,12 @@ Maximus is designed for **self-host first**: one VPS or home server, invite-only
 Internet → :80/:443 Caddy (TLS, HSTS, SSE flush)
               ↓
            web :3000 (Node, non-root)
-              ├── postgres (private)
-              ├── valkey (private, password)
-              └── rustfs  (private, S3 API)
+              ├── postgres  (bundled profile)  or  DATABASE_URL → managed PG
+              ├── valkey    (bundled profile)  or  VALKEY_URL
+              └── rustfs    (bundled profile)  or  S3_ENDPOINT
 ```
 
-Only **Caddy** publishes host ports. Data services stay on the Compose network.
+Only **Caddy** publishes host ports. Bundled data services stay on the Compose network (`COMPOSE_PROFILES=bundled`).
 
 ## Prerequisites
 
@@ -36,10 +38,13 @@ Edit `.env.prod`:
 | `APP_URL` | `https://chat.example.com` |
 | `ACME_EMAIL` | Let’s Encrypt account email |
 | `TLS_MODE` | `http01` \| `cloudflare` \| `route53` \| `local` |
-| `POSTGRES_PASSWORD` | Strong DB password |
-| `VALKEY_PASSWORD` | Strong Valkey password |
+| `DEPLOY_MODE` | `bundled` (default) or `external` |
+| `COMPOSE_PROFILES` | `bundled` starts PG/Valkey/RustFS; empty for external-only |
+| `POSTGRES_PASSWORD` | Bundled DB password |
+| `DATABASE_URL` | Optional override / required when external |
+| `VALKEY_PASSWORD` / `VALKEY_URL` | Bundled or external Redis URL |
 | `ENCRYPTION_KEY` | 32-byte base64 — **back up offline** |
-| `S3_SECRET_KEY` | Object storage secret |
+| `S3_ENDPOINT` / `S3_SECRET_KEY` | Bundled RustFS or external S3 |
 | `OPENAI_API_KEY` / … | Optional platform keys |
 
 **Never commit `.env.prod`.** Keep `ENCRYPTION_KEY` offline; losing it means re-entering all BYOK API keys.

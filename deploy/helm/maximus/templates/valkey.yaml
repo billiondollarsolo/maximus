@@ -1,0 +1,80 @@
+{{- if .Values.redis.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "maximus.fullname" . }}-valkey
+  labels:
+    {{- include "maximus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  ports:
+    - port: 6379
+      targetPort: redis
+  selector:
+    app.kubernetes.io/name: {{ include "maximus.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: valkey
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "maximus.fullname" . }}-valkey
+  labels:
+    {{- include "maximus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: valkey
+spec:
+  serviceName: {{ include "maximus.fullname" . }}-valkey
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "maximus.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: valkey
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "maximus.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: valkey
+    spec:
+      containers:
+        - name: valkey
+          image: {{ .Values.redis.image }}
+          args:
+            - valkey-server
+            - --appendonly
+            - "yes"
+            - --requirepass
+            - {{ .Values.redis.auth.password | quote }}
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - valkey-cli -a "{{ .Values.redis.auth.password }}" ping | grep PONG
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  {{- if .Values.redis.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.redis.persistence.storageClass }}
+        storageClassName: {{ .Values.redis.persistence.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.redis.persistence.size }}
+  {{- else }}
+      volumes:
+        - name: data
+          emptyDir: {}
+  {{- end }}
+{{- end }}

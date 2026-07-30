@@ -1,0 +1,52 @@
+# Production-style: no in-cluster data plane.
+# Pre-create Secret maximus-external with keys listed below, or fill values.
+
+postgresql:
+  enabled: false
+
+redis:
+  enabled: false
+
+objectStorage:
+  mode: external
+  minio:
+    enabled: false
+  external:
+    endpoint: https://s3.us-east-1.amazonaws.com
+    accessKey: ""
+    secretKey: ""
+    bucket: maximus-uploads
+    region: us-east-1
+    forcePathStyle: false
+
+externalDatabase:
+  # CloudNativePG rw service or RDS / Cloud SQL
+  url: postgres://maximus:CHANGE_ME@maximus-pg-rw.default.svc:5432/maximus
+
+externalRedis:
+  url: redis://:CHANGE_ME@valkey.default.svc:6379
+
+secrets:
+  encryptionKey: "REPLACE_WITH_openssl_rand_base64_32"
+  # Or: existingSecret: maximus-external
+
+app:
+  url: https://chat.example.com
+  providerMode: live
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: chat.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: maximus-tls
+      hosts:
+        - chat.example.com
+
+image:
+  repository: ghcr.io/YOUR_ORG/maximus
+  tag: "0.1.0"
