@@ -1,10 +1,15 @@
 # Maximus — Enterprise ChatGPT Clone
 
-**Status:** Living plan — first-ship core (WP0–WP17) largely implemented; **Phase 4 enterprise polish (WP18–WP40) is the active program**  
+**Status:** Living plan — first-ship core (WP0–WP17) largely implemented; Phase 4 polish (WP18–WP40) in progress; **next product depth = Phase 5 ChatGPT + enterprise (WP41–WP55, §41–§48)**  
 **Repo:** `/Users/mj/mjcode/billiondollarsolo/maximus`  
 **Canonical path:** `docs/plan.md` (this file)  
 **Product name:** Maximus  
 **North star:** Looks, feels, and works like ChatGPT for daily chat; ships enterprise controls large companies expect; elite TypeScript engineering with small files, Postgres, and test-first delivery.
+
+**Elite when all three are true:**  
+1. A **power user** can live in Maximus all day without missing ChatGPT muscle memory.  
+2. A **security team** can approve it (SSO, encryption, audit, isolation, headers, DR).  
+3. An **engineering team** can extend it without dual contracts or god files (DRY + TDD + package boundaries).
 
 **Enterprise bar:** Secure-by-default · Encrypt sensitive data · TLS everywhere in prod · DRY pure contracts · ChatGPT-class UI · Operable (health/logs/backups) · Auditable · Tested security properties
 
@@ -52,8 +57,16 @@
 38. [Session, MFA & identity hardening](#38-session-mfa--identity-hardening)
 39. [Input validation, errors & API excellence](#39-input-validation-errors--api-excellence)
 40. [Performance, capacity & cost controls](#40-performance-capacity--cost-controls)
+41. [ChatGPT product parity matrix](#41-chatgpt-product-parity-matrix)
+42. [Tools, agents & assistants architecture](#42-tools-agents--assistants-architecture)
+43. [Knowledge / RAG design](#43-knowledge--rag-design)
+44. [Sharing, collaboration & temporary chats](#44-sharing-collaboration--temporary-chats)
+45. [Enterprise GRC pack](#45-enterprise-grc-pack)
+46. [Org developer platform](#46-org-developer-platform)
+47. [Elite UX release gates](#47-elite-ux-release-gates)
+48. [WP41–WP55 work packages](#48-wp41wp55-work-packages)
 
-Appendices: A env · B demo path · C module map · D UI matrix · E threat model · F WP0 TDD · G decisions · H UI rules · I AGENTS.md · **J security checklist** · **K prod go-live** · **L elite UI scorecard**
+Appendices: A env · B demo path · C module map · D UI matrix · E threat model · F WP0 TDD · G decisions · H UI rules · I AGENTS.md · **J security checklist** · **K prod go-live** · **L elite UI scorecard** · **M parity scorecard**
 
 ---
 
@@ -1566,30 +1579,40 @@ Estimate is relative (S/M/L), not calendar commitments.
 
 ## 22. Phase 3+ product backlog
 
-Product depth beyond first-ship chat OS (can interleave with Phase 4 polish).
+Product depth beyond first-ship chat OS. **Canonical detail:** §41–§48 and WP41–WP55. Phase 4 polish (WP18–WP40) remains the security/ops foundation.
 
-| Item | Priority | Notes |
+### 22.1 Wave order (do not scramble)
+
+| Wave | Theme | Packages |
 | --- | --- | --- |
-| OIDC SSO | P0 enterprise | Google/Okta/Entra; complete `sso_configs`; SCIM later |
-| Dynamic model catalog UI | P0 | Load ModelSelect from org-enabled models + allowlist |
-| Login / invite / settings pages | P0 | Elite ChatGPT-class auth + settings UX |
-| Full admin SPA | P0 | Members, providers, models, usage, audit (TanStack Table) |
-| Projects + custom instructions UI | P1 | Already in schema/prompt assembly |
-| LLM retitle job | P1 | Non-blocking; respect `title_source=user` |
-| Vision: real multimodal to providers | P1 | Fetch attachment bytes; map to image parts |
-| PDF/text extraction pipeline | P1 | OCR optional; virus scan hook |
-| MFA TOTP for owners | P1 | §38 |
-| Org API keys (OpenAI-compat proxy) | P2 | Rate limits + audit |
-| RAG / knowledge bases | P2 | PGVector; cite sources |
-| Assistants / GPTs presets | P2 | System prompt + tools + model + knowledge |
-| Canvas / artifacts side panel | P2 | |
-| Shared conversation links | P2 | Org-scoped, expiring, audit |
-| Web search tool | P2 | Pluggable provider |
-| Voice STT/TTS | P3 | |
-| Image generation | P3 | |
-| Memory (cross-chat facts) | P3 | |
-| SCIM / SAML | P3 | Large IdP estates |
-| Horizontal multi-region | P3 | Stateless web + Valkey + S3 |
+| **Now — credibility** | E2E, crypto ops, OTel, virtualization, branch UI, search/⌘K, projects UI, personalization persist | residual WP22–28, WP35, WP41–43 |
+| **Next — daily driver** | Vision, retitle, assistants, tools/search, canvas, share, temp chats | WP44–49 |
+| **Then — enterprise sale** | OIDC/SCIM, MFA/KMS, budgets, org API proxy, RAG ACLs, retention/eDiscovery, DLP | WP29, WP34, WP50–52, WP55 |
+| **Later — wow** | Memory, voice, image gen, multi-region | WP52–54, Phase 5 scale |
+
+### 22.2 Compact backlog table
+
+| Item | Priority | Plan ref |
+| --- | --- | --- |
+| Search + ⌘K + virtualization | P0 product | WP41, §41 |
+| Branch UI + message actions + stop/retry | P0 product | WP42, §41 |
+| Projects + custom instructions UI | P0 product | WP43 |
+| Multimodal vision + PDF extract | P1 | WP44 |
+| LLM retitle + stream polish | P1 | WP45 |
+| Assistants / custom GPTs | P1 | WP46, §42 |
+| Tools + web search | P1 | WP47, §42 |
+| Canvas / artifacts | P1 | WP48 |
+| Share links + temporary chats | P1 | WP49, §44 |
+| Org API keys + OpenAI-compat proxy | P1 enterprise | WP50, §46 |
+| RAG knowledge bases | P2 | WP51, §43 |
+| Memory (org-gated) | P2 | WP52 |
+| Voice STT/TTS | P3 | WP53 |
+| Image generation | P3 | WP54 |
+| GRC: DLP, retention, eDiscovery, KMS | P1 enterprise | WP55, §45 |
+| OIDC SSO | P0 enterprise | WP29 |
+| MFA TOTP + step-up | P1 | WP34, §38 |
+| SCIM / SAML | P2–P3 | Phase 5 |
+| Horizontal multi-region | P3 | Phase 5 |
 | Mobile native shell | P3 | Optional; web-first |
 
 ---
@@ -2467,23 +2490,31 @@ Admin UI v1: show $ aggregates; editing price book can be read-only seed + simpl
 | KEK | Key encryption key (`ENCRYPTION_KEY`) for BYOK envelope |
 | SBOM | Software bill of materials for release artifacts |
 | Same-origin guard | Reject mutations whose Origin/Referer host ≠ app host |
+| Assistant / custom GPT | Org-scoped preset: system prompt + model + tools + knowledge |
+| Artifact / canvas | Side-panel durable output (usually code) versioned per chat |
+| Ephemeral chat | Temporary conversation with TTL hard-delete; not shared |
+| Org API key | Hashed secret for OpenAI-compat proxy (`mk_…`) |
+| Knowledge base | RAG corpus with ACL + embeddings (PGVector) |
+| GRC | Governance, risk, compliance controls pack |
+| DLP | Data loss prevention (pattern detect/block/redact on outbound) |
+| Legal hold | Suppress retention purge for a user/org matter |
+| eDiscovery | Structured export of a user’s chats for legal review |
 
 ---
 
 ## 34. Phase 5 — Platform maturity
 
-Beyond Phase 4 “enterprise ready.” Ship only when Phase 4 outcomes are green.
+Beyond Phase 4 “enterprise ready.” Entry: Appendix K signed; WP18–WP28 green; zero open critical security findings. Detail for product depth: **§41–§48**.
 
-| Track | Items |
-| --- | --- |
-| Identity | OIDC (WP29), SCIM, SAML bridge, directory sync |
-| Data plane | RAG/PGVector, assistants, shared links, org API proxy |
-| Scale | Multi-region read replicas, Valkey cluster, object storage CDN |
-| Trust | SOC2 evidence pack, pen-test remediation, bug bounty |
-| Product | Canvas, voice, image gen, memory |
-| Mobile | Responsive complete first; native shells later |
-
-**Entry criteria:** Appendix K signed; WP18–WP28 complete; zero critical security findings open.
+| Track | Items | WPs |
+| --- | --- | --- |
+| Identity | OIDC, SCIM, SAML bridge, directory sync | WP29, Phase 5+ |
+| ChatGPT parity | Search, branch UI, projects, vision, assistants, tools, canvas, share | WP41–49 |
+| Data plane | RAG/PGVector, memory, org API proxy | WP50–52 |
+| Trust / GRC | DLP, retention, eDiscovery, KMS, SOC2 pack | WP55 |
+| Scale | Multi-region, Valkey cluster, object CDN | later |
+| Delight | Voice, image gen | WP53–54 |
+| Mobile | Responsive complete first; native shells later | optional |
 
 ---
 
@@ -3467,6 +3498,521 @@ Score each 0–5. Target **≥ 95 / 100** for Phase 4 UI exit (WP25).
 
 ---
 
-*Living plan. First-ship core largely implemented. Active program: **WP18–WP40** enterprise polish — security, Docker/TLS, encryption, DRY, elite UI, admin SPA, observability, DR, supply chain, MFA, E2E. See §23–§40 and Appendices J–L.*
+## 41. ChatGPT product parity matrix
+
+**Goal:** A power user can live in Maximus all day without missing ChatGPT muscle memory. Status is honest against the repo — do not flip to done without UI + tests.
+
+### 41.1 Matrix
+
+Legend: **Shipped** · **Partial** · **Open** · Wave: Now / Next / Then / Later
+
+| Feature | Status | Wave | WP | Acceptance sketch |
+| --- | --- | --- | --- | --- |
+| Dark + light shell | Partial | Now | WP25 | Appendix L ≥ 95 |
+| Sidebar history + new chat | Partial | Now | WP7/41 | Virtualized; date groups |
+| Composer + model chip | Partial | Now | WP19 | Dynamic models only |
+| Stream assistant + stop | Partial | Now | WP42 | Abort works; retry bubble |
+| Edit / regenerate (server) | Shipped | — | WP8 | Branch plans pure |
+| Branch switcher `‹ 1/N ›` | Open | Now | WP42 | When siblings > 1 |
+| Thumbs up/down | Partial | Now | WP9 | API + UI polish |
+| Markdown + code copy | Partial | Now | WP9/25 | Stable stream render |
+| Attachments paperclip | Partial | Next | WP44 | Preview chips; vision bytes |
+| ⌘K command palette | Open | Now | WP41 | Search + nav actions |
+| Full-text chat search | Open | Now | WP41 | Title + body (tsvector v1) |
+| Keyboard map (App D) | Partial | Now | WP25/41 | Core shortcuts wired |
+| Projects folders UI | Open | Now | WP43 | Schema exists |
+| Custom instructions persist | Partial | Now | WP43 | Settings → prompt assembly |
+| LLM auto-title | Open | Next | WP45 | Non-blocking; respect user title |
+| Real multimodal vision | Open | Next | WP44 | Provider image parts |
+| PDF / text extract | Open | Next | WP44 | Virus-scan hook optional |
+| Assistants / custom GPTs | Open | Next | WP46 | §42 |
+| Tool calling + web search | Open | Next | WP47 | §42 |
+| Canvas / artifacts panel | Open | Next | WP48 | Versioned side panel |
+| Shared conversation links | Open | Next | WP49 | Org + expiry + audit |
+| Temporary / incognito chat | Open | Next | WP49 | Org policy gate |
+| Drag-drop + paste images | Open | Next | WP44 | Composer UX |
+| Memory (cross-chat) | Open | Later | WP52 | Org-gated, deletable |
+| Voice STT/TTS | Open | Later | WP53 | Browser STT first |
+| Image generation | Open | Later | WP54 | Tool or dedicated model |
+| Org OpenAI-compat proxy | Open | Then | WP50 | §46 |
+| RAG knowledge bases | Open | Then | WP51 | §43 |
+| OIDC SSO | Open | Then | WP29 | |
+| MFA / step-up | Open | Then | WP34 | |
+| GRC (DLP, retention…) | Open | Then | WP55 | §45 |
+
+### 41.2 “Daily driver” exit criteria
+
+- [ ] Search finds chats by content in < 300ms p95 local  
+- [ ] Branch switcher works after edit + regen  
+- [ ] Projects + custom instructions affect next turn  
+- [ ] Appendix L ≥ 95; axe critical = 0 on shell + thread  
+- [ ] No hardcoded model list in prod builds (already path)  
+- [ ] Stream stop + error retry feel ChatGPT-grade  
+
+### 41.3 Anti-goals for parity work
+
+- Pixel-theft of OpenAI brand assets  
+- Shipping RAG before ACL model is designed (§43)  
+- Memory without user-visible list + delete  
+- Public unauthenticated share links  
+
+---
+
+## 42. Tools, agents & assistants architecture
+
+### 42.1 Principles
+
+| Principle | Rule |
+| --- | --- |
+| **Server-authoritative** | Tools run only on server; client never holds tool secrets |
+| **Pure tool defs in domain** | Name, JSON schema, risk level; no I/O in domain |
+| **Gateway executes** | HTTP tools / provider tool-calling behind gateway |
+| **Org policy** | Admin enable/disable tools; role allowlists |
+| **Auditable** | Every tool call → usage/audit with args redacted |
+| **Untrusted inputs** | File/URL content labeled untrusted; no code exec v1 |
+
+### 42.2 Assistants (custom GPTs)
+
+```
+assistant
+  id, org_id, owner_user_id
+  name, description, avatar_key?
+  system_prompt
+  model_ref_default
+  tools[]              -- enabled tool ids
+  knowledge_ids[]      -- RAG corpora (WP51)
+  visibility           -- private | org
+  created_at, updated_at
+```
+
+**UX:** Gallery (org) + “Create assistant” + start chat with assistant_id → system prompt assembly injects assistant layer (order: platform → org → project → assistant → user).
+
+### 42.3 Tool interface (sketch)
+
+```ts
+// packages/domain — pure
+type ToolDef = {
+  id: string;
+  displayName: string;
+  description: string;
+  parametersSchema: unknown; // JSON Schema
+  risk: "low" | "medium" | "high";
+};
+
+// packages/provider-gateway or tools package — I/O
+type ToolRuntime = {
+  execute(toolId: string, args: unknown, ctx: ToolCtx): AsyncIterable<ToolEvent>;
+};
+```
+
+**v1 tools:** `web_search` (pluggable provider), `fetch_url` (SSRF-guarded), optional `code_interpreter` **out of scope** until sandbox design.
+
+### 42.4 Provider tool-calling
+
+- Prefer native OpenAI/Anthropic tools when model supports  
+- Normalize to domain tool events for UI (tool call chips)  
+- Capability badge on ModelSelect: `tools: true`  
+
+### 42.5 Security
+
+- High-risk tools require admin enable + optional step-up  
+- Arg/result size caps; timeout; rate limit per tool  
+- Never log full web page bodies  
+
+---
+
+## 43. Knowledge / RAG design
+
+### 43.1 Goals
+
+- Org knowledge bases with **document ACL** (not “all org sees all”)  
+- Cite sources in assistant markdown  
+- Same Postgres (PGVector) for ops simplicity  
+
+### 43.2 Data model sketch
+
+```
+knowledge_bases: id, org_id, name, embedding_model, created_by
+knowledge_docs: id, kb_id, title, source_uri, status, checksum
+knowledge_chunks: id, doc_id, ordinal, content, embedding vector
+knowledge_acl: kb_id, subject_type (user|role|org), subject_id, perm
+```
+
+### 43.3 Ingestion pipeline
+
+1. Upload to RustFS  
+2. Extract text (PDF/plain; OCR optional job)  
+3. Chunk (token-aware)  
+4. Embed via platform/BYOK embedding model  
+5. Store vectors; mark doc ready  
+6. Virus-scan hook optional between 1–2  
+
+### 43.4 Retrieval at chat time
+
+1. Authz: user can read KB?  
+2. Embed query  
+3. Top-k similarity + optional hybrid keyword  
+4. Inject as system/context block with citations  
+5. Budget tokens: cap retrieved context  
+
+### 43.5 Non-goals v1
+
+- Cross-org sharing  
+- Real-time crawl of entire intranet  
+- Fine-tuning on customer docs  
+
+---
+
+## 44. Sharing, collaboration & temporary chats
+
+### 44.1 Shared links
+
+| Property | Rule |
+| --- | --- |
+| Scope | Org members only (default); optional public **off** until product decision |
+| Expiry | Required (e.g. 7d / 30d / custom) |
+| Snapshot | Share freezes branch at leaf **or** live view — **prefer snapshot** for integrity |
+| Authz | Link token + session membership check |
+| Audit | `share.created`, `share.viewed`, `share.revoked` |
+| D12 | Never expand admin rights via share |
+
+### 44.2 Temporary / incognito chats
+
+- Client shows “Temporary chat” badge  
+- Server: `conversations.ephemeral = true` → hard-delete on session end or TTL (e.g. 24h)  
+- Org setting: `allowEphemeralChats` default true  
+- Ephemeral excluded from search index optional  
+- No share links from ephemeral  
+
+### 44.3 Collaboration (later)
+
+- Multi-user same thread: **out of v1** (conflict with tree model)  
+- @mention teammates: Phase 6+  
+
+---
+
+## 45. Enterprise GRC pack
+
+Governance, risk, compliance — what security/legal review.
+
+### 45.1 Controls catalog
+
+| Control | Mechanism | WP |
+| --- | --- | --- |
+| SSO | OIDC (then SAML) | WP29 |
+| MFA / step-up | TOTP; step-up for BYOK rotate | WP34 |
+| Encryption | AES-GCM BYOK; optional KMS envelope | WP22, WP55 |
+| Retention | Org `retentionDays`; purge job | WP27, WP55 |
+| Legal hold | Flag user/org; suppress purge | WP55 |
+| eDiscovery | Owner export by user + date range | WP55 |
+| DLP | Optional outbound pattern redaction | WP55 |
+| Audit | Immutable-ish `audit_events` | shipped partial |
+| Data residency | Label + egress allowlist docs | WP55 docs |
+| Break-glass | Time-boxed, dual-admin, audited | product decision |
+| Subprocessors | LLM providers list | docs |
+| Training disclaimer | BYOK/self-host no-training claim | docs |
+
+### 45.2 DLP sketch (optional org enable)
+
+1. Before provider call, run allowlisted detectors (regex: SSN, card)  
+2. On match: block **or** redact + audit `dlp.blocked`  
+3. Never send raw match to third-party DLP without ADR  
+
+### 45.3 Retention job
+
+- Nightly: archive or delete conversations older than N days unless legal hold  
+- Attachments cascade delete best-effort  
+- Audit `retention.purged` counts only (no bodies)  
+
+### 45.4 SOC2-oriented evidence (docs, not product)
+
+- Access review export (members + roles)  
+- Change management = git + release notes  
+- Logging completeness checklist  
+- Pen-test remediation tracker  
+
+---
+
+## 46. Org developer platform
+
+### 46.1 OpenAI-compatible proxy
+
+Expose `POST /v1/chat/completions` (subset) for Cursor/CI/scripts:
+
+| Concern | Rule |
+| --- | --- |
+| Auth | Org API key (`mk_…`) hashed at rest |
+| Scopes | models allowlist, RPM, daily budget |
+| Audit | Every call: actor key, model, tokens, IP |
+| No BYOK leak | Proxy uses resolved credentials server-side |
+| Streaming | SSE compatible with OpenAI stream shape |
+
+### 46.2 API keys admin UI
+
+- Create / revoke / last-used  
+- Show prefix only (`mk_live_abc…`)  
+- Never show full secret after create dialog  
+
+### 46.3 Webhooks (later)
+
+- `message.completed`, `budget.exceeded` — Phase 6  
+
+---
+
+## 47. Elite UX release gates
+
+Ship UI-facing work only if gates pass (CI or documented exception).
+
+### 47.1 Gates
+
+| Gate | Bar |
+| --- | --- |
+| Appendix L scorecard | ≥ 95 / 100 for shell + thread releases |
+| Appendix M parity | Wave “Now” items all Partial→Shipped |
+| axe | 0 critical on login, shell, thread, admin, settings |
+| Keyboard | Appendix D core map works |
+| Themes | Dark + light screenshot smoke |
+| Performance | Sidebar 500 rows virtualized; no main-thread > 50ms long tasks on stream tick (target) |
+| Copy | Errors human; no stack traces to UI |
+| D17 | No page CSS modules; Lucide only; thin routes |
+
+### 47.2 Product voice
+
+- Empty states teach next action  
+- Rate limit: “You’ve hit a limit — try again in a minute”  
+- Auth: never reveal whether email exists on login failure  
+
+### 47.3 Motion
+
+- 150–200ms easings; `prefers-reduced-motion: reduce` → instant  
+
+---
+
+## 48. WP41–WP55 work packages
+
+### WP41 — Search, ⌘K, virtualization (L)
+
+**Goal:** Find anything fast; long lists smooth.
+
+- [ ] Conversation search API (title + message body; `tsvector` or ILIKE v1)  
+- [ ] Sidebar search UI + empty states  
+- [ ] Command palette ⌘K: new chat, search, settings, admin (if role), theme  
+- [ ] TanStack Virtual for conversation list + message list  
+- [ ] Tests: search isolation (no cross-user hits)  
+
+**Acceptance:** 500-chat sidebar smooth; search never returns other users’ chats.
+
+### WP42 — Branch UI, message actions, stream reliability (M)
+
+- [ ] Branch switcher `‹ 1 / N ›` when siblings > 1  
+- [ ] Hover actions: copy, regen, edit, thumbs  
+- [ ] Stop generation wired to abort  
+- [ ] Error bubble + Retry  
+- [ ] Streaming markdown without full remount jank  
+
+**Acceptance:** Edit → sibling branch navigable; stop cancels provider stream.
+
+### WP43 — Projects + custom instructions product UI (M)
+
+- [ ] Projects list in sidebar; create/rename/archive  
+- [ ] Project-scoped chat filter  
+- [ ] Custom instructions settings **persisted** → `assembleSystemPrompts`  
+- [ ] Move conversation to project  
+
+**Acceptance:** Instructions change next turn content (integration test with fake provider).
+
+### WP44 — Multimodal vision + PDF/text extract (L)
+
+- [ ] Fetch attachment bytes server-side for vision models  
+- [ ] Map to OpenAI/Anthropic image content parts  
+- [ ] Composer: drag-drop, paste, preview chips, remove before send  
+- [ ] PDF/plain text extraction pipeline (async job ok)  
+- [ ] Capability gating: vision models only for image attach  
+- [ ] Virus-scan hook interface (noop default)  
+
+**Acceptance:** PNG attach → model receives image part (contract test); non-vision model rejects with clear error.
+
+### WP45 — LLM retitle + stream polish (S)
+
+- [ ] Non-blocking retitle after first assistant complete  
+- [ ] Respect `title_source=user`  
+- [ ] Cheap model preference; skip if no platform key  
+- [ ] Sidebar invalidation  
+
+**Acceptance:** Heuristic immediate; LLM title lands without blocking stream.
+
+### WP46 — Assistants / custom GPTs (L)
+
+- [ ] Schema + repos for assistants  
+- [ ] CRUD UI (owner) + org gallery  
+- [ ] Start chat with assistant; prompt assembly order  
+- [ ] Attach tools/knowledge ids (stubs ok until WP47/51)  
+
+**Acceptance:** Org member can use shared assistant; private assistant not listed to others.
+
+### WP47 — Tools framework + web search (L)
+
+- [ ] Domain `ToolDef` + org enablement  
+- [ ] Runtime execute + audit  
+- [ ] `web_search` + SSRF-safe `fetch_url`  
+- [ ] UI tool-call chips in thread  
+- [ ] Admin tools page  
+
+**Acceptance:** Search tool results cited; disabled tool cannot be invoked.
+
+### WP48 — Canvas / artifacts side panel (L)
+
+- [ ] Detect fenced code / artifact blocks  
+- [ ] Side panel with version history per conversation  
+- [ ] Copy / download  
+- [ ] Optional: iterate artifact via follow-up prompt  
+
+**Acceptance:** Long code readable without crushing chat column.
+
+### WP49 — Share links + temporary chats (M)
+
+- [ ] Create/revoke share; expiry; snapshot  
+- [ ] View path for org members; audit views  
+- [ ] Ephemeral conversations + TTL purge  
+- [ ] Org settings toggles  
+
+**Acceptance:** Expired link 404; ephemeral not in default search after purge.
+
+### WP50 — Org API keys + OpenAI-compat proxy (L)
+
+- [ ] API key create/revoke (hashed secrets)  
+- [ ] `POST /v1/chat/completions` subset + stream  
+- [ ] Rate limit + budget per key  
+- [ ] Admin UI; audit  
+- [ ] Contract tests against OpenAI stream shape  
+
+**Acceptance:** curl with org key streams fake provider; revoked key 401.
+
+### WP51 — RAG knowledge bases (L)
+
+- [ ] KB + docs + chunks + PGVector  
+- [ ] Ingest pipeline + status UI  
+- [ ] ACL + retrieval inject + citations  
+- [ ] Token budget for context  
+
+**Acceptance:** Doc in KB answers with citation; user without ACL gets no chunks.
+
+### WP52 — Memory (org-gated) (M)
+
+- [ ] Memory facts table; user-visible list + delete  
+- [ ] Org enable flag default **off**  
+- [ ] Inject into system prompt with clear labeling  
+- [ ] Audit memory writes  
+
+**Acceptance:** User can delete a fact and it never reappears.
+
+### WP53 — Voice STT/TTS (M)
+
+- [ ] Browser speech recognition → composer (v1)  
+- [ ] Optional server STT later  
+- [ ] TTS play for assistant (browser speechSynthesis v1)  
+
+**Acceptance:** Dictation fills composer; works in Chromium.
+
+### WP54 — Image generation (M)
+
+- [ ] Tool or dedicated gen model path  
+- [ ] Store image in RustFS; render in thread  
+- [ ] Org enable + cost tracking  
+
+**Acceptance:** Generated image persists and reloads with conversation.
+
+### WP55 — GRC pack: DLP, retention, eDiscovery, KMS (L)
+
+- [ ] Retention job + legal hold  
+- [ ] Owner eDiscovery export (user + date)  
+- [ ] Optional DLP detectors  
+- [ ] KMS adapter interface (AWS/GCP/Vault) dual-read  
+- [ ] Docs: subprocessors, residency, break-glass ADR  
+
+**Acceptance:** Retention purges old chats; hold suppresses; eDiscovery zip owner-only.
+
+### Suggested order (Phase 5 product)
+
+```
+Finish residual Phase 4 (WP22–28, WP35 elite/virtualize)
+  → WP41 Search/⌘K/virtual
+  → WP42 Branch/actions/stream
+  → WP43 Projects/instructions
+  → WP44 Vision/PDF
+  → WP45 Retitle
+  → WP46 Assistants
+  → WP47 Tools/search
+  → WP48 Canvas
+  → WP49 Share/temp
+  → WP29 OIDC ∥ WP34 MFA ∥ WP50 API proxy
+  → WP51 RAG
+  → WP55 GRC
+  → WP52 Memory → WP53 Voice → WP54 Image gen
+```
+
+Parallel tracks after WP43: **product** (44–49) · **identity** (29/34) · **platform** (50/51/55).
+
+---
+
+## Appendix M — ChatGPT parity scorecard (wave gates)
+
+Score each shipped wave. Target: **Now ≥ 18/20**, **Next ≥ 16/20** before “daily driver” claim.
+
+### M.1 Wave Now (credibility + muscle memory)
+
+| # | Item | Done? |
+| --- | --- | --- |
+| 1 | Virtualized sidebar | |
+| 2 | Virtualized messages | |
+| 3 | Full-text or strong title+snippet search | |
+| 4 | ⌘K palette | |
+| 5 | Branch switcher | |
+| 6 | Message hover actions complete | |
+| 7 | Stop + retry polished | |
+| 8 | Projects UI | |
+| 9 | Custom instructions persisted | |
+| 10 | Keyboard core map | |
+| 11 | Toasts + skeletons | |
+| 12 | Appendix L ≥ 90 | |
+| 13 | axe critical 0 (shell) | |
+| 14 | Dynamic models only | |
+| 15 | Member denied admin | |
+| 16 | Security headers + mutation guard | |
+| 17 | Health + prod compose docs | |
+| 18 | Playwright smoke (login + chat fake) | |
+| 19 | Dark + light OK | |
+| 20 | No dual chat-input validation | |
+| | **/20** | |
+
+### M.2 Wave Next (daily driver)
+
+| # | Item | Done? |
+| --- | --- | --- |
+| 1 | Real vision path | |
+| 2 | PDF/text extract | |
+| 3 | LLM retitle | |
+| 4 | Assistants | |
+| 5 | At least one tool (search) | |
+| 6 | Canvas panel | |
+| 7 | Share links | |
+| 8 | Temporary chats | |
+| 9 | Drag-drop/paste attach | |
+| 10 | Stream markdown stable | |
+| 11 | Capability badges | |
+| 12 | Empty/error/offline states | |
+| 13 | Appendix L ≥ 95 | |
+| 14 | Visual regression smoke | |
+| 15 | Budget hard-stop optional | |
+| 16 | Audit on admin + share | |
+| 17 | Attach-only send still works | |
+| 18 | Export MD/JSON | |
+| 19 | Rate-limit UX copy | |
+| 20 | Feature flags for risky tools | |
+| | **/20** | |
+
+---
+
+*Living plan. First-ship core implemented. Phase 4 (WP18–WP40): security, Docker/TLS, admin SPA, elite foundation. Phase 5 product depth: **§41–§48 · WP41–WP55** — ChatGPT parity, tools/assistants, RAG, sharing, GRC, org API platform. Elite = power-user daily driver + security approval + extendable engineering.*
 
 
