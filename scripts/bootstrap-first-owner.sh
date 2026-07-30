@@ -3,7 +3,8 @@
 # Safe to re-run: API returns 403 when users already exist → exit 0.
 #
 # Env:
-#   APP_URL              default http://web:3000
+#   APP_URL              Public origin for CSRF Origin header (default http://web:3000)
+#   INTERNAL_URL         Optional in-cluster/service URL to curl (default = APP_URL)
 #   BOOTSTRAP_EMAIL      required
 #   BOOTSTRAP_PASSWORD   required (≥10 chars)
 #   BOOTSTRAP_NAME       optional (default Owner)
@@ -12,6 +13,7 @@
 set -eu
 
 APP_URL="${APP_URL:-http://web:3000}"
+BASE="${INTERNAL_URL:-$APP_URL}"
 EMAIL="${BOOTSTRAP_EMAIL:-}"
 PASSWORD="${BOOTSTRAP_PASSWORD:-}"
 NAME="${BOOTSTRAP_NAME:-Owner}"
@@ -23,10 +25,10 @@ if [ -z "$EMAIL" ] || [ -z "$PASSWORD" ]; then
   exit 1
 fi
 
-echo "Waiting for $APP_URL/api/health ..."
+echo "Waiting for $BASE/api/health (Origin: $APP_URL) ..."
 i=0
 while [ "$i" -lt "$RETRIES" ]; do
-  if curl -fsS "$APP_URL/api/health" >/dev/null 2>&1; then
+  if curl -fsS "$BASE/api/health" >/dev/null 2>&1; then
     break
   fi
   i=$((i + 1))
@@ -45,7 +47,7 @@ BODY=$(printf '{"email":"%s","password":"%s","name":"%s","orgName":"%s"}' \
   "$(json_escape "$ORG")")
 
 CODE=$(curl -sS -o /tmp/maximus-bootstrap.json -w "%{http_code}" \
-  -X POST "$APP_URL/api/auth/bootstrap" \
+  -X POST "$BASE/api/auth/bootstrap" \
   -H "content-type: application/json" \
   -H "origin: $APP_URL" \
   -d "$BODY" || echo "000")

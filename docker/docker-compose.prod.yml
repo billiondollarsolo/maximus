@@ -130,7 +130,10 @@ services:
     profiles: ["bootstrap"]
     image: curlimages/curl:8.11.1
     environment:
-      APP_URL: http://web:3000
+      # Public origin for CSRF (must match web APP_URL)
+      APP_URL: ${APP_URL:-https://${DOMAIN}}
+      # In-compose service — bootstrap script curls this; Origin stays APP_URL
+      INTERNAL_URL: http://web:3000
       BOOTSTRAP_EMAIL: ${BOOTSTRAP_EMAIL:-}
       BOOTSTRAP_PASSWORD: ${BOOTSTRAP_PASSWORD:-}
       BOOTSTRAP_NAME: ${BOOTSTRAP_NAME:-Owner}

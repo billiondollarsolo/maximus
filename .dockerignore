@@ -1,0 +1,27 @@
+# Keep production image lean and secret-free
+.git
+.github
+.scratch
+**/.DS_Store
+**/*~
+.env
+.env.*
+!.env.example
+!.env.prod.example
+node_modules
+**/node_modules
+**/dist
+**/.output
+**/.turbo
+**/.vite
+**/coverage
+**/*.log
+docs
+deploy/helm/maximus/examples
+*.md
+!README.md
+!LICENSE
+!SECURITY.md
+playwright-report
+test-results
+.pnpm-store
