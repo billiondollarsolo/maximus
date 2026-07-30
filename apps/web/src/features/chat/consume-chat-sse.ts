@@ -1,9 +1,13 @@
-import type { ServerMsg } from "./chat-types";
+import type { ContentPartUi, ServerMsg } from "./chat-types";
 
 export type ChatSseHandlers = {
   onMeta?: (conversationId: string) => void;
   onText?: (text: string) => void;
-  onDone?: (content: string | undefined, status: string | undefined) => void;
+  onDone?: (
+    content: string | undefined,
+    status: string | undefined,
+    contentParts?: ContentPartUi[],
+  ) => void;
 };
 
 /** Read SSE body from /api/chat and dispatch events. */
@@ -31,6 +35,7 @@ export async function consumeChatSse(
           text?: string;
           content?: string;
           status?: string;
+          contentParts?: ContentPartUi[];
         };
         if (ev.type === "meta" && ev.conversationId) {
           handlers.onMeta?.(ev.conversationId);
@@ -39,7 +44,7 @@ export async function consumeChatSse(
           handlers.onText?.(ev.text);
         }
         if (ev.type === "done") {
-          handlers.onDone?.(ev.content, ev.status);
+          handlers.onDone?.(ev.content, ev.status, ev.contentParts);
         }
       } catch {
         // ignore partial JSON
@@ -60,8 +65,9 @@ export function appendAssistantText(
           content: [
             {
               type: "text",
-              text: (m.content[0]?.text ?? "") + text,
+              text: (m.content.find((p) => p.type === "text")?.text ?? "") + text,
             },
+            ...m.content.filter((p) => p.type !== "text"),
           ],
         }
       : m,
@@ -73,17 +79,23 @@ export function finalizeAssistant(
   tempAsstId: string,
   content: string | undefined,
   status: string | undefined,
+  contentParts?: ContentPartUi[],
 ): ServerMsg[] {
   return msgs.map((m) =>
     m.id === tempAsstId
       ? {
           ...m,
-          content: [
-            {
-              type: "text",
-              text: content ?? m.content[0]?.text ?? "",
-            },
-          ],
+          content: contentParts?.length
+            ? contentParts
+            : [
+                {
+                  type: "text",
+                  text:
+                    content ??
+                    m.content.find((p) => p.type === "text")?.text ??
+                    "",
+                },
+              ],
           status: status ?? "complete",
         }
       : m,

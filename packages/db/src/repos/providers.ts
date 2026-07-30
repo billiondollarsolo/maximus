@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, count, eq, isNull } from "drizzle-orm";
 import type { Db } from "../client.js";
 import {
   modelAllowlists,
@@ -15,6 +15,8 @@ export async function createProviderConnection(
     name: string;
     baseUrl?: string | null;
     credentialsEncrypted: string;
+    /** When false, UI shows secrets as empty (e.g. Ollama). Default true. */
+    hasSecret?: boolean;
     createdBy?: string | null;
   },
 ) {
@@ -27,7 +29,11 @@ export async function createProviderConnection(
       name: input.name,
       baseUrl: input.baseUrl ?? null,
       credentialsEncrypted: input.credentialsEncrypted,
-      credentialsMeta: { kms: "local", v: 1 },
+      credentialsMeta: {
+        kms: "local",
+        v: 1,
+        hasSecret: input.hasSecret ?? true,
+      },
       createdBy: input.createdBy ?? null,
     })
     .returning();
@@ -43,11 +49,128 @@ export async function getProviderConnection(db: Db, id: string) {
   return row ?? null;
 }
 
+export async function getProviderConnectionForOrg(
+  db: Db,
+  orgId: string,
+  id: string,
+) {
+  const [row] = await db
+    .select()
+    .from(providerConnections)
+    .where(
+      and(
+        eq(providerConnections.id, id),
+        eq(providerConnections.orgId, orgId),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 export async function listProviderConnections(db: Db, orgId: string) {
   return db
     .select()
     .from(providerConnections)
     .where(eq(providerConnections.orgId, orgId));
+}
+
+export async function updateProviderConnection(
+  db: Db,
+  input: {
+    id: string;
+    orgId: string;
+    name?: string;
+    baseUrl?: string | null;
+    isEnabled?: boolean;
+  },
+) {
+  const patch: {
+    name?: string;
+    baseUrl?: string | null;
+    isEnabled?: boolean;
+    updatedAt: Date;
+  } = { updatedAt: new Date() };
+  if (input.name !== undefined) patch.name = input.name;
+  if (input.baseUrl !== undefined) patch.baseUrl = input.baseUrl;
+  if (input.isEnabled !== undefined) patch.isEnabled = input.isEnabled;
+
+  const [row] = await db
+    .update(providerConnections)
+    .set(patch)
+    .where(
+      and(
+        eq(providerConnections.id, input.id),
+        eq(providerConnections.orgId, input.orgId),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+export async function rotateProviderCredentials(
+  db: Db,
+  input: {
+    id: string;
+    orgId: string;
+    credentialsEncrypted: string;
+    hasSecret?: boolean;
+  },
+) {
+  const [row] = await db
+    .update(providerConnections)
+    .set({
+      credentialsEncrypted: input.credentialsEncrypted,
+      credentialsMeta: {
+        kms: "local",
+        v: 1,
+        hasSecret: input.hasSecret ?? true,
+        rotatedAt: new Date().toISOString(),
+      },
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(providerConnections.id, input.id),
+        eq(providerConnections.orgId, input.orgId),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+export async function countModelsForConnection(db: Db, connectionId: string) {
+  const [row] = await db
+    .select({ n: count() })
+    .from(models)
+    .where(eq(models.connectionId, connectionId));
+  return Number(row?.n ?? 0);
+}
+
+/**
+ * Hard-delete connection. Caller must ensure no models reference it
+ * (or accept ON DELETE SET NULL). Plan: block when model count > 0.
+ */
+export async function deleteProviderConnection(
+  db: Db,
+  input: { id: string; orgId: string },
+) {
+  const n = await countModelsForConnection(db, input.id);
+  if (n > 0) {
+    return { ok: false as const, reason: "models_exist" as const, modelCount: n };
+  }
+  const deleted = await db
+    .delete(providerConnections)
+    .where(
+      and(
+        eq(providerConnections.id, input.id),
+        eq(providerConnections.orgId, input.orgId),
+      ),
+    )
+    .returning();
+  if (!deleted[0]) {
+    return { ok: false as const, reason: "not_found" as const, modelCount: 0 };
+  }
+  return { ok: true as const, row: deleted[0] };
 }
 
 export async function listAllowlist(db: Db, orgId: string) {
@@ -81,7 +204,6 @@ export async function upsertAllowlist(
     .limit(1);
 
   if (existing[0]) {
-    // Idempotent re-set: return existing row unchanged (role already matches)
     return existing[0];
   }
 
@@ -97,8 +219,54 @@ export async function upsertAllowlist(
   return row!;
 }
 
+export async function deleteAllowlist(
+  db: Db,
+  input: { id: string; orgId: string },
+) {
+  const [row] = await db
+    .delete(modelAllowlists)
+    .where(
+      and(
+        eq(modelAllowlists.id, input.id),
+        eq(modelAllowlists.orgId, input.orgId),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 export async function listModels(db: Db, orgId: string) {
-  return db.select().from(models).where(and(eq(models.orgId, orgId)));
+  return db
+    .select()
+    .from(models)
+    .where(eq(models.orgId, orgId))
+    .orderBy(asc(models.sortOrder), asc(models.displayName));
+}
+
+export async function listModelsForConnection(db: Db, connectionId: string) {
+  return db
+    .select()
+    .from(models)
+    .where(eq(models.connectionId, connectionId))
+    .orderBy(asc(models.sortOrder), asc(models.displayName));
+}
+
+export async function getModelForOrg(db: Db, orgId: string, id: string) {
+  const [row] = await db
+    .select()
+    .from(models)
+    .where(and(eq(models.id, id), eq(models.orgId, orgId)))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function getModelByRef(db: Db, orgId: string, modelRef: string) {
+  const [row] = await db
+    .select()
+    .from(models)
+    .where(and(eq(models.orgId, orgId), eq(models.modelRef, modelRef)))
+    .limit(1);
+  return row ?? null;
 }
 
 export async function createModel(
@@ -110,6 +278,11 @@ export async function createModel(
     modelId: string;
     displayName: string;
     modelRef: string;
+    capabilities?: Record<string, unknown>;
+    sortOrder?: number;
+    isEnabled?: boolean;
+    inputUsdPer1m?: number | null;
+    outputUsdPer1m?: number | null;
   },
 ) {
   const [row] = await db
@@ -122,7 +295,67 @@ export async function createModel(
       modelId: input.modelId,
       displayName: input.displayName,
       modelRef: input.modelRef,
+      capabilities: input.capabilities ?? { streaming: true },
+      sortOrder: input.sortOrder ?? 0,
+      isEnabled: input.isEnabled ?? true,
+      inputUsdPer1m:
+        input.inputUsdPer1m == null ? null : String(input.inputUsdPer1m),
+      outputUsdPer1m:
+        input.outputUsdPer1m == null ? null : String(input.outputUsdPer1m),
     })
     .returning();
   return row!;
+}
+
+export async function updateModel(
+  db: Db,
+  input: {
+    id: string;
+    orgId: string;
+    displayName?: string;
+    capabilities?: Record<string, unknown>;
+    isEnabled?: boolean;
+    sortOrder?: number;
+    inputUsdPer1m?: number | null;
+    outputUsdPer1m?: number | null;
+  },
+) {
+  const patch: {
+    displayName?: string;
+    capabilities?: Record<string, unknown>;
+    isEnabled?: boolean;
+    sortOrder?: number;
+    inputUsdPer1m?: string | null;
+    outputUsdPer1m?: string | null;
+  } = {};
+  if (input.displayName !== undefined) patch.displayName = input.displayName;
+  if (input.capabilities !== undefined) patch.capabilities = input.capabilities;
+  if (input.isEnabled !== undefined) patch.isEnabled = input.isEnabled;
+  if (input.sortOrder !== undefined) patch.sortOrder = input.sortOrder;
+  if (input.inputUsdPer1m !== undefined) {
+    patch.inputUsdPer1m =
+      input.inputUsdPer1m == null ? null : String(input.inputUsdPer1m);
+  }
+  if (input.outputUsdPer1m !== undefined) {
+    patch.outputUsdPer1m =
+      input.outputUsdPer1m == null ? null : String(input.outputUsdPer1m);
+  }
+
+  const [row] = await db
+    .update(models)
+    .set(patch)
+    .where(and(eq(models.id, input.id), eq(models.orgId, input.orgId)))
+    .returning();
+  return row ?? null;
+}
+
+export async function deleteModel(
+  db: Db,
+  input: { id: string; orgId: string },
+) {
+  const [row] = await db
+    .delete(models)
+    .where(and(eq(models.id, input.id), eq(models.orgId, input.orgId)))
+    .returning();
+  return row ?? null;
 }

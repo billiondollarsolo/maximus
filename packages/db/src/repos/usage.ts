@@ -1,5 +1,11 @@
+import { matchPriceRow } from "@maximus/domain";
 import type { Db } from "../client.js";
-import { usageEvents, auditEvents, modelPrices } from "../schema/index.js";
+import {
+  usageEvents,
+  auditEvents,
+  modelPrices,
+  models,
+} from "../schema/index.js";
 import { newId } from "../ids.js";
 import { and, eq, isNull, or } from "drizzle-orm";
 
@@ -65,10 +71,47 @@ export async function insertAuditEvent(
   return row!;
 }
 
+export type ResolvedPrice = {
+  inputUsdPer1m: number;
+  outputUsdPer1m: number;
+  source: "model" | "pattern";
+};
+
+/**
+ * Prefer rates on the org model row (per offering / connection), then
+ * fall back to model_prices pattern table (platform seeds + org overrides).
+ */
 export async function findPrice(
   db: Db,
-  input: { orgId: string; providerKind: string; modelId: string },
-) {
+  input: {
+    orgId: string;
+    providerKind: string;
+    modelId: string;
+    modelRef?: string | null;
+  },
+): Promise<ResolvedPrice | null> {
+  if (input.modelRef) {
+    const [m] = await db
+      .select()
+      .from(models)
+      .where(
+        and(eq(models.orgId, input.orgId), eq(models.modelRef, input.modelRef)),
+      )
+      .limit(1);
+    if (
+      m?.inputUsdPer1m != null &&
+      m.outputUsdPer1m != null &&
+      m.inputUsdPer1m !== "" &&
+      m.outputUsdPer1m !== ""
+    ) {
+      return {
+        inputUsdPer1m: Number(m.inputUsdPer1m),
+        outputUsdPer1m: Number(m.outputUsdPer1m),
+        source: "model",
+      };
+    }
+  }
+
   const rows = await db
     .select()
     .from(modelPrices)
@@ -78,16 +121,22 @@ export async function findPrice(
         or(eq(modelPrices.orgId, input.orgId), isNull(modelPrices.orgId)),
       ),
     );
-  // prefer org-specific, then pattern match
-  const sorted = [...rows].sort((a, b) => {
-    if (a.orgId && !b.orgId) return -1;
-    if (!a.orgId && b.orgId) return 1;
-    return 0;
-  });
-  for (const row of sorted) {
-    if (row.modelIdPattern === "*" || input.modelId.includes(row.modelIdPattern)) {
-      return row;
-    }
-  }
-  return null;
+
+  const matched = matchPriceRow(
+    rows.map((r) => ({
+      orgId: r.orgId,
+      providerKind: r.providerKind,
+      modelIdPattern: r.modelIdPattern,
+      inputUsdPer1m: Number(r.inputUsdPer1m),
+      outputUsdPer1m: Number(r.outputUsdPer1m),
+    })),
+    input,
+  );
+  if (!matched) return null;
+
+  return {
+    inputUsdPer1m: matched.inputUsdPer1m,
+    outputUsdPer1m: matched.outputUsdPer1m,
+    source: "pattern",
+  };
 }

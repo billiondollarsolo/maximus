@@ -10,7 +10,11 @@ export function ScrollArea({
 }) {
   return (
     <ScrollAreaPrimitive.Root className={cn("overflow-hidden", className)}>
-      <ScrollAreaPrimitive.Viewport className="h-full w-full rounded-[inherit]">
+      {/*
+        Avoid rounded-[inherit] on the viewport — it clips child hover/active
+        pills (sidebar chat rows). Corner radius belongs on the rows themselves.
+      */}
+      <ScrollAreaPrimitive.Viewport className="h-full w-full [&>div]:!block">
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollAreaPrimitive.Scrollbar

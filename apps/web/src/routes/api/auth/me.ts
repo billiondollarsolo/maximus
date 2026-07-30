@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getAuthContext } from "@maximus/auth";
-import { createDb } from "@maximus/db";
+import { getDb } from "@maximus/db";
 import { serverEnv } from "#/server/env";
 import { sessionFromRequest } from "#/server/cookies";
 import { jsonError, jsonOk } from "#/server/api";
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/auth/me")({
       GET: async ({ request }) => {
         try {
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const ctx = await getAuthContext(sessionFromRequest(request), db);
           if (!ctx) {
             return withSecurityHeaders(

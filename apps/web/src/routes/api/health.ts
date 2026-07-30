@@ -34,9 +34,15 @@ export const Route = createFileRoute("/api/health")({
         const ok =
           checks.postgres === "ok" &&
           (checks.valkey === "ok" || process.env.HEALTH_SOFT === "true");
+        // Shallow only — no storage/provider probes (LB-safe).
         return withSecurityHeaders(
           Response.json(
-            { status: ok ? "ok" : "degraded", checks },
+            {
+              status: ok ? "ok" : "degraded",
+              checks,
+              version: process.env.APP_VERSION ?? undefined,
+              gitSha: process.env.GIT_SHA ?? undefined,
+            },
             { status: ok ? 200 : 503 },
           ),
         );

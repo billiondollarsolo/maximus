@@ -5,19 +5,33 @@ export * as conversationRepo from "./repos/conversations.js";
 export * as messageRepo from "./repos/messages.js";
 export * as usageRepo from "./repos/usage.js";
 export * as providerRepo from "./repos/providers.js";
+export * as pricesRepo from "./repos/prices.js";
 export * as feedbackRepo from "./repos/feedback.js";
 export * as membersRepo from "./repos/members.js";
 export * as usageQueryRepo from "./repos/usage-query.js";
+export * as attachmentsRepo from "./repos/attachments.js";
 export {
   runChatTurn,
   buildProviderMessages,
+  buildProviderMessagesMultimodal,
   type ChatTurnInput,
   type ChatTurnEvent,
   type ChatActor,
 } from "./chat/run-chat-turn.js";
+export { runImageGenTurn } from "./chat/run-image-gen-turn.js";
+export { resolveModelCapabilities } from "./chat/resolve-model-capabilities.js";
 export { testMigrate } from "./test-migrate.js";
 export {
   exportConversation,
   type ExportActor,
 } from "./export/build-export.js";
-export { getOrgRateLimitFailOpen } from "./repos/org-settings.js";
+export {
+  getOrgRateLimitFailOpen,
+  getOrgSettings,
+  getOverviewProbeSettings,
+  patchOrgSettings,
+  patchOverviewProbeSettings,
+  type OverviewProbeSettings,
+} from "./repos/org-settings.js";
+export * as overviewRepo from "./repos/overview.js";
+export * as userSettingsRepo from "./repos/user-settings.js";

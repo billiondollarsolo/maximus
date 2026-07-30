@@ -7,6 +7,7 @@ export type CatalogModel = {
   providerKind: string;
   isEnabled: boolean;
   capabilities?: Record<string, unknown>;
+  sortOrder?: number;
 };
 
 /**

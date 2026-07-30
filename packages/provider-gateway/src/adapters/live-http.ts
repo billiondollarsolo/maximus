@@ -1,20 +1,27 @@
-import type { FakeChunk, FakeTextAdapter } from "./fake-adapter.js";
 import type { ProviderKind } from "@maximus/domain";
+import type { FakeChunk, FakeTextAdapter } from "./fake-adapter.js";
+import {
+  toAnthropicUserContent,
+  toOllamaMessage,
+  toOpenAiChatMessages,
+  type ProviderMessage,
+} from "../provider-messages.js";
 
 export type LiveAdapterConfig = {
   providerKind: ProviderKind;
   modelId: string;
   apiKey?: string;
   baseUrl?: string;
+  fetchImpl?: typeof fetch;
 };
 
 /**
  * Real multi-provider streaming via HTTP (OpenAI-compat, Anthropic, Ollama).
- * Same stream interface as the fake adapter for runChatTurn.
+ * Accepts multimodal ProviderMessage[] for vision.
  */
 export function createLiveHttpAdapter(cfg: LiveAdapterConfig): FakeTextAdapter {
   return {
-    kind: "fake", // stream-compatible surface; identity via modelId/provider
+    kind: "fake",
     modelId: cfg.modelId,
     async *stream(messages, opts) {
       if (cfg.providerKind === "anthropic") {
@@ -25,7 +32,6 @@ export function createLiveHttpAdapter(cfg: LiveAdapterConfig): FakeTextAdapter {
         yield* streamOllama(cfg, messages, opts?.signal);
         return;
       }
-      // openai + openai_compatible
       yield* streamOpenAICompat(cfg, messages, opts?.signal);
     },
   };
@@ -33,14 +39,15 @@ export function createLiveHttpAdapter(cfg: LiveAdapterConfig): FakeTextAdapter {
 
 async function* streamOpenAICompat(
   cfg: LiveAdapterConfig,
-  messages: Array<{ role: string; content: string }>,
+  messages: ProviderMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<FakeChunk> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
   const base = (cfg.baseUrl ?? "https://api.openai.com/v1").replace(/\/$/, "");
   const url = base.endsWith("/chat/completions")
     ? base
     : `${base}/chat/completions`;
-  const res = await fetch(url, {
+  const res = await fetchFn(url, {
     method: "POST",
     signal,
     headers: {
@@ -51,10 +58,7 @@ async function* streamOpenAICompat(
       model: cfg.modelId,
       stream: true,
       stream_options: { include_usage: true },
-      messages: messages.map((m) => ({
-        role: m.role === "system" ? "system" : m.role,
-        content: m.content,
-      })),
+      messages: toOpenAiChatMessages(messages),
     }),
   });
   if (!res.ok || !res.body) {
@@ -66,21 +70,29 @@ async function* streamOpenAICompat(
 
 async function* streamAnthropic(
   cfg: LiveAdapterConfig,
-  messages: Array<{ role: string; content: string }>,
+  messages: ProviderMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<FakeChunk> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
   const base = (cfg.baseUrl ?? "https://api.anthropic.com").replace(/\/$/, "");
-  const system = messages
+  const systemParts = messages
     .filter((m) => m.role === "system")
-    .map((m) => m.content)
-    .join("\n");
+    .map((m) =>
+      typeof m.content === "string"
+        ? m.content
+        : m.content
+            .filter((p) => p.type === "text")
+            .map((p) => p.text)
+            .join("\n"),
+    );
+  const system = systemParts.join("\n");
   const chatMsgs = messages
     .filter((m) => m.role !== "system")
     .map((m) => ({
       role: m.role === "assistant" ? "assistant" : "user",
-      content: m.content,
+      content: toAnthropicUserContent(m.content),
     }));
-  const res = await fetch(`${base}/v1/messages`, {
+  const res = await fetchFn(`${base}/v1/messages`, {
     method: "POST",
     signal,
     headers: {
@@ -105,21 +117,19 @@ async function* streamAnthropic(
 
 async function* streamOllama(
   cfg: LiveAdapterConfig,
-  messages: Array<{ role: string; content: string }>,
+  messages: ProviderMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<FakeChunk> {
+  const fetchFn = cfg.fetchImpl ?? fetch;
   const base = (cfg.baseUrl ?? "http://127.0.0.1:11434").replace(/\/$/, "");
-  const res = await fetch(`${base}/api/chat`, {
+  const res = await fetchFn(`${base}/api/chat`, {
     method: "POST",
     signal,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: cfg.modelId,
       stream: true,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
+      messages: messages.map(toOllamaMessage),
     }),
   });
   if (!res.ok || !res.body) {

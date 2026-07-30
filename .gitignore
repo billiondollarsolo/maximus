@@ -1,10 +1,13 @@
+# Dependencies & build
 node_modules
 dist
 .output
 .vinxi
 .turbo
-.DS_Store
-*.log
+.vite
+*.tsbuildinfo
+
+# Env & secrets (never commit real keys)
 .env
 .env.local
 .env.*.local
@@ -12,9 +15,38 @@ dist
 .env.production
 !.env.example
 !.env.prod.example
-backups/
+
+# Logs & local scratch
+*.log
+e2e-last-run.log
+.scratch/
+logs/
+tmp/
+temp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# Test & coverage
 coverage
 playwright-report
 test-results
-*.tsbuildinfo
-.vite
+.nyc_output
+
+# Package manager
+.pnpm-store/
+.npm/
+
+# Local backups / dumps
+backups/
+*.sql.gz
+*.dump
+
+# Optional agent/session noise (if present in workspace)
+.claude/settings.local.json
+.grok/

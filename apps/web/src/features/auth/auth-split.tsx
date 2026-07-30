@@ -1,3 +1,4 @@
+import { BrandMark } from "#/components/layout/brand-mark";
 import { cn } from "#/lib/cn";
 
 /**
@@ -18,8 +19,8 @@ export function AuthSplit({
 
         <div className="relative z-10 flex flex-1 flex-col p-10 xl:p-14">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-brand text-sm font-bold text-white shadow-lg shadow-brand/30">
-              M
+            <span className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-white text-black shadow-lg shadow-black/30">
+              <BrandMark className="h-5 w-5" />
             </span>
             <div className="leading-tight">
               <div className="text-[15px] font-semibold tracking-tight text-white">
@@ -62,8 +63,8 @@ export function AuthSplit({
 
       <div className="flex flex-col justify-center bg-black px-6 py-12 sm:px-10 lg:px-14">
         <div className="mb-10 flex items-center gap-2 lg:hidden">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-xs font-bold text-white">
-            M
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-black">
+            <BrandMark className="h-4.5 w-4.5" />
           </span>
           <span className="text-sm font-semibold text-white">Maximus</span>
         </div>

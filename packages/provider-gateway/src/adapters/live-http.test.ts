@@ -74,4 +74,50 @@ describe("createLiveHttpAdapter", () => {
       "https://compat.example/v1/chat/completions",
     );
   });
+
+  it("sends image_url data URL for multimodal user content", async () => {
+    const pngB64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        body: new ReadableStream({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n',
+              ),
+            );
+            c.close();
+          },
+        }),
+      })),
+    );
+    const adapter = createLiveHttpAdapter({
+      providerKind: "openai",
+      modelId: "gpt-4.1",
+      apiKey: "sk",
+    });
+    for await (const _ of adapter.stream([
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "what?" },
+          { type: "image", mime: "image/png", dataBase64: pngB64 },
+        ],
+      },
+    ])) {
+      // drain
+    }
+    const init = (fetch as ReturnType<typeof vi.fn>).mock.calls[0]![1] as {
+      body: string;
+    };
+    const parsed = JSON.parse(init.body) as {
+      messages: Array<{ content: unknown }>;
+    };
+    const content = parsed.messages[0]!.content as Array<Record<string, unknown>>;
+    expect(content.some((c) => c.type === "image_url")).toBe(true);
+    expect(JSON.stringify(content)).toContain("data:image/png;base64,");
+  });
 });

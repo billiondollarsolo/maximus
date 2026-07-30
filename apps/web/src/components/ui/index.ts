@@ -9,3 +9,25 @@ export { Badge } from "./badge";
 export { Kbd } from "./kbd";
 export { ScrollArea } from "./scroll-area";
 export { Tooltip, TooltipProvider } from "./tooltip";
+export {
+  Dialog,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+} from "./dialog";
+export { Switch } from "./switch";
+export { DataTable, type ColumnDef } from "./data-table";
+export { EmptyStatePanel } from "./empty-state";
+export { Label } from "./label";
+export { Select, type SelectProps } from "./select";
+export { UserAvatar } from "./avatar";
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuPortal,
+} from "./dropdown-menu";

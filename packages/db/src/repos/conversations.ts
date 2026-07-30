@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Db } from "../client.js";
 import { conversations, messages } from "../schema/index.js";
 import { newId } from "../ids.js";
@@ -41,8 +41,22 @@ export async function getConversation(db: Db, id: string) {
 
 export async function listConversations(
   db: Db,
-  input: { orgId: string; userId: string; limit?: number },
+  input: {
+    orgId: string;
+    userId: string;
+    limit?: number;
+    /** default active (not archived); `archived` = only archived */
+    scope?: "active" | "archived" | "all";
+  },
 ) {
+  const scope = input.scope ?? "active";
+  const archiveClause =
+    scope === "archived"
+      ? isNotNull(conversations.archivedAt)
+      : scope === "all"
+        ? undefined
+        : isNull(conversations.archivedAt);
+
   return db
     .select()
     .from(conversations)
@@ -50,7 +64,7 @@ export async function listConversations(
       and(
         eq(conversations.orgId, input.orgId),
         eq(conversations.userId, input.userId),
-        isNull(conversations.archivedAt),
+        archiveClause,
       ),
     )
     .orderBy(desc(conversations.updatedAt))
@@ -80,6 +94,40 @@ export async function updateConversation(
 export async function deleteConversation(db: Db, id: string) {
   await db.delete(messages).where(eq(messages.conversationId, id));
   await db.delete(conversations).where(eq(conversations.id, id));
+}
+
+/** Hard-delete many conversations owned by a user (org-scoped). */
+export async function deleteConversationsForUser(
+  db: Db,
+  input: {
+    orgId: string;
+    userId: string;
+    /** When set, only these ids (still ownership-checked). */
+    ids?: string[];
+    /** When true, only archived rows. Ignored if ids provided. */
+    archivedOnly?: boolean;
+  },
+): Promise<{ deleted: number }> {
+  const clauses = [
+    eq(conversations.orgId, input.orgId),
+    eq(conversations.userId, input.userId),
+  ];
+  if (input.ids?.length) {
+    clauses.push(inArray(conversations.id, input.ids));
+  } else if (input.archivedOnly) {
+    clauses.push(isNotNull(conversations.archivedAt));
+  }
+
+  const rows = await db
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(and(...clauses));
+  const ids = rows.map((r) => r.id);
+  if (!ids.length) return { deleted: 0 };
+
+  await db.delete(messages).where(inArray(messages.conversationId, ids));
+  await db.delete(conversations).where(inArray(conversations.id, ids));
+  return { deleted: ids.length };
 }
 
 export async function searchConversations(

@@ -1,4 +1,4 @@
-import type { OrgRole } from "@maximus/domain";
+import type { ContentPart, OrgRole } from "@maximus/domain";
 
 export type ChatActor = {
   user: { id: string; email: string; name: string };
@@ -13,6 +13,8 @@ export type ChatTurnInput = {
   modelRef: string;
   projectId?: string;
   mode?: "send" | "regenerate" | "edit";
+  /** chat (default) vs image generation */
+  interactionMode?: "chat" | "image_gen";
   targetMessageId?: string;
   /** Client-supplied prior messages — IGNORED (server-authoritative). */
   clientMessages?: unknown;
@@ -26,7 +28,12 @@ export type ChatTurnEvent =
       assistantMessageId: string;
     }
   | { type: "text"; text: string }
-  | { type: "done"; status: "complete" | "aborted" | "error"; content: string }
+  | {
+      type: "done";
+      status: "complete" | "aborted" | "error";
+      content: string;
+      contentParts?: ContentPart[];
+    }
   | { type: "error"; message: string; code?: string };
 
 export type StreamAssistantInput = {
@@ -39,4 +46,19 @@ export type StreamAssistantInput = {
   };
   allowPrivateBaseUrls?: boolean;
   signal?: AbortSignal;
+  /** Optional S3-like resolver for vision images */
+  resolveImage?: (
+    attachmentId: string,
+  ) => Promise<{ mime: string; dataBase64: string } | null>;
+  storage?: {
+    getObjectBuffer: (
+      key: string,
+    ) => Promise<{ body: Buffer; contentType?: string }>;
+    putObjectBuffer: (
+      key: string,
+      body: Buffer,
+      contentType: string,
+    ) => Promise<void>;
+    attachmentKey: (orgId: string, attachmentId: string) => string;
+  };
 };

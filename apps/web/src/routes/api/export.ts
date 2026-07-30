@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
-import { createDb, exportConversation } from "@maximus/db";
+import { getDb, exportConversation } from "@maximus/db";
 import { AppError } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/export")({
       GET: async ({ request }) => {
         try {
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           const url = new URL(request.url);
           const id = url.searchParams.get("id");

@@ -44,7 +44,8 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-composer: 20px;
-  --radius-bubble: 22px;
+  /* User bubble; prefer .user-msg-bubble for ChatGPT-like soft rect */
+  --radius-bubble: 1.25rem;
   --sidebar-width: 260px;
   --content-max: 48rem;
 

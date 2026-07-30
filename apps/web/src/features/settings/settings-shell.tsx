@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Moon, Sun } from "lucide-react";
 import { Button, Icon, IconButton } from "#/components/ui";
+import { RequireSession } from "#/features/auth/require-session";
 import { useTheme } from "#/features/theme/theme-provider";
-import { cn } from "#/lib/cn";
 
 const NAV = [
   { to: "/settings/general", label: "General" },
@@ -11,6 +11,7 @@ const NAV = [
   { to: "/settings/account", label: "Account" },
 ] as const;
 
+/** Settings chrome shares admin nav/link density tokens from global CSS. */
 export function SettingsShell({
   title,
   children,
@@ -22,40 +23,62 @@ export function SettingsShell({
 }) {
   const { theme, toggleTheme } = useTheme();
   return (
-    <div className="flex min-h-dvh bg-bg-app text-text-primary">
-      <aside className="hidden w-56 shrink-0 border-r border-border-subtle bg-bg-sidebar p-4 md:block">
-        <Link to="/" className="mb-6 block text-sm font-semibold">
-          ← Back to chat
-        </Link>
-        <nav className="flex flex-col gap-1">
-          {NAV.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cn(
-                "rounded-[var(--radius-md)] px-3 py-2 text-[13.5px]",
-                active === item.to
-                  ? "bg-bg-sidebar-active font-medium text-text-primary"
-                  : "text-text-muted hover:bg-bg-sidebar-hover hover:text-text-primary",
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </aside>
-      <main className="mx-auto w-full max-w-2xl flex-1 p-6 md:p-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-          <IconButton
-            icon={theme === "dark" ? Sun : Moon}
-            label="Toggle theme"
-            onClick={toggleTheme}
-          />
-        </div>
-        {children}
-      </main>
-    </div>
+    <RequireSession>
+      <div className="admin-shell flex min-h-dvh bg-bg-app text-text-primary">
+        <aside className="hidden w-[var(--admin-nav-width)] shrink-0 border-r border-border-subtle bg-bg-sidebar p-4 md:flex md:flex-col">
+          <Link
+            to="/"
+            className="mb-2 px-1 text-sm font-semibold text-text-primary hover:text-text-secondary"
+          >
+            ← Chat
+          </Link>
+          <p className="mb-3 px-1 text-[11px] font-medium uppercase tracking-[0.08em] text-text-faint">
+            Settings
+          </p>
+          <nav className="flex flex-col gap-0.5" aria-label="Settings">
+            {NAV.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                data-active={active === item.to ? "true" : "false"}
+                className="admin-nav-link"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </aside>
+        <main className="mx-auto w-full max-w-2xl flex-1 p-6 md:p-10">
+          {/* Mobile: deep-linkable section nav */}
+          <nav
+            className="mb-4 flex flex-wrap gap-1 md:hidden"
+            aria-label="Settings sections"
+          >
+            {NAV.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                data-active={active === item.to ? "true" : "false"}
+                className="admin-nav-link !inline-flex !w-auto px-2.5 py-1.5 text-xs"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          <header className="mb-6 flex items-start justify-between gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+              {title}
+            </h1>
+            <IconButton
+              icon={theme === "dark" ? Sun : Moon}
+              label="Toggle theme"
+              onClick={toggleTheme}
+            />
+          </header>
+          {children}
+        </main>
+      </div>
+    </RequireSession>
   );
 }
 
@@ -69,10 +92,10 @@ export function SettingsSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-8 rounded-2xl border border-border-subtle bg-bg-sidebar p-5">
-      <h2 className="text-sm font-semibold">{title}</h2>
+    <section className="admin-section mb-6 rounded-xl border border-border-subtle bg-bg-sidebar p-5 first:mt-0">
+      <h2 className="admin-section-title">{title}</h2>
       {description ? (
-        <p className="mt-1 text-sm text-text-muted">{description}</p>
+        <p className="admin-section-desc mb-0 mt-1">{description}</p>
       ) : null}
       <div className="mt-4">{children}</div>
     </section>

@@ -1,9 +1,12 @@
 import {
   AppError,
   assertChatTurnInput,
+  assertVisionAllowed,
   canWriteConversation,
   conversationTitleFromInput,
   heuristicTitle,
+  modelAcceptsImages,
+  modelCanGenerateImages,
   planEditFork,
   planRegenerate,
   planSend,
@@ -14,7 +17,12 @@ import type { Db } from "../client.js";
 import { attachments } from "../schema/index.js";
 import * as conversationRepo from "../repos/conversations.js";
 import * as messageRepo from "../repos/messages.js";
+import * as attachmentsRepo from "../repos/attachments.js";
 import { buildProviderMessages, toTree } from "./build-provider-messages.js";
+import {
+  buildProviderMessagesMultimodal,
+  type ProviderMessage,
+} from "./build-provider-messages-multimodal.js";
 import { buildUserContentParts } from "./build-user-content.js";
 import type {
   ChatActor,
@@ -23,9 +31,12 @@ import type {
   StreamAssistantInput,
 } from "./chat-turn-types.js";
 import { streamAssistant } from "./stream-assistant.js";
+import { resolveModelCapabilities } from "./resolve-model-capabilities.js";
+import { runImageGenTurn } from "./run-image-gen-turn.js";
 
 export type { ChatActor, ChatTurnEvent, ChatTurnInput } from "./chat-turn-types.js";
 export { buildProviderMessages } from "./build-provider-messages.js";
+export { buildProviderMessagesMultimodal } from "./build-provider-messages-multimodal.js";
 
 /**
  * Server-authoritative chat turn: rebuilds history from DB, never trusts clientMessages.
@@ -39,9 +50,42 @@ export async function* runChatTurn(input: {
   platform?: StreamAssistantInput["platform"];
   allowPrivateBaseUrls?: boolean;
   signal?: AbortSignal;
+  resolveImage?: StreamAssistantInput["resolveImage"];
+  storage?: StreamAssistantInput["storage"];
 }): AsyncGenerator<ChatTurnEvent> {
   const { db, ctx, body } = input;
-  void body.clientMessages; // never used for history
+  void body.clientMessages;
+
+  {
+    const capsEarly = await resolveModelCapabilities(
+      db,
+      ctx.orgId,
+      body.modelRef,
+    );
+    const forceGen = body.interactionMode === "image_gen";
+    const genOnly =
+      modelCanGenerateImages(capsEarly) && !modelAcceptsImages(capsEarly);
+    if (
+      (forceGen || genOnly) &&
+      body.mode !== "regenerate" &&
+      body.mode !== "edit"
+    ) {
+      yield* runImageGenTurn({
+        db,
+        ctx,
+        text: body.text,
+        conversationId: body.conversationId,
+        modelRef: body.modelRef,
+        projectId: body.projectId,
+        encryptionKey: input.encryptionKey,
+        providerMode: input.providerMode,
+        platform: input.platform,
+        allowPrivateBaseUrls: input.allowPrivateBaseUrls,
+        storage: input.storage,
+      });
+      return;
+    }
+  }
 
   const normalized = assertChatTurnInput({
     text: body.text,
@@ -81,6 +125,16 @@ export async function* runChatTurn(input: {
     });
   }
 
+  // Stick conversation to the model used on this turn (create or continue).
+  if (conversation.modelRef !== body.modelRef) {
+    const updated = await conversationRepo.updateConversation(
+      db,
+      conversation.id,
+      { modelRef: body.modelRef },
+    );
+    if (updated) conversation = updated;
+  }
+
   const allMsgs = await messageRepo.listMessagesForConversation(
     db,
     conversation.id,
@@ -92,6 +146,8 @@ export async function* runChatTurn(input: {
     platform: input.platform,
     allowPrivateBaseUrls: input.allowPrivateBaseUrls,
     signal: input.signal,
+    resolveImage: input.resolveImage,
+    storage: input.storage,
   };
 
   if (mode === "regenerate") {
@@ -112,7 +168,14 @@ export async function* runChatTurn(input: {
       userMessageId,
       assistantMessageId: asst.id,
     };
-    const history = buildProviderMessages(allMsgs, userMessageId);
+    const history = await buildHistory(
+      db,
+      ctx.orgId,
+      allMsgs,
+      userMessageId,
+      body.modelRef,
+      streamInput,
+    );
     yield* streamAssistant({
       db,
       ctx,
@@ -131,6 +194,9 @@ export async function* runChatTurn(input: {
     normalized.text,
     normalized.attachmentIds,
   );
+
+  const caps = await resolveModelCapabilities(db, ctx.orgId, body.modelRef);
+  assertVisionAllowed(caps, contentParts);
 
   let userMessageId: string;
   let parentForAssistant: string;
@@ -194,7 +260,14 @@ export async function* runChatTurn(input: {
     db,
     conversation.id,
   );
-  const history = buildProviderMessages(refreshed, userMessageId);
+  const history = await buildHistory(
+    db,
+    ctx.orgId,
+    refreshed,
+    userMessageId,
+    body.modelRef,
+    streamInput,
+  );
 
   yield* streamAssistant({
     db,
@@ -205,4 +278,47 @@ export async function* runChatTurn(input: {
     history,
     input: streamInput,
   });
+}
+
+async function buildHistory(
+  db: Db,
+  orgId: string,
+  allMsgs: Awaited<
+    ReturnType<typeof messageRepo.listMessagesForConversation>
+  >,
+  leafId: string,
+  modelRef: string,
+  streamInput: StreamAssistantInput,
+): Promise<ProviderMessage[]> {
+  const caps = await resolveModelCapabilities(db, orgId, modelRef);
+  const hasImages = allMsgs.some((m) => {
+    const parts = m.content as Array<{ type: string }>;
+    return Array.isArray(parts) && parts.some((p) => p.type === "image");
+  });
+
+  if (!hasImages || !modelAcceptsImages(caps)) {
+    return buildProviderMessages(allMsgs, leafId);
+  }
+
+  const resolveImage =
+    streamInput.resolveImage ??
+    (async (attachmentId: string) => {
+      const row = await attachmentsRepo.getAttachmentForOrg(
+        db,
+        orgId,
+        attachmentId,
+      );
+      if (!row || !streamInput.storage) return null;
+      try {
+        const obj = await streamInput.storage.getObjectBuffer(row.storageKey);
+        return {
+          mime: row.mime,
+          dataBase64: obj.body.toString("base64"),
+        };
+      } catch {
+        return null;
+      }
+    });
+
+  return buildProviderMessagesMultimodal(allMsgs, leafId, resolveImage);
 }

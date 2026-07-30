@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createInvite, requireAuth, requireOrgRole } from "@maximus/auth";
-import { createDb, membersRepo, usageRepo } from "@maximus/db";
+import { getDb, membersRepo, usageRepo } from "@maximus/db";
 import { AppError, type OrgRole } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/admin/members")({
       GET: async ({ request }) => {
         try {
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           requireOrgRole(ctx, "admin");
           const [members, invites] = await Promise.all([
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/api/admin/members")({
         try {
           guardMutation(request);
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           requireOrgRole(ctx, "admin");
           const body = (await request.json()) as {

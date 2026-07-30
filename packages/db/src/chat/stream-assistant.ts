@@ -12,17 +12,16 @@ import {
   resolveAdapter,
   type AllowlistRule,
   type FakeTextAdapter,
+  type ProviderMessage,
 } from "@maximus/provider-gateway";
 import type { Db } from "../client.js";
 import * as conversationRepo from "../repos/conversations.js";
 import * as messageRepo from "../repos/messages.js";
 import * as usageRepo from "../repos/usage.js";
 import * as providerRepo from "../repos/providers.js";
-import type {
-  ChatActor,
-  ChatTurnEvent,
-  StreamAssistantInput,
-} from "./chat-turn-types.js";
+import { getCustomInstructions } from "../repos/user-settings.js";
+import type { StreamAssistantInput } from "./chat-turn-types.js";
+import type { ChatActor, ChatTurnEvent } from "./chat-turn-types.js";
 
 export async function* streamAssistant(args: {
   db: Db;
@@ -30,7 +29,7 @@ export async function* streamAssistant(args: {
   conversationId: string;
   assistantId: string;
   modelRef: string;
-  history: Array<{ role: string; content: string }>;
+  history: ProviderMessage[];
   input: StreamAssistantInput;
 }): AsyncGenerator<ChatTurnEvent> {
   const started = Date.now();
@@ -77,8 +76,14 @@ export async function* streamAssistant(args: {
     providerMode: mode,
   });
 
+  const custom = await getCustomInstructions(args.db, {
+    userId: args.ctx.user.id,
+    orgId: args.ctx.orgId,
+  });
   const system = assembleSystemPrompts({
     platform: "You are Maximus, a helpful enterprise assistant.",
+    userAbout: custom?.aboutUser,
+    userPreferred: custom?.preferredResponse,
   });
 
   let adapter: FakeTextAdapter;
@@ -102,7 +107,7 @@ export async function* streamAssistant(args: {
     });
   }
 
-  const messages = [
+  const messages: ProviderMessage[] = [
     ...system.map((s) => ({ role: "system", content: s })),
     ...args.history,
   ];
@@ -145,14 +150,15 @@ export async function* streamAssistant(args: {
     orgId: args.ctx.orgId,
     providerKind: resolved.providerKind,
     modelId: resolved.modelId,
+    modelRef: args.modelRef,
   });
   const costMicros = computeCostMicros({
     inputTokens,
     outputTokens,
     price: price
       ? {
-          inputUsdPer1m: Number(price.inputUsdPer1m),
-          outputUsdPer1m: Number(price.outputUsdPer1m),
+          inputUsdPer1m: price.inputUsdPer1m,
+          outputUsdPer1m: price.outputUsdPer1m,
         }
       : null,
   });

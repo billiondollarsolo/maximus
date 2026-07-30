@@ -1,10 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, type ComponentPropsWithoutRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 import { cn } from "#/lib/cn";
-import { CodeBlock } from "./code-block";
+import { CodeBlock, InlineCode } from "./code-block";
+import { prepareStreamingMarkdown, textFromReactChildren } from "./stream-markdown";
 
 /**
- * Streaming-safe markdown: paragraphs, fences, inline code, lists.
- * Sized for ChatGPT-like reading column (~16px, 1.75 line-height).
+ * ChatGPT-class assistant markdown: GFM + syntax highlighting + copyable fences.
+ * Stream-safe (auto-closes open code fences). No raw HTML (XSS-safe).
  */
 export function MarkdownRenderer({
   content,
@@ -13,93 +17,120 @@ export function MarkdownRenderer({
   content: string;
   className?: string;
 }) {
-  const blocks = useMemo(() => parseBlocks(content), [content]);
+  const source = useMemo(
+    () => prepareStreamingMarkdown(content),
+    [content],
+  );
+
   return (
-    <div className={cn("space-y-3 text-[15.5px] leading-[1.75]", className)}>
-      {blocks.map((b, i) => {
-        if (b.type === "code") {
-          return <CodeBlock key={i} language={b.lang} code={b.code} />;
-        }
-        if (b.type === "list") {
-          return (
-            <ul key={i} className="list-disc space-y-1.5 pl-5 text-text-primary">
-              {b.items.map((item, j) => (
-                <li key={j}>{renderInline(item)}</li>
-              ))}
-            </ul>
-          );
-        }
-        return (
-          <p key={i} className="whitespace-pre-wrap text-text-primary">
-            {renderInline(b.text)}
-          </p>
-        );
-      })}
+    <div className={cn("msg-prose markdown-body", className)}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{
+          pre({ children, className: preClass }) {
+            const child = Array.isArray(children) ? children[0] : children;
+            const props =
+              child &&
+              typeof child === "object" &&
+              "props" in child
+                ? (child as {
+                    props?: {
+                      className?: string;
+                      children?: unknown;
+                    };
+                  }).props
+                : undefined;
+            const cls = props?.className ?? "";
+            const langMatch = /language-([\w+-]+)/.exec(cls);
+            const language = langMatch?.[1] ?? "code";
+            const plain = textFromReactChildren(props?.children).replace(
+              /\n$/,
+              "",
+            );
+            return (
+              <CodeBlock language={language} code={plain} className={preClass}>
+                <code className={cn("hljs", cls)}>{props?.children as never}</code>
+              </CodeBlock>
+            );
+          },
+          code({ className: codeClass, children, ...rest }) {
+            // Block code is handled by `pre`; anything reaching here is inline.
+            const isBlock = Boolean(
+              codeClass && /language-/.test(codeClass),
+            );
+            if (isBlock) {
+              return (
+                <code className={codeClass} {...rest}>
+                  {children}
+                </code>
+              );
+            }
+            return <InlineCode className={codeClass}>{children}</InlineCode>;
+          },
+          a({ href, children }) {
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-accent underline underline-offset-2 hover:opacity-90"
+              >
+                {children}
+              </a>
+            );
+          },
+          table({ children }) {
+            return (
+              <div className="md-table-wrap">
+                <table>{children}</table>
+              </div>
+            );
+          },
+          // Avoid default browser margins fighting msg-prose
+          p({ children }) {
+            return <p>{children}</p>;
+          },
+          ul({ children }) {
+            return <ul>{children}</ul>;
+          },
+          ol({ children }) {
+            return <ol>{children}</ol>;
+          },
+          blockquote({ children }) {
+            return <blockquote>{children}</blockquote>;
+          },
+          h1({ children }) {
+            return <h1>{children}</h1>;
+          },
+          h2({ children }) {
+            return <h2>{children}</h2>;
+          },
+          h3({ children }) {
+            return <h3>{children}</h3>;
+          },
+          hr() {
+            return <hr />;
+          },
+          input(props: ComponentPropsWithoutRef<"input">) {
+            // GFM task list checkboxes (read-only)
+            if (props.type === "checkbox") {
+              return (
+                <input
+                  type="checkbox"
+                  checked={Boolean(props.checked)}
+                  disabled
+                  readOnly
+                  className="md-task-checkbox"
+                />
+              );
+            }
+            return <input {...props} />;
+          },
+        }}
+      >
+        {source}
+      </ReactMarkdown>
     </div>
   );
-}
-
-function renderInline(text: string) {
-  const parts = text.split(/(`[^`]+`)/g);
-  return parts.map((p, i) => {
-    if (p.startsWith("`") && p.endsWith("`")) {
-      return (
-        <code
-          key={i}
-          className="rounded-md bg-bg-composer px-1.5 py-0.5 font-mono text-[0.88em] text-text-primary"
-        >
-          {p.slice(1, -1)}
-        </code>
-      );
-    }
-    return <span key={i}>{p}</span>;
-  });
-}
-
-type Block =
-  | { type: "text"; text: string }
-  | { type: "code"; lang: string; code: string }
-  | { type: "list"; items: string[] };
-
-function parseBlocks(src: string): Block[] {
-  const lines = src.split("\n");
-  const blocks: Block[] = [];
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i]!;
-    if (line.startsWith("```")) {
-      const lang = line.slice(3).trim();
-      i += 1;
-      const code: string[] = [];
-      while (i < lines.length && !lines[i]!.startsWith("```")) {
-        code.push(lines[i]!);
-        i += 1;
-      }
-      i += 1;
-      blocks.push({ type: "code", lang, code: code.join("\n") });
-      continue;
-    }
-    if (line.trim().startsWith("- ")) {
-      const items: string[] = [];
-      while (i < lines.length && lines[i]!.trim().startsWith("- ")) {
-        items.push(lines[i]!.trim().slice(2));
-        i += 1;
-      }
-      blocks.push({ type: "list", items });
-      continue;
-    }
-    const para: string[] = [];
-    while (
-      i < lines.length &&
-      lines[i] !== "" &&
-      !lines[i]!.startsWith("```") &&
-      !lines[i]!.trim().startsWith("- ")
-    ) {
-      para.push(lines[i]!);
-      i += 1;
-    }
-    if (para.length) blocks.push({ type: "text", text: para.join("\n") });
-    while (i < lines.length && lines[i] === "") i += 1;
-  }
-  return blocks;
 }

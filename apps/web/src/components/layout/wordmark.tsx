@@ -1,15 +1,27 @@
 import { cn } from "#/lib/cn";
+import { BrandMark } from "./brand-mark";
 
-/** Quiet product wordmark — ChatGPT-density sidebar header style. */
-export function Wordmark({ className }: { className?: string }) {
+/** Product wordmark: mark + Maximus. */
+export function Wordmark({
+  className,
+  markClassName,
+  showText = true,
+}: {
+  className?: string;
+  markClassName?: string;
+  showText?: boolean;
+}) {
   return (
     <span
       className={cn(
-        "select-none text-[15px] font-semibold tracking-[-0.01em] text-text-primary",
+        "inline-flex select-none items-center gap-2 text-[15px] font-semibold tracking-[-0.01em] text-text-primary",
         className,
       )}
     >
-      Maximus
+      <BrandMark
+        className={cn("h-[1.2em] w-[1.2em] text-text-primary", markClassName)}
+      />
+      {showText ? <span>Maximus</span> : null}
     </span>
   );
 }

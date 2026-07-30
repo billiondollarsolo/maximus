@@ -1,3 +1,5 @@
+import type { ProviderMessage } from "../provider-messages.js";
+
 export type FakeChunk =
   | { type: "text"; text: string }
   | { type: "usage"; inputTokens: number; outputTokens: number }
@@ -7,13 +9,14 @@ export type FakeTextAdapter = {
   kind: "fake";
   modelId: string;
   stream: (
-    messages: Array<{ role: string; content: string }>,
+    messages: ProviderMessage[],
     opts?: { signal?: AbortSignal },
   ) => AsyncGenerator<FakeChunk>;
 };
 
 /**
  * Scripted text adapter for tests/E2E without live provider network.
+ * Accepts multimodal messages and ignores image payloads.
  */
 export function createFakeTextAdapter(input: {
   modelId?: string;

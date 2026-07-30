@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
-import { attachments, createDb, newId } from "@maximus/db";
+import { attachments, getDb, newId } from "@maximus/db";
 import { AppError } from "@maximus/domain";
 import { createStorageClient } from "@maximus/storage";
 import { sessionFromRequest } from "#/server/cookies";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/uploads")({
         try {
           guardMutation(request);
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           const body = (await request.json()) as {
             filename?: string;

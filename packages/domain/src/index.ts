@@ -27,8 +27,17 @@ export {
   normalizeContentParts,
   textFromParts,
   textParts,
+  imagePart,
   type ContentPart,
 } from "./content-parts.js";
+export {
+  parseCapabilities,
+  modelAcceptsImages,
+  modelCanGenerateImages,
+  contentHasImages,
+  type ModelCapabilities,
+} from "./model-capabilities.js";
+export { assertVisionAllowed } from "./assert-vision.js";
 export {
   pathToRoot,
   listActiveBranch,
@@ -63,7 +72,12 @@ export {
   canWriteConversation,
   type ConversationAccessInput,
 } from "./policies/conversation-access.js";
-export { computeCostMicros, type PriceRow } from "./pricing.js";
+export {
+  computeCostMicros,
+  matchPriceRow,
+  type PriceRow,
+  type PriceCandidate,
+} from "./pricing.js";
 export { assembleSystemPrompts } from "./system-prompt.js";
 export {
   assertChatTurnInput,
@@ -83,4 +97,34 @@ export {
 export {
   defaultPlatformCatalog,
   defaultPlatformModelRef,
+  ollamaDiscoveredCatalog,
+  type PlatformCatalogEnv,
 } from "./platform-catalog.js";
+export { composeCatalog, type ComposeCatalogInput } from "./compose-catalog.js";
+export {
+  validateProviderConnection,
+  isProviderKind,
+  type ConnectionRulesInput,
+  type ConnectionRulesResult,
+} from "./provider-connection-rules.js";
+export {
+  clampProbeIntervalMinutes,
+  deriveOverall,
+  deriveDemoMode,
+  deriveAttention,
+  overallLabel,
+  DEFAULT_PROBE_INTERVAL_MINUTES,
+  MIN_PROBE_INTERVAL_MINUTES,
+  MAX_PROBE_INTERVAL_MINUTES,
+  type ComponentStatus,
+  type HealthComponent,
+  type HealthComponentId,
+  type ConnectivitySnapshot,
+  type ProviderProbeResultRow,
+  type ProviderProbeSummary,
+  type AttentionItem,
+  type Usage7dStrip,
+  type OverviewSnapshot,
+  type DemoModeInput,
+  type DeriveAttentionInput,
+} from "./overview-snapshot.js";

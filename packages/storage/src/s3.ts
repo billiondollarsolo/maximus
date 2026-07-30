@@ -2,6 +2,7 @@ import {
   PutObjectCommand,
   S3Client,
   GetObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
@@ -39,11 +40,61 @@ export function createStorageClient(cfg: StorageConfig) {
     return getSignedUrl(client, cmd, { expiresIn });
   }
 
+  async function getObjectBuffer(key: string): Promise<{
+    body: Buffer;
+    contentType?: string;
+  }> {
+    const out = await client.send(
+      new GetObjectCommand({ Bucket: cfg.bucket, Key: key }),
+    );
+    const stream = out.Body;
+    if (!stream) throw new Error(`Empty object body for key ${key}`);
+    const bytes = await stream.transformToByteArray();
+    return {
+      body: Buffer.from(bytes),
+      contentType: out.ContentType,
+    };
+  }
+
+  async function putObjectBuffer(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    await client.send(
+      new PutObjectCommand({
+        Bucket: cfg.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+  }
+
   function attachmentKey(orgId: string, attachmentId: string) {
     return `org/${orgId}/att/${attachmentId}`;
   }
 
-  return { client, presignPut, presignGet, attachmentKey, bucket: cfg.bucket };
+  /** Cheap connectivity probe — list at most one object; no body download. */
+  async function probeBucket(): Promise<void> {
+    await client.send(
+      new ListObjectsV2Command({
+        Bucket: cfg.bucket,
+        MaxKeys: 1,
+      }),
+    );
+  }
+
+  return {
+    client,
+    presignPut,
+    presignGet,
+    getObjectBuffer,
+    putObjectBuffer,
+    probeBucket,
+    attachmentKey,
+    bucket: cfg.bucket,
+  };
 }
 
 export type Storage = ReturnType<typeof createStorageClient>;

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { loginWithPassword } from "@maximus/auth";
-import { createDb } from "@maximus/db";
+import { getDb } from "@maximus/db";
 import { AppError } from "@maximus/domain";
 import { serverEnv } from "#/server/env";
 import { sessionCookieHeader } from "#/server/cookies";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/auth/login")({
         try {
           guardMutation(request);
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const body = (await request.json()) as {
             email?: string;
             password?: string;
@@ -26,7 +26,13 @@ export const Route = createFileRoute("/api/auth/login")({
             db,
           );
           return jsonOk(
-            { ok: true, userId: result.userId, orgId: result.orgId },
+            {
+              ok: true,
+              userId: result.userId,
+              orgId: result.orgId,
+              /** For non-browser API clients (also set as HttpOnly cookie). */
+              sessionToken: result.sessionToken,
+            },
             {
               headers: {
                 "Set-Cookie": sessionCookieHeader(result.sessionToken),

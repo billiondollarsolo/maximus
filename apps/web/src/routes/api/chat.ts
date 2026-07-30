@@ -1,8 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
-import { createDb, getOrgRateLimitFailOpen, runChatTurn } from "@maximus/db";
+import { getDb, getOrgRateLimitFailOpen, runChatTurn } from "@maximus/db";
 import { defaultPlatformModelRef, isAppError } from "@maximus/domain";
 import { assertRateLimit, createLimiter } from "@maximus/rate-limit";
+import { createStorageClient } from "@maximus/storage";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
 import { guardMutation, jsonError } from "#/server/api";
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/api/chat")({
     handlers: {
       POST: async ({ request }) => {
         const env = serverEnv();
-        const db = createDb(env.databaseUrl);
+        const db = getDb(env.databaseUrl);
         const abortController = new AbortController();
         request.signal.addEventListener("abort", () => abortController.abort());
 
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/api/chat")({
               modelRef?: string;
               projectId?: string;
               mode?: "send" | "regenerate" | "edit";
+              interactionMode?: "chat" | "image_gen";
               targetMessageId?: string;
             };
             messages?: unknown;
@@ -54,7 +56,14 @@ export const Route = createFileRoute("/api/chat")({
 
           const text = body.input?.text ?? body.text ?? "";
           const modelRef =
-            body.forwardedProps?.modelRef ?? defaultPlatformModelRef();
+            body.forwardedProps?.modelRef ??
+            defaultPlatformModelRef({
+              providerMode: env.providerMode,
+              openai: Boolean(env.openaiApiKey),
+              anthropic: Boolean(env.anthropicApiKey),
+              ollamaBaseUrl: Boolean(env.ollamaBaseUrl),
+            });
+          const storage = createStorageClient(env.s3);
 
           const stream = new ReadableStream({
             async start(controller) {
@@ -75,6 +84,7 @@ export const Route = createFileRoute("/api/chat")({
                     modelRef,
                     projectId: body.forwardedProps?.projectId,
                     mode: body.forwardedProps?.mode,
+                    interactionMode: body.forwardedProps?.interactionMode,
                     targetMessageId: body.forwardedProps?.targetMessageId,
                     clientMessages: body.messages,
                   },
@@ -87,6 +97,13 @@ export const Route = createFileRoute("/api/chat")({
                   allowPrivateBaseUrls: env.allowPrivateBaseUrls,
                   encryptionKey: env.encryptionKey,
                   signal: abortController.signal,
+                  storage: {
+                    getObjectBuffer: (key) => storage.getObjectBuffer(key),
+                    putObjectBuffer: (key, body, ct) =>
+                      storage.putObjectBuffer(key, body, ct),
+                    attachmentKey: (orgId, id) =>
+                      storage.attachmentKey(orgId, id),
+                  },
                 })) {
                   send(ev);
                 }

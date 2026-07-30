@@ -2,22 +2,20 @@ import {
   Folder,
   Moon,
   PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
   Search,
-  Settings,
-  Shield,
   SquarePen,
   Sun,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Icon, IconButton, Input } from "#/components/ui";
+import { BrandMark } from "#/components/layout/brand-mark";
 import { Wordmark } from "#/components/layout/wordmark";
 import { useTheme } from "#/features/theme/theme-provider";
 import { cn } from "#/lib/cn";
 import { ConversationList } from "./conversation-list";
 import type { FakeConversation } from "./fake-conversations";
+import { SidebarUserMenu } from "./sidebar-user-menu";
 
 function NavItem({
   icon,
@@ -26,7 +24,7 @@ function NavItem({
   trailing,
   active,
 }: {
-  icon: typeof Plus;
+  icon: typeof SquarePen;
   label: string;
   onClick?: () => void;
   trailing?: React.ReactNode;
@@ -55,32 +53,23 @@ export function SidebarNav({
   onToggleCollapsed,
   onNewChat,
   activeId,
-  onSelectConversation,
   conversations,
   searchQuery = "",
   onSearchQueryChange,
+  onConversationsChanged,
 }: {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onNewChat: () => void;
   activeId?: string | null;
-  onSelectConversation?: (id: string) => void;
   conversations?: FakeConversation[];
   searchQuery?: string;
   onSearchQueryChange?: (q: string) => void;
+  onConversationsChanged?: () => void;
 }) {
   const { theme, toggleTheme } = useTheme();
-  const [isAdmin, setIsAdmin] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    void fetch("/api/auth/me", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { role?: string } | null) => {
-        setIsAdmin(d?.role === "admin" || d?.role === "owner");
-      });
-  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -97,12 +86,22 @@ export function SidebarNav({
   if (collapsed) {
     return (
       <div className="flex h-full flex-col items-center gap-1 py-2">
-        <IconButton
-          icon={PanelLeftOpen}
-          label="Expand sidebar"
+        <button
+          type="button"
+          className="mb-1 flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-text-primary hover:bg-bg-sidebar-hover"
+          aria-label="Expand sidebar"
           onClick={onToggleCollapsed}
-        />
-        <IconButton icon={SquarePen} label="New chat" onClick={onNewChat} />
+        >
+          <BrandMark className="h-5 w-5" />
+        </button>
+        <Link
+          to="/"
+          aria-label="New chat"
+          onClick={onNewChat}
+          className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-md)] text-text-secondary no-underline hover:bg-bg-sidebar-hover hover:text-text-primary"
+        >
+          <Icon icon={SquarePen} size="sm" />
+        </Link>
         <IconButton
           icon={Search}
           label="Search chats"
@@ -115,8 +114,8 @@ export function SidebarNav({
           <ConversationList
             collapsed
             activeId={activeId}
-            onSelect={onSelectConversation}
             items={conversations}
+            onChanged={onConversationsChanged}
           />
         </div>
         <IconButton
@@ -124,14 +123,9 @@ export function SidebarNav({
           label={theme === "dark" ? "Light theme" : "Dark theme"}
           onClick={toggleTheme}
         />
-        <Link to="/settings/general">
-          <IconButton icon={Settings} label="Settings" />
-        </Link>
-        {isAdmin ? (
-          <Link to="/admin">
-            <IconButton icon={Shield} label="Admin" />
-          </Link>
-        ) : null}
+        <div className="px-1 pb-1 pt-0.5">
+          <SidebarUserMenu collapsed />
+        </div>
       </div>
     );
   }
@@ -148,14 +142,14 @@ export function SidebarNav({
       </div>
 
       <div className="flex flex-col gap-0.5">
-        <button
-          type="button"
+        <Link
+          to="/"
           onClick={onNewChat}
-          className="flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] bg-bg-sidebar-active px-2.5 text-[13.5px] text-text-primary transition-colors hover:bg-bg-sidebar-hover"
+          className="flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] bg-bg-sidebar-active px-2.5 text-[13.5px] text-text-primary no-underline transition-colors hover:bg-bg-sidebar-hover"
         >
           <Icon icon={SquarePen} size="sm" className="shrink-0 opacity-90" />
           <span className="min-w-0 flex-1 truncate text-left">New chat</span>
-        </button>
+        </Link>
         <NavItem
           icon={Search}
           label="Search chats"
@@ -198,8 +192,8 @@ export function SidebarNav({
         <ConversationList
           collapsed={false}
           activeId={activeId}
-          onSelect={onSelectConversation}
           items={conversations}
+          onChanged={onConversationsChanged}
         />
       </div>
 
@@ -209,22 +203,7 @@ export function SidebarNav({
           label={theme === "dark" ? "Light mode" : "Dark mode"}
           onClick={toggleTheme}
         />
-        <Link
-          to="/settings/general"
-          className="flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 text-[13.5px] text-text-secondary transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary"
-        >
-          <Icon icon={Settings} size="sm" className="shrink-0 opacity-90" />
-          Settings
-        </Link>
-        {isAdmin ? (
-          <Link
-            to="/admin"
-            className="flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 text-[13.5px] text-text-secondary transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary"
-          >
-            <Icon icon={Shield} size="sm" className="shrink-0 opacity-90" />
-            Admin
-          </Link>
-        ) : null}
+        <SidebarUserMenu collapsed={false} />
       </div>
     </div>
   );

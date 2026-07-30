@@ -25,4 +25,19 @@ describe("consume-chat-sse helpers", () => {
     expect(out[0]!.content[0]!.text).toBe("Done");
     expect(out[0]!.status).toBe("complete");
   });
+
+  it("finalizeAssistant prefers contentParts for gen images", () => {
+    const out = finalizeAssistant([base], "a1", "", "complete", [
+      {
+        type: "image",
+        attachmentId: "att_x",
+        mime: "image/png",
+        source: "model",
+      },
+    ]);
+    expect(out[0]!.content[0]).toMatchObject({
+      type: "image",
+      attachmentId: "att_x",
+    });
+  });
 });

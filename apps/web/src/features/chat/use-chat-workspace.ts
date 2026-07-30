@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   listActiveBranch,
   selectSiblingBranch,
@@ -16,10 +16,22 @@ import {
   finalizeAssistant,
 } from "./consume-chat-sse";
 
-export function useChatWorkspace(modelRef: string) {
+export function useChatWorkspace(
+  modelRef: string,
+  opts?: {
+    /** Conversation id from the URL (`/c/$id` or null on `/`) */
+    routeConversationId?: string | null;
+    /** Keep address bar in sync (ChatGPT-style deep links) */
+    onNavigateConversation?: (id: string | null) => void;
+    /** Restore model picker when opening a conversation */
+    onConversationModel?: (modelRef: string | null) => void;
+  },
+) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(
+    opts?.routeConversationId ?? null,
+  );
   const [draft, setDraft] = useState("");
   const [composerKey, setComposerKey] = useState(0);
   const [treeMsgs, setTreeMsgs] = useState<ServerMsg[]>([]);
@@ -28,6 +40,12 @@ export function useChatWorkspace(modelRef: string) {
   const [history, setHistory] = useState<ConvRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [abort, setAbort] = useState<AbortController | null>(null);
+
+  const routeId = opts?.routeConversationId ?? null;
+  const onNav = opts?.onNavigateConversation;
+  const onModel = opts?.onConversationModel;
+  /** Avoid re-loading the same route id in a loop */
+  const loadedRouteRef = useRef<string | null>(null);
 
   const refreshHistory = useCallback(async (q?: string) => {
     const qs =
@@ -83,6 +101,7 @@ export function useChatWorkspace(modelRef: string) {
         id: node.id,
         role: node.role as UiMessage["role"],
         content: full ? textFromContent(full.content) : "",
+        parts: full?.content,
         status: full?.status,
         parentMessageId: node.parentMessageId,
         position: node.position,
@@ -90,31 +109,94 @@ export function useChatWorkspace(modelRef: string) {
     });
   }, [tree, treeMsgs, activeLeafId]);
 
-  async function loadConversation(id: string) {
-    setActiveId(id);
-    setMobileOpen(false);
-    const res = await fetch(
-      `/api/conversations?id=${encodeURIComponent(id)}`,
-      { credentials: "same-origin" },
-    );
-    if (!res.ok) return;
-    const data = (await res.json()) as {
+  const applyModelFromConversation = useCallback(
+    (data: {
+      conversation?: { modelRef?: string | null };
       messages: ServerMsg[];
-      activeLeafId: string | null;
-    };
-    setTreeMsgs(data.messages);
-    setActiveLeafId(
-      data.activeLeafId ?? data.messages[data.messages.length - 1]?.id ?? null,
-    );
-  }
+    }) => {
+      let restored: string | null = data.conversation?.modelRef ?? null;
+      if (!restored) {
+        for (let i = data.messages.length - 1; i >= 0; i--) {
+          const msg = data.messages[i];
+          if (msg.role === "assistant" && msg.modelRef) {
+            restored = msg.modelRef;
+            break;
+          }
+        }
+      }
+      onModel?.(restored);
+    },
+    [onModel],
+  );
+
+  const loadConversation = useCallback(
+    async (id: string, options?: { fromRoute?: boolean }) => {
+      setActiveId(id);
+      setMobileOpen(false);
+      if (!options?.fromRoute) {
+        onNav?.(id);
+      }
+      loadedRouteRef.current = id;
+
+      const res = await fetch(
+        `/api/conversations?id=${encodeURIComponent(id)}`,
+        { credentials: "same-origin" },
+      );
+      if (!res.ok) {
+        // Missing / unauthorized — go home
+        if (res.status === 404 || res.status === 403 || res.status === 401) {
+          loadedRouteRef.current = null;
+          setActiveId(null);
+          setTreeMsgs([]);
+          setActiveLeafId(null);
+          onNav?.(null);
+        }
+        return;
+      }
+      const data = (await res.json()) as {
+        conversation?: { modelRef?: string | null };
+        messages: ServerMsg[];
+        activeLeafId: string | null;
+      };
+      setTreeMsgs(data.messages);
+      setActiveLeafId(
+        data.activeLeafId ??
+          data.messages[data.messages.length - 1]?.id ??
+          null,
+      );
+      applyModelFromConversation(data);
+    },
+    [applyModelFromConversation, onNav],
+  );
+
+  // URL → state (deep link / sidebar navigation via router)
+  useEffect(() => {
+    if (routeId) {
+      if (loadedRouteRef.current !== routeId) {
+        void loadConversation(routeId, { fromRoute: true });
+      }
+      return;
+    }
+    // `/` — new chat shell; clear thread if we left a conversation URL
+    if (loadedRouteRef.current !== null && !streaming) {
+      loadedRouteRef.current = null;
+      setActiveId(null);
+      setTreeMsgs([]);
+      setActiveLeafId(null);
+      setDraft("");
+      setComposerKey((k) => k + 1);
+    }
+  }, [routeId, loadConversation, streaming]);
 
   function newChat() {
+    loadedRouteRef.current = null;
     setActiveId(null);
     setTreeMsgs([]);
     setActiveLeafId(null);
     setDraft("");
     setComposerKey((k) => k + 1);
     setMobileOpen(false);
+    onNav?.(null);
   }
 
   async function postFeedback(messageId: string, rating: "up" | "down") {
@@ -143,6 +225,7 @@ export function useChatWorkspace(modelRef: string) {
     mode?: "send" | "regenerate" | "edit",
     targetMessageId?: string,
     attachmentIds?: string[],
+    interactionMode?: "chat" | "image_gen",
   ) {
     if (!modelRef) return;
     const ac = new AbortController();
@@ -168,7 +251,14 @@ export function useChatWorkspace(modelRef: string) {
           role: "user",
           parentMessageId: tempUserParent,
           position: 999,
-          content: [{ type: "text", text }],
+          content: [
+            ...(text ? [{ type: "text", text }] : []),
+            ...(attachmentIds ?? []).map((id) => ({
+              type: "image",
+              attachmentId: id,
+              mime: "image/*",
+            })),
+          ],
           status: "complete",
         },
       ]);
@@ -197,6 +287,7 @@ export function useChatWorkspace(modelRef: string) {
             conversationId: activeId ?? undefined,
             modelRef,
             mode: mode ?? "send",
+            interactionMode,
             targetMessageId,
           },
         }),
@@ -211,17 +302,20 @@ export function useChatWorkspace(modelRef: string) {
         onMeta: (id) => {
           convId = id;
           setActiveId(id);
+          loadedRouteRef.current = id;
+          // First message creates the thread — put id in the address bar
+          onNav?.(id);
         },
         onText: (t) => {
           setTreeMsgs((ms) => appendAssistantText(ms, tempAsstId, t));
         },
-        onDone: (content, status) => {
+        onDone: (content, status, contentParts) => {
           setTreeMsgs((ms) =>
-            finalizeAssistant(ms, tempAsstId, content, status),
+            finalizeAssistant(ms, tempAsstId, content, status, contentParts),
           );
         },
       });
-      if (convId) await loadConversation(convId);
+      if (convId) await loadConversation(convId, { fromRoute: true });
       await refreshHistory(searchQuery);
     } finally {
       setStreaming(false);
@@ -251,5 +345,6 @@ export function useChatWorkspace(modelRef: string) {
     postFeedback,
     switchBranch,
     send,
+    refreshHistory,
   };
 }

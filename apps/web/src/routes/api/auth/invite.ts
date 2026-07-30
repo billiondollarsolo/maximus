@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { acceptInvite } from "@maximus/auth";
-import { createDb } from "@maximus/db";
+import { getDb } from "@maximus/db";
 import { AppError } from "@maximus/domain";
 import { sessionCookieHeader } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/api/auth/invite")({
         try {
           guardMutation(request);
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const body = (await request.json()) as {
             inviteId?: string;
             password?: string;

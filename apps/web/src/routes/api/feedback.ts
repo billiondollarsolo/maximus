@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
 import {
-  createDb,
+  getDb,
   feedbackRepo,
   messageRepo,
   conversationRepo,
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/feedback")({
         try {
           guardMutation(request);
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           const body = (await request.json()) as {
             messageId?: string;

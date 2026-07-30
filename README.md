@@ -1,17 +1,24 @@
 <p align="center">
-  <strong>Maximus</strong><br/>
-  <em>Self-hosted ChatGPT-class workspace for teams that care about control.</em>
+  <img src="./apps/web/public/favicon.svg" alt="Maximus" width="96" height="96" />
+</p>
+
+<h1 align="center">Maximus</h1>
+
+<p align="center">
+  <strong>Self-hosted AI workspace with ChatGPT-class UX — and keys that never leave your house.</strong>
 </p>
 
 <p align="center">
-  Multi-provider AI chat · Invite-only orgs · Postgres · Docker Compose · TLS out of the box
+  Streaming multi-provider chat · Invite-only orgs · Live admin control plane · Docker Compose · TLS by default
 </p>
 
 <p align="center">
-  <a href="./docs/quickstart.md">Quickstart</a> ·
+  <a href="./docs/quickstart.md"><strong>Quickstart</strong></a> ·
   <a href="./docs/deploy.md">Deploy</a> ·
-  <a href="./docs/tls.md">TLS & DNS ACME</a> ·
+  <a href="./docs/api.md">HTTP API</a> ·
+  <a href="./docs/spa-routes.md">Deep links</a> ·
   <a href="./docs/security-self-host.md">Security</a> ·
+  <a href="./docs/architecture.md">Architecture</a> ·
   <a href="./docs/plan.md">Roadmap</a>
 </p>
 
@@ -19,36 +26,51 @@
 
 ## Why Maximus?
 
-**Own the stack.** Run a familiar chat UX on **your** servers, with **your** keys, without handing conversation history to a black-box SaaS.
+Public chat products are fast — and opaque. Maximus is for operators who want the **same muscle memory** (streaming turns, branches, model picker, dark canvas) without surrendering history, models, or compliance posture to a vendor.
 
 | | |
 | --- | --- |
-| **ChatGPT-class UX** | Streaming chat, model picker, branches, search, dark/light |
-| **Multi-provider** | OpenAI, Anthropic, Ollama, OpenAI-compatible endpoints |
-| **Enterprise-shaped** | Invite-only, roles, admin, usage, audit, BYOK encryption |
-| **Self-host first** | Docker Compose, Caddy proxy, Let’s Encrypt (HTTP-01 & DNS-01) |
-| **Builder-friendly** | pnpm monorepo, TypeScript, TDD domain core, clear packages |
+| **Own the data plane** | Postgres, Valkey, S3-compatible storage — all under your compose file |
+| **Own the models** | Platform keys, BYOK (encrypted at rest), Ollama discovery, allowlists by role |
+| **Own the surface** | Real deep links (`/c/{id}`), admin live overview, audit trail, invite-only org |
+| **Ship like software** | pnpm monorepo, TypeScript, domain package with unit tests, Playwright smoke |
 
-Built for **solo operators and small teams** who want production-minded defaults without a 50-person platform crew.
+Built for **solo founders, security-conscious teams, and self-hosters** who want production defaults without a platform team of fifty.
 
-> **Status:** open-source **beta** (v0.x). Great for private self-host. Not a drop-in multi-tenant public SaaS yet. See [security notes](./docs/security-self-host.md).
+> **Status:** open-source **beta** (v0.x). Excellent for private self-host. Not a multi-tenant public SaaS yet. Read [security-self-host.md](./docs/security-self-host.md) before exposing a host.
 
 ---
 
 ## Features
 
-- **Streaming chat** with server-authoritative history (no client spoofing of prior turns)
-- **Model catalog** filtered by org allowlists and roles
-- **Branching** — edit / regenerate with `‹ n / m ›` navigation
-- **Attachments** via S3-compatible storage (RustFS in compose)
-- **Admin** — members, providers (encrypted BYOK), models, usage, audit
+### Chat
+- **Streaming conversations** with server-authoritative history (active branch, not client spoofing)
+- **Deep links** — every thread is `/c/{conversationId}` (bookmark, share, open in new tab)
+- **Model stickiness** — threads remember the model you used; picker restores on open
+- **Multi-provider catalog** — OpenAI / Anthropic gated by keys; **Ollama live `/api/tags` discovery** (no phantom models)
+- **Branching** — edit / regenerate with sibling navigation
+- **Vision & image gen** — multimodal inputs and image generation models when capabilities allow
+- **Custom instructions** — personalization stored per user and applied in the system prompt
+- **Sidebar ⋮ menu** — rename, export MD/JSON, copy link, archive, delete
+
+### Admin & ops
+- **Live Overview** — health tiles (app, Postgres, Valkey, object store), connectivity, demo-mode banner, optional provider probes, SSE live updates
+- **Providers** — BYOK encrypted with `ENCRYPTION_KEY`, test connection, models & pricing
+- **Access** — model allowlists by role
+- **Members** — invite-only onboarding with shareable invite links
+- **Usage & audit** — turn aggregates and admin mutation log (no message bodies)
+
+### Platform
+- **API-first** — JSON + SSE under `/api/*`; session cookie or `Authorization: Bearer`
 - **Rate limits** on Valkey (fail closed by default)
-- **Security headers** + same-origin mutation guards
-- **TLS** — Caddy with auto-renew; Cloudflare & Route 53 DNS challenges supported
+- **Security headers**, same-origin mutation guards, SSRF checks on provider URLs
+- **TLS** via Caddy — HTTP-01, Cloudflare DNS, Route 53 DNS, or local CA
 
 ---
 
-## Quickstart (local)
+## Quick start (local)
+
+**Prerequisites:** Node.js 22+, pnpm 9+, Docker Compose v2.
 
 ```bash
 git clone https://github.com/YOUR_ORG/maximus.git && cd maximus
@@ -56,27 +78,31 @@ pnpm install
 cp .env.example .env
 ./scripts/generate-secrets.sh --write .env
 
-./scripts/up-dev.sh          # Postgres + Valkey + RustFS
+./scripts/up-dev.sh          # Postgres · Valkey · RustFS
 pnpm db:migrate
 pnpm dev                     # http://localhost:3000
 ```
 
-First visit **Create workspace** → you’re the owner. Everything after that is **invite-only**.
+1. Open **http://localhost:3000** → **Create workspace** (first user is owner).  
+2. After bootstrap, the org is **invite-only**.  
+3. Default `PROVIDER_MODE=fake` streams demo replies with no API keys.
 
-Default `PROVIDER_MODE=fake` needs no API keys. For real models:
+For live models:
 
 ```bash
 # .env
 PROVIDER_MODE=live
-OPENAI_API_KEY=sk-...
-# and/or ANTHROPIC_API_KEY, OLLAMA_BASE_URL
+OPENAI_API_KEY=sk-...          # optional
+ANTHROPIC_API_KEY=...          # optional
+OLLAMA_BASE_URL=http://127.0.0.1:11434   # lists all local tags automatically
 ```
 
-Full walkthrough: **[docs/quickstart.md](./docs/quickstart.md)**
+Full walkthrough: **[docs/quickstart.md](./docs/quickstart.md)**  
+Ops / ports / demo mode: **[docs/runbook.md](./docs/runbook.md)**
 
 ---
 
-## Production in one path
+## Production
 
 ```bash
 cp .env.prod.example .env.prod
@@ -85,16 +111,16 @@ cp .env.prod.example .env.prod
 ./scripts/up-prod.sh
 ```
 
-Open `https://YOUR_DOMAIN` → bootstrap owner → invite your team.
+Open `https://YOUR_DOMAIN` → bootstrap owner → invite the team.
 
-| TLS mode | Use when |
+| TLS mode | When |
 | --- | --- |
 | **http01** | Public VPS, ports 80/443 open |
-| **cloudflare** | DNS in Cloudflare (works with proxy / no open 80) |
+| **cloudflare** | DNS in Cloudflare (proxy / no open 80) |
 | **route53** | DNS in AWS Route 53 |
 | **local** | LAN / laptop smoke (internal CA) |
 
-Deep dive: **[docs/deploy.md](./docs/deploy.md)** · **[docs/tls.md](./docs/tls.md)**
+**[docs/deploy.md](./docs/deploy.md)** · **[docs/tls.md](./docs/tls.md)**
 
 ```
                     ┌─────────────┐
@@ -105,9 +131,26 @@ Deep dive: **[docs/deploy.md](./docs/deploy.md)** · **[docs/tls.md](./docs/tls.
                     │  Maximus    │
                     │  web :3000  │
                     └──┬───┬───┬──┘
-              Postgres │   │   │ RustFS
+              Postgres │   │   │ RustFS (S3)
                        │   │ Valkey
 ```
+
+---
+
+## Documentation
+
+| Doc | What you’ll get |
+| --- | --- |
+| [docs/quickstart.md](./docs/quickstart.md) | Local install in ~10 minutes |
+| [docs/deploy.md](./docs/deploy.md) | Production compose & env |
+| [docs/tls.md](./docs/tls.md) | ACME modes, DNS challenges |
+| [docs/runbook.md](./docs/runbook.md) | Health, demo mode, probes, backup |
+| [docs/api.md](./docs/api.md) | HTTP/SSE surface, auth, catalog |
+| [docs/spa-routes.md](./docs/spa-routes.md) | Deep-link map for the UI |
+| [docs/architecture.md](./docs/architecture.md) | Packages, API-first & deep-link rules |
+| [docs/security-self-host.md](./docs/security-self-host.md) | Hardening checklist |
+| [docs/plan.md](./docs/plan.md) | Product plan & work packages |
+| [AGENTS.md](./AGENTS.md) | Contributor / agent conventions |
 
 ---
 
@@ -122,15 +165,9 @@ Deep dive: **[docs/deploy.md](./docs/deploy.md)** · **[docs/tls.md](./docs/tls.
 | Proxy | Caddy 2 (optional DNS plugins) |
 | Language | TypeScript monorepo (pnpm) |
 
-Agents and contributors: start with **[AGENTS.md](./AGENTS.md)**.
-
----
-
-## Project layout
-
 ```
-apps/web                 # UI + API routes
-packages/domain          # Pure domain (trees, RBAC, pricing)
+apps/web                 # UI + /api routes
+packages/domain          # Pure domain (trees, RBAC, pricing, catalog)
 packages/db              # Schema, repos, chat turn
 packages/auth            # Sessions, invite-only bootstrap
 packages/provider-gateway
@@ -138,7 +175,7 @@ packages/rate-limit
 packages/storage
 docker/                  # Compose, Dockerfile, Caddyfiles
 scripts/                 # secrets, up-dev, up-prod, backup
-docs/                    # quickstart, deploy, tls, security, plan
+docs/                    # operator & product docs
 ```
 
 ---
@@ -150,7 +187,7 @@ pnpm test            # unit + integration
 pnpm typecheck
 pnpm lint
 pnpm --filter @maximus/web build
-pnpm test:e2e        # Playwright smoke (login → chat → branch)
+pnpm test:e2e        # Playwright smoke (infra + seed)
 ```
 
 ---
@@ -162,22 +199,22 @@ pnpm test:e2e        # Playwright smoke (login → chat → branch)
 - Mutation requests same-origin checked  
 - Prod cookies `Secure` + `HttpOnly`  
 - Non-root container; private data-plane ports  
+- Provider base URLs SSRF-checked  
 
-Read **[docs/security-self-host.md](./docs/security-self-host.md)** before exposing a host to the internet.
+Read **[docs/security-self-host.md](./docs/security-self-host.md)** before putting Maximus on the public internet.
 
 ---
 
 ## Roadmap
 
-Product plan and work packages: **[docs/plan.md](./docs/plan.md)**  
-(SSO/OIDC, MFA, RAG, org API proxy, virtualization, …)
+SSO/OIDC, MFA, RAG, richer audit, org API proxy, and more — tracked in **[docs/plan.md](./docs/plan.md)**.
 
 ---
 
 ## Contributing
 
-1. Read `AGENTS.md`  
-2. Keep packages small; domain stays pure  
+1. Read [AGENTS.md](./AGENTS.md)  
+2. Keep packages small; **domain stays pure** (no I/O)  
 3. Tests for domain, authz, crypto, SSRF, rate-limit  
 4. No secrets in git  
 
@@ -190,5 +227,6 @@ Product plan and work packages: **[docs/plan.md](./docs/plan.md)**
 ---
 
 <p align="center">
-  Built for people who want ChatGPT muscle memory with server-side honesty.
+  <img src="./apps/web/public/favicon.svg" alt="" width="28" height="28" /><br/>
+  <em>ChatGPT muscle memory. Server-side honesty.</em>
 </p>

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ArrowUp, Plus, Square, X } from "lucide-react";
 import { Icon } from "#/components/ui";
 import { cn } from "#/lib/cn";
@@ -7,11 +7,12 @@ import { ModelSelect } from "./model-select";
 export type PendingAttachment = {
   id: string;
   filename: string;
+  mime: string;
 };
 
 /**
  * Expanded, squarer composer with model selector in the toolbar.
- * Layout: wide text area on top · tools + model + send on bottom row.
+ * Vision gate: cannot send images to non-vision models.
  */
 export function Composer({
   modelRef,
@@ -26,35 +27,52 @@ export function Composer({
   modelRef: string;
   onModelChange: (value: string) => void;
   streaming?: boolean;
-  onSend?: (text: string, attachmentIds?: string[]) => void;
+  onSend?: (
+    text: string,
+    attachmentIds?: string[],
+    interactionMode?: "chat" | "image_gen",
+  ) => void;
   onStop?: () => void;
   initialValue?: string;
   disabled?: boolean;
-  /** Under empty hero — still full-width field */
   centered?: boolean;
 }) {
   const [text, setText] = useState(initialValue);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [caps, setCaps] = useState({ vision: false, imageGen: false });
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const onCapabilities = useCallback(
+    (c: { vision: boolean; imageGen: boolean }) => setCaps(c),
+    [],
+  );
+
+  const hasImageAttach = attachments.some((a) => a.mime.startsWith("image/"));
+  const visionMismatch = hasImageAttach && !caps.vision;
+  const isImageGen = caps.imageGen && !caps.vision;
+
   const canSend =
     (text.trim().length > 0 || attachments.length > 0) &&
     !streaming &&
     !uploading &&
-    !disabled;
+    !disabled &&
+    !visionMismatch &&
+    !(isImageGen && !text.trim());
 
   function submit() {
     if (!canSend) return;
     onSend?.(
       text.trim(),
       attachments.length ? attachments.map((a) => a.id) : undefined,
+      isImageGen ? "image_gen" : "chat",
     );
     setText("");
     setAttachments([]);
   }
 
   async function onPickFile(file: File | undefined) {
-    if (!file) return;
+    if (!file || isImageGen) return;
     setUploading(true);
     try {
       const intent = await fetch("/api/uploads", {
@@ -79,7 +97,11 @@ export function Composer({
       }).catch(() => undefined);
       setAttachments((prev) => [
         ...prev,
-        { id: data.attachmentId, filename: file.name },
+        {
+          id: data.attachmentId,
+          filename: file.name,
+          mime: file.type || "application/octet-stream",
+        },
       ]);
     } finally {
       setUploading(false);
@@ -108,6 +130,13 @@ export function Composer({
                 key={a.id}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border-subtle bg-bg-app px-2.5 py-1 text-[12px] text-text-secondary"
               >
+                {a.mime.startsWith("image/") ? (
+                  <img
+                    src={`/api/attachments/${a.id}`}
+                    alt=""
+                    className="h-8 w-8 rounded object-cover"
+                  />
+                ) : null}
                 {a.filename}
                 <button
                   type="button"
@@ -124,12 +153,25 @@ export function Composer({
           </div>
         ) : null}
 
-        {/* Expanded multi-line text area */}
+        {visionMismatch ? (
+          <p
+            role="alert"
+            className="mx-3.5 mt-2 rounded-lg border border-danger/40 bg-danger/10 px-2.5 py-1.5 text-[12px] text-danger"
+          >
+            This model can&apos;t see images. Switch to a Vision model or remove
+            attachments.
+          </p>
+        ) : null}
+
         <div className="flex-1 px-3.5 pt-3.5">
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Ask anything"
+            placeholder={
+              isImageGen
+                ? "Describe an image to generate…"
+                : "Ask anything"
+            }
             rows={3}
             disabled={disabled}
             className={cn(
@@ -146,7 +188,6 @@ export function Composer({
           />
         </div>
 
-        {/* Toolbar: attach · model · send */}
         <div className="flex items-center gap-2 px-2.5 pb-2.5 pt-1">
           <input
             ref={fileRef}
@@ -158,7 +199,12 @@ export function Composer({
           <button
             type="button"
             aria-label="Attach file"
-            disabled={streaming || uploading || disabled}
+            title={
+              isImageGen
+                ? "Attachments not supported for image models yet"
+                : "Attach file"
+            }
+            disabled={streaming || uploading || disabled || isImageGen}
             onClick={() => fileRef.current?.click()}
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary disabled:opacity-40"
           >
@@ -168,6 +214,7 @@ export function Composer({
           <ModelSelect
             value={modelRef}
             onChange={onModelChange}
+            onCapabilities={onCapabilities}
             className="min-w-0 flex-1"
           />
 

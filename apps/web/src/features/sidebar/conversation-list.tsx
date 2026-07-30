@@ -9,25 +9,27 @@ import { ConversationRow } from "./conversation-row";
 export function ConversationList({
   collapsed,
   activeId,
-  onSelect,
   items = FAKE_CONVERSATIONS,
+  onChanged,
 }: {
   collapsed: boolean;
   activeId?: string | null;
-  onSelect?: (id: string) => void;
   items?: FakeConversation[];
+  onChanged?: () => void;
 }) {
   if (collapsed) {
     return (
-      <ScrollArea className="flex-1 px-1.5">
-        <div className="flex flex-col gap-0.5 py-1">
+      <ScrollArea className="flex-1">
+        {/* Padding inside viewport so rounded active pills are not clipped */}
+        <div className="flex flex-col gap-0.5 px-1.5 py-1">
           {items.map((c) => (
             <ConversationRow
               key={c.id}
+              id={c.id}
               title={c.title}
               collapsed
               active={c.id === activeId}
-              onSelect={() => onSelect?.(c.id)}
+              onChanged={onChanged}
             />
           ))}
         </div>
@@ -46,20 +48,25 @@ export function ConversationList({
   const groups = groupByDateGroups(items);
 
   return (
-    <ScrollArea className="flex-1 px-2">
-      <div className="flex flex-col gap-4 py-1 pb-3">
+    <ScrollArea className="flex-1">
+      {/*
+        Keep horizontal inset on the *content*, not ScrollArea root.
+        Root uses overflow:hidden — padding there clips rounded active backgrounds.
+      */}
+      <div className="flex flex-col gap-4 px-2 py-1 pb-3">
         {groups.map((group) => (
           <section key={group.label}>
             <h2 className="mb-1 px-2.5 text-[11px] font-medium uppercase tracking-wide text-text-faint">
               {group.label}
             </h2>
-            <div className="flex flex-col gap-px">
+            <div className="flex flex-col gap-0.5">
               {group.items.map((c) => (
                 <ConversationRow
                   key={c.id}
+                  id={c.id}
                   title={c.title}
                   active={c.id === activeId}
-                  onSelect={() => onSelect?.(c.id)}
+                  onChanged={onChanged}
                 />
               ))}
             </div>

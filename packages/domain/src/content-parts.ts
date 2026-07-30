@@ -1,6 +1,14 @@
 export type ContentPart =
   | { type: "text"; text: string }
-  | { type: "image"; attachmentId: string; mime: string }
+  | {
+      type: "image";
+      attachmentId: string;
+      mime: string;
+      /** default user when omitted */
+      source?: "user" | "model";
+      prompt?: string;
+      revisedPrompt?: string;
+    }
   | { type: "file"; attachmentId: string; mime: string; filename: string };
 
 export function textFromParts(parts: ContentPart[]): string {
@@ -27,11 +35,19 @@ export function normalizeContentParts(input: unknown): ContentPart[] {
       typeof p.attachmentId === "string" &&
       typeof p.mime === "string"
     ) {
-      out.push({
+      const part: Extract<ContentPart, { type: "image" }> = {
         type: "image",
         attachmentId: p.attachmentId,
         mime: p.mime,
-      });
+      };
+      if (p.source === "user" || p.source === "model") {
+        part.source = p.source;
+      }
+      if (typeof p.prompt === "string") part.prompt = p.prompt;
+      if (typeof p.revisedPrompt === "string") {
+        part.revisedPrompt = p.revisedPrompt;
+      }
+      out.push(part);
       continue;
     }
     if (
@@ -55,4 +71,21 @@ export function normalizeContentParts(input: unknown): ContentPart[] {
 
 export function textParts(text: string): ContentPart[] {
   return [{ type: "text", text }];
+}
+
+export function imagePart(input: {
+  attachmentId: string;
+  mime: string;
+  source?: "user" | "model";
+  prompt?: string;
+  revisedPrompt?: string;
+}): Extract<ContentPart, { type: "image" }> {
+  return {
+    type: "image",
+    attachmentId: input.attachmentId,
+    mime: input.mime,
+    source: input.source ?? "user",
+    prompt: input.prompt,
+    revisedPrompt: input.revisedPrompt,
+  };
 }

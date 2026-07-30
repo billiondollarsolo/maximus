@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { revokeSession } from "@maximus/auth";
-import { createDb } from "@maximus/db";
+import { getDb } from "@maximus/db";
 import {
   clearSessionCookieHeader,
   sessionFromRequest,
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/auth/logout")({
         try {
           guardMutation(request);
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           await revokeSession(sessionFromRequest(request), db);
           return jsonOk(
             { ok: true },

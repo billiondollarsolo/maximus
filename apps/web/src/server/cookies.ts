@@ -13,7 +13,18 @@ export function parseCookieHeader(
   return out;
 }
 
+/**
+ * Resolve session for browser cookies **or** API clients.
+ * Order: `Authorization: Bearer <token>` → `X-Session-Token` → cookie.
+ */
 export function sessionFromRequest(request: Request): string | null {
+  const auth = request.headers.get("authorization");
+  if (auth) {
+    const m = /^Bearer\s+(.+)$/i.exec(auth.trim());
+    if (m?.[1]) return m[1].trim();
+  }
+  const headerTok = request.headers.get("x-session-token");
+  if (headerTok?.trim()) return headerTok.trim();
   const cookies = parseCookieHeader(request.headers.get("cookie"));
   return cookies[SESSION_COOKIE] ?? null;
 }

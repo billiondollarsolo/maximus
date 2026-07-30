@@ -14,10 +14,15 @@ export function ModelSelect({
   value,
   onChange,
   className,
+  onCapabilities,
 }: {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  onCapabilities?: (caps: {
+    vision: boolean;
+    imageGen: boolean;
+  }) => void;
 }) {
   const [models, setModels] = useState<ModelOption[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +35,8 @@ export function ModelSelect({
       })
       .then((d) => {
         setModels(d.models);
-        if (d.models.length && !d.models.some((m) => m.modelRef === value)) {
+        // Only auto-pick when nothing selected yet — never clobber a sticky conv model
+        if (!value && d.models.length) {
           onChange(d.models[0]!.modelRef);
         }
       })
@@ -38,7 +44,16 @@ export function ModelSelect({
   }, []);
 
   const selected = models.find((m) => m.modelRef === value);
+  const options =
+    value && !selected
+      ? [{ modelRef: value, displayName: value }, ...models]
+      : models;
   const vision = selected?.capabilities?.vision === true;
+  const imageGen = selected?.capabilities?.imageGen === true;
+
+  useEffect(() => {
+    onCapabilities?.({ vision, imageGen });
+  }, [vision, imageGen, onCapabilities, value]);
 
   return (
     <div className={cn("inline-flex min-w-0 items-center gap-1.5", className)}>
@@ -56,10 +71,10 @@ export function ModelSelect({
             "cursor-pointer",
           )}
         >
-          {models.length === 0 ? (
+          {options.length === 0 ? (
             <option value={value}>{error ?? "Loading…"}</option>
           ) : (
-            models.map((m) => (
+            options.map((m) => (
               <option key={m.modelRef} value={m.modelRef}>
                 {m.displayName}
               </option>
@@ -75,6 +90,11 @@ export function ModelSelect({
       {vision ? (
         <span className="hidden rounded-md bg-bg-sidebar-hover px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-faint sm:inline">
           Vision
+        </span>
+      ) : null}
+      {imageGen ? (
+        <span className="hidden rounded-md bg-bg-sidebar-hover px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-faint sm:inline">
+          Image
         </span>
       ) : null}
     </div>

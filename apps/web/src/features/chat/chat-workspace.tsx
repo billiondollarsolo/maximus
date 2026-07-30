@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useCallback, useState } from "react";
 import { Menu } from "lucide-react";
 import { IconButton } from "#/components/ui";
 import { AppShell } from "#/components/layout/app-shell";
@@ -10,10 +11,38 @@ import { useChatWorkspace } from "./use-chat-workspace";
 
 /**
  * Black canvas + expanded composer (model inside field). Mobile menu only in header.
+ * URL: `/` = new chat, `/c/$conversationId` = sticky thread (ChatGPT-style).
  */
-export function ChatWorkspace() {
+export function ChatWorkspace({
+  conversationId = null,
+}: {
+  conversationId?: string | null;
+}) {
+  const nav = useNavigate();
   const [modelRef, setModelRef] = useState("");
-  const chat = useChatWorkspace(modelRef);
+
+  const onNavigateConversation = useCallback(
+    (id: string | null) => {
+      if (id) {
+        void nav({
+          to: "/c/$conversationId",
+          params: { conversationId: id },
+          replace: false,
+        });
+      } else {
+        void nav({ to: "/" });
+      }
+    },
+    [nav],
+  );
+
+  const chat = useChatWorkspace(modelRef, {
+    routeConversationId: conversationId,
+    onNavigateConversation,
+    onConversationModel: (ref) => {
+      if (ref) setModelRef(ref);
+    },
+  });
   const isEmpty = chat.displayMessages.length === 0;
 
   const composer = (
@@ -26,8 +55,14 @@ export function ChatWorkspace() {
       disabled={!modelRef}
       centered={isEmpty}
       onStop={() => chat.abort?.abort()}
-      onSend={(text, attachmentIds) =>
-        void chat.send(text, "send", undefined, attachmentIds)
+      onSend={(text, attachmentIds, interactionMode) =>
+        void chat.send(
+          text,
+          "send",
+          undefined,
+          attachmentIds,
+          interactionMode,
+        )
       }
     />
   );
@@ -43,7 +78,6 @@ export function ChatWorkspace() {
           onToggleCollapsed={() => chat.setCollapsed((c) => !c)}
           onNewChat={chat.newChat}
           activeId={chat.activeId}
-          onSelectConversation={(id) => void chat.loadConversation(id)}
           conversations={chat.history.map((h) => ({
             id: h.id,
             title: h.title ?? "New chat",
@@ -51,10 +85,10 @@ export function ChatWorkspace() {
           }))}
           searchQuery={chat.searchQuery}
           onSearchQueryChange={chat.setSearchQuery}
+          onConversationsChanged={() => void chat.refreshHistory(chat.searchQuery)}
         />
       }
     >
-      {/* Slim mobile-only header (model lives in composer) */}
       <header className="flex h-11 shrink-0 items-center px-2 md:h-0 md:overflow-hidden md:p-0">
         <IconButton
           icon={Menu}

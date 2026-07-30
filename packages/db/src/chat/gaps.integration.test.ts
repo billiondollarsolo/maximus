@@ -134,8 +134,8 @@ describe("AC gaps: allowlist, attach, feedback, BYOK resolve", () => {
       orgId,
       uploaderUserId: memberId,
       storageKey: `org/${orgId}/att/${attId}`,
-      filename: "solo.png",
-      mime: "image/png",
+      filename: "solo.txt",
+      mime: "text/plain",
       sizeBytes: 99,
     });
     let convId = "";
@@ -147,6 +147,7 @@ describe("AC gaps: allowlist, attach, feedback, BYOK resolve", () => {
       body: {
         text: "",
         attachmentIds: [attId],
+        // allowlisted non-vision model; text files are not vision-gated
         modelRef: "openai:platform:allowed-only",
       },
       providerMode: "fake",
@@ -163,7 +164,7 @@ describe("AC gaps: allowlist, attach, feedback, BYOK resolve", () => {
     const content = user.content as Array<{ type: string; attachmentId?: string }>;
     expect(content.some((p) => p.type === "text")).toBe(false);
     expect(
-      content.some((p) => p.type === "image" && p.attachmentId === attId),
+      content.some((p) => p.type === "file" && p.attachmentId === attId),
     ).toBe(true);
     expect(msgs.some((m) => m.role === "assistant" && m.status === "complete")).toBe(
       true,

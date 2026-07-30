@@ -59,6 +59,12 @@ export const models = pgTable(
       .default({ streaming: true }),
     isEnabled: boolean("is_enabled").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
+    /** Per-offering rates; null falls back to model_prices pattern table. */
+    inputUsdPer1m: numeric("input_usd_per_1m", { precision: 12, scale: 6 }),
+    outputUsdPer1m: numeric("output_usd_per_1m", {
+      precision: 12,
+      scale: 6,
+    }),
   },
   (t) => [uniqueIndex("models_org_ref_uidx").on(t.orgId, t.modelRef)],
 );

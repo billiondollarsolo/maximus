@@ -9,21 +9,27 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import { siblingBranchMeta } from "@maximus/domain";
+import { BrandMark } from "#/components/layout/brand-mark";
 import { Button, IconButton } from "#/components/ui";
 import { MarkdownRenderer } from "#/components/markdown/markdown-renderer";
 import { cn } from "#/lib/cn";
+import { AttachmentImage } from "./attachment-image";
+import type { ContentPartUi } from "./chat-types";
 
 export type UiMessage = {
   id: string;
   role: "user" | "assistant" | "system" | "tool";
   content: string;
+  parts?: ContentPartUi[];
   status?: string;
   parentMessageId?: string | null;
   position?: number;
 };
 
 /**
- * ChatGPT layout: assistant full-width prose; user right-aligned soft bubble.
+ * ChatGPT-style thread:
+ * - User: right-aligned soft rectangular bubble (no per-message avatar)
+ * - Assistant: left brand mark + full-width prose
  */
 export function MessageList({
   messages,
@@ -57,7 +63,7 @@ export function MessageList({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col gap-6 px-4 py-6 md:px-5 md:py-8">
+      <div className="mx-auto flex w-full max-w-[var(--content-max)] flex-col gap-4 px-4 py-6 md:px-5 md:py-8">
         {messages.map((m) => {
           const meta = siblingBranchMeta(treeForMeta, m.id);
           const isUser = m.role === "user";
@@ -72,18 +78,31 @@ export function MessageList({
               )}
             >
               {isAssistant ? (
-                <div className="flex gap-3">
+                <div className="flex gap-3.5">
                   <div
-                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-bg-sidebar-active text-[11px] font-semibold text-text-primary"
+                    className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-bg-sidebar-active text-text-primary"
                     aria-hidden
                   >
-                    M
+                    <BrandMark className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0 flex-1 pt-0.5">
                     {editingId === m.id ? null : (
-                      <div className="msg-prose">
-                        <MarkdownRenderer content={m.content} />
-                        {m.status === "streaming" && !m.content ? (
+                      <div className="space-y-2">
+                        {m.content ? (
+                          <MarkdownRenderer content={m.content} />
+                        ) : null}
+                        {(m.parts ?? [])
+                          .filter((p) => p.type === "image" && p.attachmentId)
+                          .map((p) => (
+                            <AttachmentImage
+                              key={p.attachmentId}
+                              attachmentId={p.attachmentId!}
+                              showDownload
+                            />
+                          ))}
+                        {m.status === "streaming" &&
+                        !m.content &&
+                        !(m.parts ?? []).some((p) => p.type === "image") ? (
                           <span className="inline-block h-4 w-1.5 animate-pulse rounded-sm bg-text-muted" />
                         ) : null}
                       </div>
@@ -91,13 +110,14 @@ export function MessageList({
                   </div>
                 </div>
               ) : (
+                /* ChatGPT user bubble: soft rounded rect, no avatar circle */
                 <div
                   className={cn(
-                    "max-w-[85%] rounded-[var(--radius-bubble)] bg-bg-user-bubble px-4 py-2.5 text-[15px] leading-relaxed text-text-primary sm:max-w-[75%]",
+                    "user-msg-bubble w-fit max-w-[min(100%,42rem)] bg-bg-user-bubble px-4 py-3 text-[15px] leading-[1.55] text-text-primary",
                   )}
                 >
                   {editingId === m.id ? (
-                    <div className="flex min-w-[16rem] flex-col gap-2">
+                    <div className="flex min-w-[16rem] flex-col gap-2 sm:min-w-[20rem]">
                       <textarea
                         className="min-h-[80px] w-full rounded-[var(--radius-md)] border border-border-subtle bg-bg-app p-2 text-sm"
                         value={editText}
@@ -123,18 +143,31 @@ export function MessageList({
                       </div>
                     </div>
                   ) : (
-                    <p className="whitespace-pre-wrap">{m.content}</p>
+                    <div className="space-y-2">
+                      {(m.parts ?? [])
+                        .filter((p) => p.type === "image" && p.attachmentId)
+                        .map((p) => (
+                          <AttachmentImage
+                            key={p.attachmentId}
+                            attachmentId={p.attachmentId!}
+                            className="block"
+                          />
+                        ))}
+                      {m.content ? (
+                        <p className="whitespace-pre-wrap break-words">
+                          {m.content}
+                        </p>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               )}
 
-              {/* Actions under turn */}
+              {/* Actions under turn — hover for both user and assistant */}
               <div
                 className={cn(
-                  "mt-1.5 flex items-center gap-0.5",
-                  isUser ? "mr-0.5" : "ml-10",
-                  isAssistant &&
-                    "opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
+                  "mt-1 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100",
+                  isUser ? "justify-end" : "ml-10",
                 )}
               >
                 {meta && onBranch ? (
@@ -199,16 +232,25 @@ export function MessageList({
                 ) : null}
 
                 {isUser && editingId !== m.id ? (
-                  <IconButton
-                    icon={Pencil}
-                    label="Edit message"
-                    iconSize="sm"
-                    className="h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100"
-                    onClick={() => {
-                      setEditingId(m.id);
-                      setEditText(m.content);
-                    }}
-                  />
+                  <>
+                    <IconButton
+                      icon={Copy}
+                      label="Copy"
+                      iconSize="sm"
+                      className="h-7 w-7 text-text-muted"
+                      onClick={() => navigator.clipboard.writeText(m.content)}
+                    />
+                    <IconButton
+                      icon={Pencil}
+                      label="Edit message"
+                      iconSize="sm"
+                      className="h-7 w-7 text-text-muted"
+                      onClick={() => {
+                        setEditingId(m.id);
+                        setEditText(m.content);
+                      }}
+                    />
+                  </>
                 ) : null}
               </div>
             </div>

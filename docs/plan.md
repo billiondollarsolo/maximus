@@ -970,7 +970,7 @@ See also `docs/ui-parity-checklist.md` (to create):
 
 | Screen | Capabilities | UI |
 | --- | --- | --- |
-| Overview | Users, 7d messages, tokens, est. $; system health | cards |
+| Overview | Live health/connectivity (SSE), demo mode, optional probes, usage 7d; see `docs/admin-overview-dashboard-plan.md` | cards + live stream |
 | Members | Invite, role change, remove, pending invites | TanStack Table |
 | Providers | BYOK add/edit/disable, test connection; secrets never shown | forms + table |
 | Models | Enable/disable, sort, allowlist by role, default model | table |
@@ -1770,7 +1770,7 @@ Product depth beyond first-ship chat OS. **Canonical detail:** §41–§48 and W
 
 - [~] `/admin` shell (owner/admin only; 403 UI for members)  
 - [~] Overview, members, providers, models, usage, audit route shells  
-- [ ] Overview cards: users, messages 7d, tokens, estimated $  
+- [x] Overview live dashboard: health tiles, connectivity, demo banner, SSE, optional probes, usage 7d (`docs/admin-overview-dashboard-plan.md`)  
 - [ ] Members table (TanStack Table): invite, role change, remove, pending  
 - [ ] Providers: add/edit/disable, test connection, never show plaintext secrets  
 - [ ] Models: enable/disable, allowlist by role, sort  

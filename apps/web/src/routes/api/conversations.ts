@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth } from "@maximus/auth";
-import { conversationRepo, createDb, messageRepo } from "@maximus/db";
+import { conversationRepo, getDb, messageRepo } from "@maximus/db";
 import {
   AppError,
   canWriteConversation,
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/conversations")({
       GET: async ({ request }) => {
         try {
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           const url = new URL(request.url);
           const id = url.searchParams.get("id");
@@ -33,7 +33,6 @@ export const Route = createFileRoute("/api/conversations")({
             ) {
               throw new AppError("NOT_FOUND", "Conversation not found");
             }
-            // Full tree so client can switch branches (WP42)
             const msgs = await messageRepo.listMessagesForConversation(db, id);
             return jsonOk({
               conversation: conv,
@@ -41,6 +40,11 @@ export const Route = createFileRoute("/api/conversations")({
               activeLeafId: conv.activeLeafId,
             });
           }
+          const scopeParam = url.searchParams.get("scope");
+          const scope =
+            scopeParam === "archived" || scopeParam === "all"
+              ? scopeParam
+              : "active";
           const q = url.searchParams.get("q");
           const items = q
             ? await conversationRepo.searchConversations(db, {
@@ -51,8 +55,9 @@ export const Route = createFileRoute("/api/conversations")({
             : await conversationRepo.listConversations(db, {
                 orgId: ctx.orgId,
                 userId: ctx.user.id,
+                scope,
               });
-          return jsonOk({ conversations: items });
+          return jsonOk({ conversations: items, scope });
         } catch (err) {
           return jsonError(err);
         }
@@ -61,14 +66,16 @@ export const Route = createFileRoute("/api/conversations")({
         try {
           guardMutation(request);
           const env = serverEnv();
-          const db = createDb(env.databaseUrl);
+          const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           const body = (await request.json()) as {
             id: string;
             title?: string;
+            /** true = archive, false = unarchive */
             archive?: boolean;
             activeLeafId?: string | null;
           };
+          if (!body.id) throw new AppError("VALIDATION", "id required");
           const conv = await conversationRepo.getConversation(db, body.id);
           if (
             !conv ||
@@ -88,17 +95,87 @@ export const Route = createFileRoute("/api/conversations")({
               body.id,
             );
             if (!msgs.some((m) => m.id === body.activeLeafId)) {
-              throw new AppError("VALIDATION", "activeLeafId not in conversation");
+              throw new AppError(
+                "VALIDATION",
+                "activeLeafId not in conversation",
+              );
             }
           }
-          const updated = await conversationRepo.updateConversation(db, body.id, {
-            title: body.title,
-            titleSource: body.title != null ? "user" : undefined,
-            archivedAt: body.archive ? new Date() : undefined,
-            activeLeafId:
-              body.activeLeafId !== undefined ? body.activeLeafId : undefined,
-          });
+
+          const patch: {
+            title?: string | null;
+            titleSource?: string | null;
+            archivedAt?: Date | null;
+            activeLeafId?: string | null;
+          } = {};
+          if (body.title !== undefined) {
+            patch.title = body.title.trim() || null;
+            patch.titleSource = "user";
+          }
+          if (body.archive === true) patch.archivedAt = new Date();
+          if (body.archive === false) patch.archivedAt = null;
+          if (body.activeLeafId !== undefined) {
+            patch.activeLeafId = body.activeLeafId;
+          }
+
+          const updated = await conversationRepo.updateConversation(
+            db,
+            body.id,
+            patch,
+          );
           return jsonOk({ conversation: updated });
+        } catch (err) {
+          return jsonError(err);
+        }
+      },
+      DELETE: async ({ request }) => {
+        try {
+          guardMutation(request);
+          const env = serverEnv();
+          const db = getDb(env.databaseUrl);
+          const ctx = await requireAuth(sessionFromRequest(request), db);
+          const body = (await request.json()) as {
+            id?: string;
+            /** bulk: all | archived */
+            bulk?: "all" | "archived";
+            /** type DELETE to confirm bulk wipe */
+            confirm?: string;
+          };
+
+          if (body.bulk) {
+            if (body.confirm !== "DELETE") {
+              throw new AppError(
+                "VALIDATION",
+                'Bulk delete requires confirm: "DELETE"',
+              );
+            }
+            const result = await conversationRepo.deleteConversationsForUser(
+              db,
+              {
+                orgId: ctx.orgId,
+                userId: ctx.user.id,
+                archivedOnly: body.bulk === "archived",
+              },
+            );
+            return jsonOk({ deleted: result.deleted, bulk: body.bulk });
+          }
+
+          if (!body.id) throw new AppError("VALIDATION", "id required");
+          const conv = await conversationRepo.getConversation(db, body.id);
+          if (
+            !conv ||
+            !canWriteConversation({
+              conversationOrgId: conv.orgId,
+              conversationUserId: conv.userId,
+              actorOrgId: ctx.orgId,
+              actorUserId: ctx.user.id,
+              actorRole: ctx.role,
+            })
+          ) {
+            throw new AppError("NOT_FOUND", "Conversation not found");
+          }
+          await conversationRepo.deleteConversation(db, body.id);
+          return jsonOk({ deleted: true, id: body.id });
         } catch (err) {
           return jsonError(err);
         }

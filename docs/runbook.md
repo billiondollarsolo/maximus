@@ -33,10 +33,55 @@ Details: [deploy.md](./deploy.md) · [tls.md](./tls.md)
 
 ## Health
 
+Public (load-balancer safe — shallow only):
+
 ```bash
 curl -fsS https://YOUR_DOMAIN/api/health
-# {"status":"ok","checks":{"app":"ok","postgres":"ok","valkey":"ok"}}
+# {"status":"ok","checks":{"app":"ok","postgres":"ok","valkey":"ok"},"version":"..."}
 ```
+
+Admin deep overview (session cookie required, **admin** role):
+
+```bash
+# One-shot JSON
+curl -fsS -b cookies.txt https://YOUR_DOMAIN/api/admin/overview | jq .overall,.components
+
+# Live SSE (immediate snapshot, then ~5s recompute; OVERVIEW_SSE_INTERVAL_MS)
+curl -Ns -b cookies.txt https://YOUR_DOMAIN/api/admin/overview/stream
+```
+
+### Demo mode
+
+Overview shows a **Demo mode** banner when `PROVIDER_MODE=fake`, or when live mode has no platform keys (`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `OLLAMA_BASE_URL`) and no enabled BYOK connection. Chat still works via the fake provider.
+
+### Provider probes (optional)
+
+- **Off by default.** Admin → Overview → Configure probes.
+- Interval clamped **5–1440 minutes** (default **15** when enabled).
+- Cheap checks only (`testProviderConnection` — models/tags list, not completions).
+- MVP: automatic probes run **only while** an admin has Overview SSE open; use **Probe all now** anytime (rate-limited 1/min per org).
+- Last results stored on each connection’s `credentials_meta.probe` (no secrets).
+
+### Ops env (optional)
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_VERSION` | — | Shown on Overview + shallow health |
+| `GIT_SHA` | — | Short build identity |
+| `OVERVIEW_SSE_INTERVAL_MS` | `5000` | Admin overview recompute cadence |
+
+### Local 1601x stack (isolated ports)
+
+When Postgres/Valkey/RustFS are on host ports **16011–16014** (e.g. e2e-smoke) and the app on **16010**:
+
+```bash
+# .env must point S3_ENDPOINT at RustFS (not the default :9000)
+# DATABASE_URL → :16011 · VALKEY_URL → :16012 · S3_ENDPOINT → :16013
+node scripts/ensure-s3-bucket.mjs   # creates maximus-uploads if missing
+./scripts/ready-local-16010.sh      # optional: wait + migrate + seed
+```
+
+Overview **Down** almost always means the object-store probe failed (wrong `S3_ENDPOINT` or missing bucket). Public `/api/health` will still look fine because it does not check storage.
 
 ## Bootstrap first owner
 
@@ -88,6 +133,20 @@ pnpm test:e2e
 export PROVIDER_MODE=fake
 # After browser login, chat in UI or POST /api/chat with session cookie
 ```
+
+## API client smoke (no browser)
+
+```bash
+APP=http://127.0.0.1:16010
+TOKEN=$(curl -sS -X POST "$APP/api/auth/login" \
+  -H 'content-type: application/json' \
+  -d '{"email":"maximus-e2e@test.local","password":"E2eTestPass99!"}' | jq -r .sessionToken)
+curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api" | jq .apiVersion
+curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/auth/me" | jq .
+curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/admin/overview" | jq .overall
+```
+
+Full surface: [api.md](./api.md).
 
 ## Logs
 
