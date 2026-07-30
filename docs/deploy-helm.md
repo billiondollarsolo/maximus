@@ -17,7 +17,7 @@ Release tags (`v*`) build **`ghcr.io/billiondollarsolo/maximus`** via [`.github/
 
 | Tag style | Example |
 | --- | --- |
-| Semver | `ghcr.io/billiondollarsolo/maximus:0.1.2` |
+| Semver | `ghcr.io/billiondollarsolo/maximus:0.1.3` |
 | Latest (on `v*` tags) | `ghcr.io/billiondollarsolo/maximus:latest` |
 
 **GHCR packages default to private.** Pick one:
@@ -30,7 +30,7 @@ Release tags (`v*`) build **`ghcr.io/billiondollarsolo/maximus`** via [`.github/
 
 ```bash
 # Verify
-docker pull ghcr.io/billiondollarsolo/maximus:0.1.2
+docker pull ghcr.io/billiondollarsolo/maximus:0.1.3
 ```
 
 ### B) Private package + pull secret
@@ -50,7 +50,7 @@ Helm:
 ```bash
 helm upgrade --install maximus ./deploy/helm/maximus \
   --set image.repository=ghcr.io/billiondollarsolo/maximus \
-  --set image.tag=0.1.2 \
+  --set image.tag=0.1.3 \
   --set imagePullSecrets[0].name=ghcr-pull \
   # …secrets, app.url, etc.
 ```
@@ -60,9 +60,9 @@ Sample manifest notes: [`examples/ghcr-pull-secret.yaml`](../deploy/helm/maximus
 ### C) Self-built registry
 
 ```bash
-docker build -f docker/Dockerfile -t YOUR_REG/maximus:0.1.2 .
-docker push YOUR_REG/maximus:0.1.2
-# --set image.repository=YOUR_REG/maximus --set image.tag=0.1.2
+docker build -f docker/Dockerfile -t YOUR_REG/maximus:0.1.3 .
+docker push YOUR_REG/maximus:0.1.3
+# --set image.repository=YOUR_REG/maximus --set image.tag=0.1.3
 ```
 
 ## Quick install (in-cluster data — small / demo)
@@ -72,7 +72,7 @@ ENC=$(openssl rand -base64 32)
 
 helm upgrade --install maximus ./deploy/helm/maximus \
   --set image.repository=ghcr.io/billiondollarsolo/maximus \
-  --set image.tag=0.1.2 \
+  --set image.tag=0.1.3 \
   # --set imagePullSecrets[0].name=ghcr-pull   # if package is private
   --set secrets.encryptionKey="$ENC" \
   --set app.url=https://chat.example.com \
@@ -98,7 +98,7 @@ This starts:
 helm upgrade --install maximus ./deploy/helm/maximus \
   -f deploy/helm/maximus/examples/values-external.yaml \
   --set image.repository=YOUR_REG/maximus \
-  --set image.tag=0.1.2 \
+  --set image.tag=0.1.3 \
   --set secrets.encryptionKey="$ENC" \
   --set externalDatabase.url='postgres://…' \
   --set externalRedis.url='redis://:…@…' \

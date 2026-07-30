@@ -8,7 +8,7 @@ fullnameOverride: ""
 image:
   # Default GHCR path after release tags (ci: release-ghcr.yml)
   repository: ghcr.io/billiondollarsolo/maximus
-  tag: "0.1.2"
+  tag: "0.1.3"
   pullPolicy: IfNotPresent
 
 # GHCR is private by default after Actions push — either make the package public

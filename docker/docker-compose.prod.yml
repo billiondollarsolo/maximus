@@ -94,7 +94,7 @@ services:
       - internal
 
   web:
-    # Prefer published GHCR tag, e.g. IMAGE=ghcr.io/billiondollarsolo/maximus:0.1.2
+    # Prefer published GHCR tag, e.g. IMAGE=ghcr.io/billiondollarsolo/maximus:0.1.3
     # Without IMAGE, `docker compose up --build` builds maximus-web:local.
     image: ${IMAGE:-maximus-web:local}
     build:
