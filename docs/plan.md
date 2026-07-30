@@ -2020,6 +2020,8 @@ WP18 Auth UX → WP19 Models/chat → WP20 Admin SPA
 
 Parallelize freely after WP18–20: security/deploy/DRY/UI tracks are independent.
 
+**After Phase 4 residual:** begin §48 **WP41–WP55** (ChatGPT parity + enterprise product depth). Do not start RAG/memory/voice before wave Now credibility gates (Appendix M.1).
+
 ---
 
 ## 26. Security & encryption deep dive
