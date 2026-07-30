@@ -8,6 +8,11 @@ dist
 .env
 .env.local
 .env.*.local
+.env.prod
+.env.production
+!.env.example
+!.env.prod.example
+backups/
 coverage
 playwright-report
 test-results

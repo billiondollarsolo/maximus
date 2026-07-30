@@ -1,0 +1,24 @@
+# Local / LAN prod-smoke without public DNS
+# Uses Caddy internal CA (browser will warn unless you trust it)
+# Or set DOMAIN=localhost and open https://localhost
+
+{
+	local_certs
+	auto_https disable_redirects
+}
+
+{$DOMAIN:localhost} {
+	tls internal
+
+	encode gzip
+
+	reverse_proxy web:3000 {
+		flush_interval -1
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}

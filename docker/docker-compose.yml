@@ -1,12 +1,18 @@
+# Maximus local development stack
+#   ./scripts/up-dev.sh
+#   # or: docker compose -f docker/docker-compose.yml up -d postgres valkey rustfs
+
+name: maximus-dev
+
 services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: maximus
-      POSTGRES_PASSWORD: maximus
-      POSTGRES_DB: maximus
+      POSTGRES_USER: ${POSTGRES_USER:-maximus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maximus}
+      POSTGRES_DB: ${POSTGRES_DB:-maximus}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - maximus_pg:/var/lib/postgresql/data
     healthcheck:
@@ -14,30 +20,35 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   valkey:
     image: valkey/valkey:8-alpine
+    command: ["valkey-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "${VALKEY_PORT:-6379}:6379"
+    volumes:
+      - maximus_valkey:/data
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   rustfs:
     image: rustfs/rustfs:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${S3_PORT:-9000}:9000"
+      - "${S3_CONSOLE_PORT:-9001}:9001"
     environment:
-      RUSTFS_ACCESS_KEY: maximus
-      RUSTFS_SECRET_KEY: maximussecret
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-maximus}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-maximussecret}
     volumes:
       - maximus_rustfs:/data
-    # Health endpoint varies by image version; start without strict health for v1 scaffold
     restart: unless-stopped
 
 volumes:
   maximus_pg:
+  maximus_valkey:
   maximus_rustfs:

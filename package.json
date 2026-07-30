@@ -15,7 +15,11 @@
     "typecheck": "pnpm -r run typecheck",
     "lint": "eslint .",
     "db:migrate": "pnpm --filter @maximus/db exec tsx src/migrate.ts",
-    "db:studio": "pnpm --filter @maximus/db studio"
+    "db:studio": "pnpm --filter @maximus/db studio",
+    "secrets": "./scripts/generate-secrets.sh",
+    "up:dev": "./scripts/up-dev.sh",
+    "up:prod": "./scripts/up-prod.sh",
+    "backup": "./scripts/backup.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",

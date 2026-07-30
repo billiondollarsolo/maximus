@@ -1,18 +1,24 @@
-# Default production Caddyfile — HTTP-01 Let's Encrypt (ports 80/443 must be public)
-# Set DOMAIN and ACME_EMAIL in .env
-#
-# SSE: flush_interval -1 so chat streams are not buffered.
+# Let's Encrypt DNS-01 via AWS Route 53
+# Requires: AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY (or IRSA/instance role)
+#           with route53:ChangeResourceRecordSets on the hosted zone
+# Image: build with docker/Dockerfile.caddy (includes caddy-dns/route53)
 
 {
 	email {$ACME_EMAIL}
-	# Uncomment for staging LE while testing:
-	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
 
 {$DOMAIN} {
+	tls {
+		dns route53 {
+			access_key_id {env.AWS_ACCESS_KEY_ID}
+			secret_access_key {env.AWS_SECRET_ACCESS_KEY}
+			# max_retries 5
+			# aws_profile {env.AWS_PROFILE}
+		}
+	}
+
 	encode gzip zstd
 
-	# Long-lived chat streams
 	reverse_proxy web:3000 {
 		flush_interval -1
 		transport http {

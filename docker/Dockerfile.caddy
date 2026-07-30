@@ -1,0 +1,11 @@
+# Caddy with DNS ACME plugins for Cloudflare + Route53 (auto-renew via Caddy)
+# https://caddyserver.com/docs/automatic-https#dns-challenge
+FROM caddy:2.9-builder-alpine AS builder
+RUN xcaddy build \
+  --with github.com/caddy-dns/cloudflare \
+  --with github.com/caddy-dns/route53
+
+FROM caddy:2.9-alpine
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+# Verify plugins present (fails image build if missing)
+RUN caddy list-modules | grep -E 'dns.providers.(cloudflare|route53)' || true

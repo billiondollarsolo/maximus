@@ -1,18 +1,18 @@
-# Default production Caddyfile — HTTP-01 Let's Encrypt (ports 80/443 must be public)
-# Set DOMAIN and ACME_EMAIL in .env
-#
-# SSE: flush_interval -1 so chat streams are not buffered.
+# Let's Encrypt DNS-01 via Cloudflare (works behind CDN / no open 80)
+# Requires: CLOUDFLARE_API_TOKEN with Zone:DNS:Edit on the zone
+# Image: build with docker/Dockerfile.caddy (includes caddy-dns/cloudflare)
 
 {
 	email {$ACME_EMAIL}
-	# Uncomment for staging LE while testing:
-	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
 
 {$DOMAIN} {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+
 	encode gzip zstd
 
-	# Long-lived chat streams
 	reverse_proxy web:3000 {
 		flush_interval -1
 		transport http {
