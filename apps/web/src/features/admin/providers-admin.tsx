@@ -983,12 +983,9 @@ function ActionIcon({
   );
 }
 
+/** Full Ollama tag — keep size/quant (gemma3:4b, not "4b"). */
 function formatOllamaLabel(name: string): string {
-  const bare = name.replace(/:latest$/, "");
-  return bare
-    .split(/[-_]/)
-    .map((p) => (p.length ? p[0]!.toUpperCase() + p.slice(1) : p))
-    .join(" ");
+  return name.trim();
 }
 
 function parseOptionalInt(s: string): number | null {
@@ -1206,10 +1203,7 @@ function AddModelDialog({
                             ].join(" ")}
                           >
                             <span className="min-w-0">
-                              <span className="block truncate font-medium text-text-primary">
-                                {formatOllamaLabel(name)}
-                              </span>
-                              <span className="block truncate font-mono text-[11px] text-text-faint">
+                              <span className="block truncate font-mono text-sm font-medium text-text-primary">
                                 {name}
                               </span>
                             </span>

@@ -57,12 +57,13 @@ export function ModelSelect({
 
   return (
     <div className={cn("inline-flex min-w-0 items-center gap-1.5", className)}>
-      <label className="relative inline-flex min-w-0 max-w-[11rem] items-center sm:max-w-[14rem]">
+      <label className="relative inline-flex min-w-0 max-w-[16rem] items-center sm:max-w-[20rem]">
         <span className="sr-only">Model</span>
         <select
           aria-label="Model"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          title={selected?.displayName ?? value}
           className={cn(
             "w-full appearance-none truncate rounded-lg border border-border-subtle bg-bg-app",
             "py-1 pl-2.5 pr-7 text-[12.5px] font-medium text-text-secondary",
@@ -75,7 +76,7 @@ export function ModelSelect({
             <option value={value}>{error ?? "Loading…"}</option>
           ) : (
             options.map((m) => (
-              <option key={m.modelRef} value={m.modelRef}>
+              <option key={m.modelRef} value={m.modelRef} title={m.displayName}>
                 {m.displayName}
               </option>
             ))

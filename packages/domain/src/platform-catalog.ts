@@ -119,13 +119,13 @@ export function ollamaDiscoveredCatalog(input: {
   return rows;
 }
 
-/** llama3.2:latest → Llama 3.2 */
+/**
+ * Human label for an Ollama tag.
+ * Keep the **full** tag (including size/quant), e.g. `gemma3:4b`, `qwen2.5:1.5b`,
+ * `llama3.2:latest` — never strip to just `4b` or `latest`. Variants must stay distinct.
+ */
 export function formatOllamaDisplayName(name: string): string {
-  const bare = name.replace(/:latest$/, "");
-  return bare
-    .split(/[-_]/)
-    .map((p) => (p.length ? p[0]!.toUpperCase() + p.slice(1) : p))
-    .join(" ");
+  return name.trim();
 }
 
 /**

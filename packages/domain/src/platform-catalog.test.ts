@@ -45,6 +45,16 @@ describe("defaultPlatformCatalog (gated)", () => {
   });
 });
 
+describe("formatOllamaDisplayName", () => {
+  it("keeps full tag including size and latest", async () => {
+    const { formatOllamaDisplayName } = await import("./platform-catalog.js");
+    expect(formatOllamaDisplayName("gemma3:4b")).toBe("gemma3:4b");
+    expect(formatOllamaDisplayName("qwen2.5:1.5b")).toBe("qwen2.5:1.5b");
+    expect(formatOllamaDisplayName("llama3.2:latest")).toBe("llama3.2:latest");
+    expect(formatOllamaDisplayName("  mistral  ")).toBe("mistral");
+  });
+});
+
 describe("ollamaDiscoveredCatalog", () => {
   it("builds platform refs with colon tags in modelId", () => {
     const rows = ollamaDiscoveredCatalog({
@@ -55,6 +65,7 @@ describe("ollamaDiscoveredCatalog", () => {
     expect(rows[0]!.modelRef).toBe("ollama:platform:llama3.2:latest");
     expect(rows[1]!.modelRef).toBe("ollama:platform:qwen2.5");
     expect(rows[0]!.providerKind).toBe("ollama");
+    expect(rows[0]!.displayName).toBe("llama3.2:latest");
   });
 
   it("uses connection id for BYOK", () => {
