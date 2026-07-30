@@ -1,0 +1,37 @@
+# User-provided TLS certificates (no ACME).
+# Mount cert + key into the container (default paths below).
+#
+#   TLS_MODE=custom
+#   TLS_CERT_DIR=./certs   # host dir with tls.crt + tls.key (or fullchain.pem + privkey.pem)
+#
+# Automatic rotation of *these* files: replace files on disk, then:
+#   docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+# Or restart the caddy service. Prefer ACME modes for hands-off LE renewal.
+
+{$DOMAIN} {
+	tls /certs/tls.crt /certs/tls.key
+
+	encode gzip zstd
+
+	reverse_proxy web:3000 {
+		flush_interval -1
+		transport http {
+			read_timeout 10m
+			write_timeout 10m
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

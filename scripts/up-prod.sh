@@ -60,13 +60,14 @@ case "$TLS_MODE" in
   http01)
     export CADDYFILE="$ROOT/docker/Caddyfile"
     export CADDY_IMAGE="${CADDY_IMAGE:-caddy:2.9-alpine}"
+    echo "TLS: Let's Encrypt HTTP-01 (auto-renew while Caddy runs)"
     ;;
   cloudflare)
     if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
       echo "TLS_MODE=cloudflare requires CLOUDFLARE_API_TOKEN" >&2
       exit 1
     fi
-    echo "Building Caddy with Cloudflare DNS plugin..."
+    echo "Building Caddy with Cloudflare DNS plugin (LE DNS-01, auto-renew)..."
     docker build -f docker/Dockerfile.caddy -t maximus-caddy:local docker
     export CADDY_IMAGE=maximus-caddy:local
     export CADDYFILE="$ROOT/docker/Caddyfile.cloudflare"
@@ -76,17 +77,54 @@ case "$TLS_MODE" in
       echo "TLS_MODE=route53 requires AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY" >&2
       exit 1
     fi
-    echo "Building Caddy with Route53 DNS plugin..."
+    echo "Building Caddy with Route53 DNS plugin (LE DNS-01, auto-renew)..."
     docker build -f docker/Dockerfile.caddy -t maximus-caddy:local docker
     export CADDY_IMAGE=maximus-caddy:local
     export CADDYFILE="$ROOT/docker/Caddyfile.route53"
     ;;
+  custom|files|provided)
+    # User-provided cert + key (no ACME). Paths relative to docker/ when using default mount.
+    CERT_DIR="${TLS_CERT_DIR:-$ROOT/docker/certs}"
+    # Allow absolute or repo-relative
+    if [[ "$CERT_DIR" != /* ]]; then
+      CERT_DIR="$ROOT/${CERT_DIR#./}"
+    fi
+    # Normalize names: accept fullchain.pem/privkey.pem from certbot
+    if [[ -f "$CERT_DIR/fullchain.pem" && ! -f "$CERT_DIR/tls.crt" ]]; then
+      ln -sfn fullchain.pem "$CERT_DIR/tls.crt"
+    fi
+    if [[ -f "$CERT_DIR/privkey.pem" && ! -f "$CERT_DIR/tls.key" ]]; then
+      ln -sfn privkey.pem "$CERT_DIR/tls.key"
+    fi
+    if [[ ! -f "$CERT_DIR/tls.crt" || ! -f "$CERT_DIR/tls.key" ]]; then
+      echo "TLS_MODE=custom requires tls.crt + tls.key in TLS_CERT_DIR ($CERT_DIR)" >&2
+      echo "Or fullchain.pem + privkey.pem (symlinked automatically)." >&2
+      echo "See docs/tls.md" >&2
+      exit 1
+    fi
+    # Compose mount is relative to docker/ when path is ./certs
+    export TLS_CERT_DIR="${TLS_CERT_DIR:-./certs}"
+    if [[ "$TLS_CERT_DIR" == /* ]]; then
+      : # absolute host path ok for compose
+    elif [[ "$TLS_CERT_DIR" != ./* && "$TLS_CERT_DIR" != /* ]]; then
+      export TLS_CERT_DIR="./certs"
+    fi
+    # If user set absolute CERT_DIR, pass it through
+    if [[ "${TLS_CERT_DIR:-}" != /* && -d "$CERT_DIR" ]]; then
+      # Prefer absolute for reliability
+      export TLS_CERT_DIR="$CERT_DIR"
+    fi
+    export CADDYFILE="$ROOT/docker/Caddyfile.custom"
+    export CADDY_IMAGE="${CADDY_IMAGE:-caddy:2.9-alpine}"
+    echo "TLS: user-provided certs from $TLS_CERT_DIR (reload Caddy after rotating files)"
+    ;;
   local)
     export CADDYFILE="$ROOT/docker/Caddyfile.local"
     export CADDY_IMAGE="${CADDY_IMAGE:-caddy:2.9-alpine}"
+    echo "TLS: Caddy internal CA (local smoke)"
     ;;
   *)
-    echo "Unknown TLS_MODE=$TLS_MODE (http01|cloudflare|route53|local)" >&2
+    echo "Unknown TLS_MODE=$TLS_MODE (http01|cloudflare|route53|custom|local)" >&2
     exit 1
     ;;
 esac

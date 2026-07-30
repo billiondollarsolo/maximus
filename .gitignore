@@ -50,3 +50,9 @@ backups/
 # Optional agent/session noise (if present in workspace)
 .claude/settings.local.json
 .grok/
+
+# User-provided TLS material (TLS_MODE=custom)
+docker/certs/*
+!docker/certs/README.md
+*.pem
+!**/example*.pem

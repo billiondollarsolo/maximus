@@ -110,16 +110,24 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
+    # Automated LE (cert-manager) — HTTP-01 or DNS-01 issuer:
     # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # cert-manager.io/cluster-issuer: letsencrypt-dns-cloudflare
   hosts:
     - host: chat.example.com
       paths:
         - path: /
           pathType: Prefix
+  # User-provided or cert-manager-managed TLS Secret (type kubernetes:tls)
   tls: []
   #  - secretName: maximus-tls
   #    hosts:
   #      - chat.example.com
+
+# Documented patterns (not a Caddy sidecar):
+# - Automated TLS: cert-manager ClusterIssuer + annotations above (auto-renew)
+# - User certs: kubectl create secret tls maximus-tls --cert=… --key=…
+# See docs/tls.md
 
 resources: {}
 #  limits:

@@ -61,6 +61,8 @@ services:
       - ${CADDYFILE:-./Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+      # User-provided certs when TLS_MODE=custom (tls.crt + tls.key)
+      - ${TLS_CERT_DIR:-./certs}:/certs:ro
     depends_on:
       web:
         condition: service_healthy
