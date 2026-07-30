@@ -53,8 +53,10 @@ spec:
               value: {{ .Values.app.rateLimit.userPerMin | quote }}
             - name: RATE_LIMIT_ORG_PER_MIN
               value: {{ .Values.app.rateLimit.orgPerMin | quote }}
+            # Idempotent schema apply before listen (covers install race vs migrate Job)
+            # Note: do not pipe bool through sprig `default` — false is treated as empty.
             - name: RUN_MIGRATE
-              value: "0"
+              value: {{ if .Values.migrate.runOnWeb }}"1"{{ else }}"0"{{ end }}
             - name: MIGRATE_ONLY
               value: "0"
             - name: TRUST_PROXY

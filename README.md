@@ -113,6 +113,8 @@ ghcr.io/billiondollarsolo/maximus:latest
 
 Workflow: [`.github/workflows/release-ghcr.yml`](./.github/workflows/release-ghcr.yml) (on `v*` tags).
 
+GHCR packages are **private by default**. For anonymous pulls, set package visibility to **Public**, or use an `imagePullSecrets` PAT (`read:packages`) — details in [docs/deploy-helm.md](./docs/deploy-helm.md#ghcr-image-pull).
+
 ## Production
 
 ```bash

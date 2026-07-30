@@ -1,8 +1,13 @@
 Maximus {{ .Chart.AppVersion }} installed as {{ include "maximus.fullname" . }}.
 
-1. Ensure the image is built/pushed:
-   docker build -f docker/Dockerfile -t {{ .Values.image.repository }}:{{ .Values.image.tag }} .
-   # push to your registry and set image.repository / image.tag
+1. Image (default GHCR):
+   {{ .Values.image.repository }}:{{ .Values.image.tag }}
+   {{- if .Values.imagePullSecrets }}
+   imagePullSecrets: configured
+   {{- else }}
+   If pulls fail with 401: make the GHCR package public, or set imagePullSecrets
+   (see docs/deploy-helm.md → "GHCR image pull").
+   {{- end }}
 
 2. App URL: {{ .Values.app.url }}
    {{- if .Values.ingress.enabled }}
@@ -14,10 +19,19 @@ Maximus {{ .Chart.AppVersion }} installed as {{ include "maximus.fullname" . }}.
    Valkey:   {{ if .Values.redis.enabled }}in-cluster{{ else }}external{{ end }}
    Object:   {{ .Values.objectStorage.mode }}
 
-4. Bootstrap owner: open {{ .Values.app.url }}/login (first user only).
+4. Migrations:
+   Job hooks: post-install + pre-upgrade (waits for Postgres).
+   Web pods: RUN_MIGRATE={{ if .Values.migrate.runOnWeb }}1{{ else }}0{{ end }} before listen.
 
-5. Health: curl -fsS {{ .Values.app.url }}/api/health
+5. Bootstrap owner:
+   {{- if .Values.bootstrap.enabled }}
+   Bootstrap Job enabled (empty DB only; 403 if users exist = OK).
+   {{- else }}
+   Open {{ .Values.app.url }}/login (first user only), or re-install with
+   bootstrap.enabled=true + email/password.
+   {{- end }}
 
-Production tip: set postgresql.enabled=false and point externalDatabase.url at
-CloudNativePG (see examples/cnpg-cluster.yaml) or a managed database.
-Docs: docs/deploy-helm.md · docs/deploy-external.md
+6. Health: curl -fsS {{ .Values.app.url }}/api/health
+
+Production tip: postgresql.enabled=false + externalDatabase.url (or CNPG).
+Docs: docs/deploy-helm.md · docs/deploy-external.md · docs/tls.md

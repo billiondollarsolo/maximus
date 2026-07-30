@@ -11,6 +11,10 @@ image:
   tag: "0.1.0"
   pullPolicy: IfNotPresent
 
+# GHCR is private by default after Actions push — either make the package public
+# or create a pull secret (see docs/deploy-helm.md):
+#   imagePullSecrets:
+#     - name: ghcr-pull
 imagePullSecrets: []
 
 replicaCount: 1
@@ -100,7 +104,11 @@ objectStorage:
     forcePathStyle: true
 
 migrate:
+  # Helm Job: post-install + pre-upgrade (not pre-install — Secret/PG must exist)
   enabled: true
+  retries: 40
+  # Also run migrations in the web entrypoint before serving (idempotent)
+  runOnWeb: true
 
 # Optional first-owner bootstrap (empty DB only; re-run is safe → 403 OK)
 bootstrap:

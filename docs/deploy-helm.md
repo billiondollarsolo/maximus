@@ -1,27 +1,79 @@
 # Helm deploy
 
-Chart path: **`deploy/helm/maximus`**
+Chart path: **`deploy/helm/maximus`**  
+Helm **3.x and 4.x** both work (`apiVersion: v2` chart).
 
 ## Prerequisites
 
 - Kubernetes 1.25+  
-- Helm 3  
-- Container image built from `docker/Dockerfile` and pushed to a registry your cluster can pull  
+- **Helm 3** or **Helm 4**  
+- Container image your cluster can pull (GHCR release or self-built)  
 - Optional: [CloudNativePG](https://cloudnative-pg.io/) operator for production Postgres  
 - Optional: cert-manager + Ingress controller  
+
+## GHCR image pull
+
+Release tags (`v*`) build **`ghcr.io/billiondollarsolo/maximus`** via [`.github/workflows/release-ghcr.yml`](../.github/workflows/release-ghcr.yml).
+
+| Tag style | Example |
+| --- | --- |
+| Semver | `ghcr.io/billiondollarsolo/maximus:0.1.0` |
+| Latest (on `v*` tags) | `ghcr.io/billiondollarsolo/maximus:latest` |
+
+**GHCR packages default to private.** Pick one:
+
+### A) Make the package public (best for open-source self-host)
+
+1. GitHub → org/user **Packages** → **maximus**  
+2. **Package settings** → **Change visibility** → **Public**  
+3. No `imagePullSecrets` needed.
+
+```bash
+# Verify
+docker pull ghcr.io/billiondollarsolo/maximus:0.1.0
+```
+
+### B) Private package + pull secret
+
+```bash
+# PAT needs read:packages (enable SSO if the org requires it)
+kubectl create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io \
+  --docker-username=YOUR_GITHUB_USER \
+  --docker-password=YOUR_PAT \
+  --docker-email=you@example.com \
+  -n YOUR_NAMESPACE
+```
+
+Helm:
+
+```bash
+helm upgrade --install maximus ./deploy/helm/maximus \
+  --set image.repository=ghcr.io/billiondollarsolo/maximus \
+  --set image.tag=0.1.0 \
+  --set imagePullSecrets[0].name=ghcr-pull \
+  # …secrets, app.url, etc.
+```
+
+Sample manifest notes: [`examples/ghcr-pull-secret.yaml`](../deploy/helm/maximus/examples/ghcr-pull-secret.yaml).
+
+### C) Self-built registry
+
+```bash
+docker build -f docker/Dockerfile -t YOUR_REG/maximus:0.1.0 .
+docker push YOUR_REG/maximus:0.1.0
+# --set image.repository=YOUR_REG/maximus --set image.tag=0.1.0
+```
 
 ## Quick install (in-cluster data — small / demo)
 
 ```bash
-# Build & push image first
-docker build -f docker/Dockerfile -t YOUR_REG/maximus:0.1.0 .
-docker push YOUR_REG/maximus:0.1.0
-
 ENC=$(openssl rand -base64 32)
 
 helm upgrade --install maximus ./deploy/helm/maximus \
-  --set image.repository=YOUR_REG/maximus \
+  --set image.repository=ghcr.io/billiondollarsolo/maximus \
   --set image.tag=0.1.0 \
+  # --set imagePullSecrets[0].name=ghcr-pull   # if package is private
   --set secrets.encryptionKey="$ENC" \
   --set app.url=https://chat.example.com \
   --set postgresql.auth.password=strong-pg-pass \
@@ -116,9 +168,24 @@ For SSE (chat + admin overview streams), ensure the ingress **does not buffer** 
 | `externalRedis.url` | Managed Redis URL |
 | `objectStorage.mode` | `minio` \| `external` |
 | `secrets.existingSecret` | Use external Secret instead of chart-generated |
-| `migrate.enabled` | Helm pre-install/upgrade Job |
+| `imagePullSecrets` | Pull private GHCR / registry images |
+| `migrate.enabled` | Job on **post-install** + **pre-upgrade** (retries until DB up) |
+| `migrate.runOnWeb` | Web entrypoint runs migrations before listen (default `true`) |
+| `bootstrap.enabled` | Optional first-owner Job (empty DB only) |
+| `trustProxy` | Honor `X-Forwarded-*` behind Ingress (default `true`) |
 
 Full defaults: [`deploy/helm/maximus/values.yaml`](../deploy/helm/maximus/values.yaml).
+
+## Migrations (install / upgrade order)
+
+| Phase | What runs |
+| --- | --- |
+| Install (resources) | Secret, Postgres/Valkey/MinIO (if enabled), Deployment, Service, … |
+| **post-install** hook | Migrate Job (waits/retries for Postgres) |
+| Web start | `RUN_MIGRATE=1` — same migrations before HTTP listen (idempotent) |
+| **pre-upgrade** hook | Migrate Job against the live DB before the new pods roll |
+
+We deliberately **do not** use `pre-install` for migrate: the app Secret and database do not exist yet on a greenfield install.
 
 ## Optional first-owner bootstrap
 
@@ -131,7 +198,7 @@ helm upgrade --install maximus ./deploy/helm/maximus \
 ```
 
 Or `bootstrap.existingSecret` with keys `email` / `password`.  
-Job is post-install; **403 when users exist is success** (idempotent).
+Job is post-install (calls in-cluster Service with public `Origin`); **403 when users exist is success** (idempotent).
 
 ## After install
 

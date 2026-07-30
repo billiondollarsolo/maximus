@@ -1,4 +1,11 @@
 {{- if .Values.migrate.enabled }}
+{{/*
+  Migrate Job ordering (Helm 3 + 4):
+  - NOT pre-install: secrets, SA, and Postgres do not exist yet on greenfield install.
+  - post-install: runs after Secret / StatefulSets / Deployment are applied.
+  - pre-upgrade: runs against the still-living DB before the new rollout (schema first).
+  Web pods also run migrations on start (RUN_MIGRATE=1) so install races are safe.
+*/}}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -6,18 +13,23 @@ metadata:
   labels:
     {{- include "maximus.labels" . | nindent 4 }}
   annotations:
-    helm.sh/hook: pre-install,pre-upgrade
-    helm.sh/hook-weight: "-5"
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-weight: "0"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:
-  backoffLimit: 3
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 86400
   template:
     metadata:
       labels:
         {{- include "maximus.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: migrate
     spec:
-      restartPolicy: Never
+      restartPolicy: OnFailure
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ include "maximus.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
@@ -30,10 +42,6 @@ spec:
           env:
             - name: NODE_ENV
               value: production
-            - name: RUN_MIGRATE
-              value: "1"
-            - name: MIGRATE_ONLY
-              value: "1"
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
@@ -44,4 +52,24 @@ spec:
                 secretKeyRef:
                   name: {{ include "maximus.secretName" . }}
                   key: ENCRYPTION_KEY
+            - name: MIGRATE_RETRIES
+              value: {{ .Values.migrate.retries | default 40 | quote }}
+          # Retry until Postgres is ready (bundled STS can lag post-install)
+          command:
+            - sh
+            - -c
+            - |
+              set -eu
+              i=0
+              while [ "$i" -lt "${MIGRATE_RETRIES}" ]; do
+                echo "migrate attempt $((i+1))/${MIGRATE_RETRIES}..."
+                if pnpm --filter @maximus/db exec tsx src/migrate.ts; then
+                  echo "Migrations complete."
+                  exit 0
+                fi
+                i=$((i+1))
+                sleep 3
+              done
+              echo "Migrations failed after ${MIGRATE_RETRIES} attempts" >&2
+              exit 1
 {{- end }}
