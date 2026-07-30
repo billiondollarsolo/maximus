@@ -29,18 +29,23 @@ export function sessionFromRequest(request: Request): string | null {
   return cookies[SESSION_COOKIE] ?? null;
 }
 
+/**
+ * Secure cookies by default in production, but allow explicit opt-out for
+ * local HTTP smoke (`COOKIE_SECURE=false` with TLS_MODE=off).
+ */
+function cookieSecureFlag(): boolean {
+  const v = (process.env.COOKIE_SECURE ?? "").toLowerCase();
+  if (v === "false" || v === "0" || v === "no") return false;
+  if (v === "true" || v === "1" || v === "yes") return true;
+  return process.env.NODE_ENV === "production";
+}
+
 export function sessionCookieHeader(token: string): string {
-  const secure =
-    process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true"
-      ? "; Secure"
-      : "";
+  const secure = cookieSecureFlag() ? "; Secure" : "";
   return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 14}${secure}`;
 }
 
 export function clearSessionCookieHeader(): string {
-  const secure =
-    process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true"
-      ? "; Secure"
-      : "";
+  const secure = cookieSecureFlag() ? "; Secure" : "";
   return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }

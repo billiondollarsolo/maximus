@@ -10,9 +10,25 @@ Caddy is the **inbound TLS proxy** in production Compose. Choose how certificate
 | `cloudflare` | LE **DNS-01** (Cloudflare) | **Yes** (Caddy) | Behind CF proxy / no open 80 | 443 | `CLOUDFLARE_API_TOKEN` |
 | `route53` | LE **DNS-01** (Route 53) | **Yes** (Caddy) | DNS in AWS | 443 | AWS keys or instance role |
 | `custom` | **User-provided** files | **You** rotate + reload | Corporate / purchased / vault-issued certs | 443 | files on disk |
-| `local` | Caddy internal CA | n/a | Laptop / LAN smoke | any | none |
+| `local` | Caddy internal CA | n/a | Laptop HTTPS smoke (browser warns) | any | none |
+| `off` | **No TLS** (plain HTTP) | n/a | Local dev / smoke without certs | `HTTP_PORT` only | none |
 
 Set `TLS_MODE` in `.env.prod` and run `./scripts/up-prod.sh`.
+
+### Local plain HTTP (`TLS_MODE=off`)
+
+Recommended for laptop testing — **no browser cert warning**:
+
+```bash
+TLS_MODE=off
+COOKIE_SECURE=false
+DOMAIN=localhost
+APP_URL=http://localhost:16010
+HTTP_PORT=16010
+# HTTPS_PORT unused; can leave default
+```
+
+`COOKIE_SECURE=false` is required so the session cookie works over HTTP (even when `NODE_ENV=production` in Compose).
 
 ---
 

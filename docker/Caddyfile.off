@@ -1,0 +1,23 @@
+# Local / LAN — plain HTTP (no TLS). Use with:
+#   TLS_MODE=off
+#   COOKIE_SECURE=false
+#   APP_URL=http://localhost:16010
+#   HTTP_PORT=16010
+
+{
+	auto_https off
+}
+
+:80 {
+	encode gzip
+
+	reverse_proxy web:3000 {
+		flush_interval -1
+	}
+
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}

@@ -121,10 +121,19 @@ case "$TLS_MODE" in
   local)
     export CADDYFILE="$ROOT/docker/Caddyfile.local"
     export CADDY_IMAGE="${CADDY_IMAGE:-caddy:2.9-alpine}"
-    echo "TLS: Caddy internal CA (local smoke)"
+    echo "TLS: Caddy internal CA (local smoke — browser will warn)"
+    ;;
+  off|none|http|disabled)
+    # Plain HTTP — no certs. Pair with COOKIE_SECURE=false and APP_URL=http://…
+    export CADDYFILE="$ROOT/docker/Caddyfile.off"
+    export CADDY_IMAGE="${CADDY_IMAGE:-caddy:2.9-alpine}"
+    if [[ "${COOKIE_SECURE:-true}" == "true" || "${COOKIE_SECURE:-}" == "1" ]]; then
+      echo "WARNING: TLS_MODE=off but COOKIE_SECURE is true — set COOKIE_SECURE=false for browser login over HTTP" >&2
+    fi
+    echo "TLS: off (plain HTTP on HTTP_PORT=${HTTP_PORT:-80}; no HTTPS)"
     ;;
   *)
-    echo "Unknown TLS_MODE=$TLS_MODE (http01|cloudflare|route53|custom|local)" >&2
+    echo "Unknown TLS_MODE=$TLS_MODE (http01|cloudflare|route53|custom|local|off)" >&2
     exit 1
     ;;
 esac
@@ -144,9 +153,10 @@ docker compose -f docker/docker-compose.prod.yml --env-file "$ENV_FILE" up -d --
 echo ""
 echo "Waiting for health..."
 for i in $(seq 1 40); do
-  if curl -fsS "https://${DOMAIN}/api/health" >/dev/null 2>&1 \
-    || curl -kfsS "https://${DOMAIN}/api/health" >/dev/null 2>&1 \
-    || curl -fsS "http://127.0.0.1:${HTTP_PORT:-80}/api/health" >/dev/null 2>&1; then
+  if curl -fsS "http://127.0.0.1:${HTTP_PORT:-80}/api/health" >/dev/null 2>&1 \
+    || curl -fsS "${APP_URL}/api/health" >/dev/null 2>&1 \
+    || curl -fsS "https://${DOMAIN}/api/health" >/dev/null 2>&1 \
+    || curl -kfsS "https://${DOMAIN}/api/health" >/dev/null 2>&1; then
     echo "Healthy."
     break
   fi
