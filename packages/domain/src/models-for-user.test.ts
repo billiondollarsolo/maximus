@@ -53,13 +53,18 @@ describe("modelsForUser", () => {
 });
 
 describe("defaultPlatformModelRef", () => {
-  it("returns first enabled catalog model (single source of truth)", () => {
-    const env = { providerMode: "fake" as const };
+  it("returns first enabled catalog model when keys present", () => {
+    const env = { providerMode: "live" as const, openai: true };
     const ref = defaultPlatformModelRef(env);
     const cat = defaultPlatformCatalog(env);
     expect(ref).toBe(cat.find((m) => m.isEnabled)!.modelRef);
-    expect(ref.length).toBeGreaterThan(0);
     expect(cat.some((m) => m.modelRef === ref)).toBe(true);
+  });
+
+  it("stable placeholder when catalog empty", () => {
+    expect(defaultPlatformModelRef({ providerMode: "live" })).toBe(
+      "openai:platform:gpt-4.1",
+    );
   });
 });
 

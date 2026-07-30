@@ -1,7 +1,10 @@
 import type { CatalogModel } from "./models-for-user.js";
 
 export type PlatformCatalogEnv = {
-  /** fake = show demo platform cloud models without requiring keys */
+  /**
+   * Provider transport mode (fake adapter vs live HTTP).
+   * Does **not** inject demo models — catalog is keys/org only.
+   */
   providerMode: "fake" | "live";
   /** OPENAI_API_KEY present */
   openai?: boolean;
@@ -9,7 +12,7 @@ export type PlatformCatalogEnv = {
   anthropic?: boolean;
   /**
    * OLLAMA_BASE_URL present (or equivalent).
-   * Static Ollama rows are never emitted — use discovery (listOllama tags).
+   * Static Ollama rows are never emitted — register org models or use admin list_tags.
    */
   ollamaBaseUrl?: boolean;
 };
@@ -42,21 +45,19 @@ const OPENAI_IMAGE: CatalogModel = {
 };
 
 /**
- * Static **cloud** platform models, gated by env / mode.
- * - **fake**: always include OpenAI + Anthropic + image (demo path).
- * - **live**: only providers with platform credentials configured.
- * - **Ollama is never static** — callers append discovery results.
+ * Static **cloud** platform models — only when platform API keys exist.
+ * No demo/fake injection: empty keys ⇒ empty platform catalog.
+ * Ollama is never static (use org models from Admin → Providers).
  */
 export function defaultPlatformCatalog(
-  env: PlatformCatalogEnv = { providerMode: "fake" },
+  env: PlatformCatalogEnv = { providerMode: "live" },
 ): CatalogModel[] {
   const out: CatalogModel[] = [];
-  const fake = env.providerMode === "fake";
 
-  if (fake || env.openai) {
+  if (env.openai) {
     out.push(OPENAI_GPT, OPENAI_IMAGE);
   }
-  if (fake || env.anthropic) {
+  if (env.anthropic) {
     out.push(ANTHROPIC_SONNET);
   }
 
@@ -65,6 +66,7 @@ export function defaultPlatformCatalog(
 
 /**
  * Build catalog rows for discovered Ollama model names.
+ * Used by admin import/picker — **not** auto-merged into the chat catalog.
  * modelId may include tags (`llama3.2:latest`) — model-ref allows colons in modelId.
  */
 export function ollamaDiscoveredCatalog(input: {
@@ -109,11 +111,11 @@ export function formatOllamaDisplayName(name: string): string {
  * Prefer passing the full resolved catalog from GET /api/models instead.
  */
 export function defaultPlatformModelRef(
-  env: PlatformCatalogEnv = { providerMode: "fake" },
+  env: PlatformCatalogEnv = { providerMode: "live" },
 ): string {
   const catalog = defaultPlatformCatalog(env);
   const enabled = catalog.find((m) => m.isEnabled);
   if (enabled) return enabled.modelRef;
-  // Empty live catalog — stable placeholder; chat resolves real list from API.
+  // Empty catalog — stable placeholder; chat resolves real list from API.
   return "openai:platform:gpt-4.1";
 }

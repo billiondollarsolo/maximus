@@ -6,13 +6,9 @@ import {
 } from "./platform-catalog.js";
 
 describe("defaultPlatformCatalog (gated)", () => {
-  it("fake mode includes openai + anthropic + image, no static ollama", () => {
+  it("never injects demo models without keys (including fake mode)", () => {
     const cat = defaultPlatformCatalog({ providerMode: "fake" });
-    const refs = cat.map((m) => m.modelRef);
-    expect(refs).toContain("openai:platform:gpt-4.1");
-    expect(refs).toContain("anthropic:platform:claude-sonnet-4");
-    expect(refs).toContain("openai:platform:gpt-image-1");
-    expect(refs.some((r) => r.startsWith("ollama:"))).toBe(false);
+    expect(cat).toEqual([]);
   });
 
   it("live with no keys → empty static platform", () => {
@@ -71,8 +67,13 @@ describe("ollamaDiscoveredCatalog", () => {
 });
 
 describe("defaultPlatformModelRef", () => {
-  it("matches first enabled gated catalog entry", () => {
-    const env = { providerMode: "fake" as const };
+  it("falls back when catalog empty", () => {
+    const env = { providerMode: "live" as const };
+    expect(defaultPlatformModelRef(env)).toBe("openai:platform:gpt-4.1");
+  });
+
+  it("matches first enabled when keys present", () => {
+    const env = { providerMode: "live" as const, openai: true };
     const ref = defaultPlatformModelRef(env);
     const cat = defaultPlatformCatalog(env);
     expect(ref).toBe(cat.find((m) => m.isEnabled)!.modelRef);

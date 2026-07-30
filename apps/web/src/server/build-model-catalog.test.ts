@@ -32,7 +32,7 @@ function env(partial: Record<string, unknown> = {}) {
 }
 
 describe("buildModelCatalog", () => {
-  it("live without keys has no cloud platform; discovers ollama platform", async () => {
+  it("live without keys and no org models → empty chat catalog", async () => {
     const { createDb, newId, organizations, organizationsExt, testMigrate } =
       await import("@maximus/db");
     await testMigrate(DATABASE_URL);
@@ -53,31 +53,14 @@ describe("buildModelCatalog", () => {
         providerMode: "live",
         ollamaBaseUrl: "http://127.0.0.1:11434",
       }),
-      listOllama: async () => [
-        { name: "llama3.2:latest" },
-        { name: "codellama" },
-      ],
     });
 
-    expect(platform.every((m) => !m.modelRef.startsWith("openai:"))).toBe(true);
-    expect(platform.map((m) => m.modelRef)).toEqual(
-      expect.arrayContaining([
-        "ollama:platform:llama3.2:latest",
-        "ollama:platform:codellama",
-      ]),
-    );
-    expect(models.map((m) => m.modelRef)).toEqual(
-      expect.arrayContaining([
-        "ollama:platform:llama3.2:latest",
-        "ollama:platform:codellama",
-      ]),
-    );
-    expect(catalog.some((m) => m.modelRef === "openai:platform:gpt-4.1")).toBe(
-      false,
-    );
+    expect(platform).toEqual([]);
+    expect(models).toEqual([]);
+    expect(catalog).toEqual([]);
   });
 
-  it("fake mode still shows openai/anthropic without keys", async () => {
+  it("fake mode does not inject demo openai/anthropic without keys", async () => {
     const { createDb, newId, organizations, organizationsExt, testMigrate } =
       await import("@maximus/db");
     await testMigrate(DATABASE_URL);
@@ -95,18 +78,11 @@ describe("buildModelCatalog", () => {
       orgId,
       role: "member",
       env: env({ providerMode: "fake" }),
-      listOllama: async () => [],
     });
-    expect(models.map((m) => m.modelRef)).toEqual(
-      expect.arrayContaining([
-        "openai:platform:gpt-4.1",
-        "anthropic:platform:claude-sonnet-4",
-      ]),
-    );
-    expect(models.some((m) => m.modelRef.includes("llama3.2"))).toBe(false);
+    expect(models).toEqual([]);
   });
 
-  it("discovers BYOK ollama connection models", async () => {
+  it("only enabled org models appear — not all ollama tags", async () => {
     const {
       createDb,
       newId,
@@ -132,25 +108,53 @@ describe("buildModelCatalog", () => {
       credentialsEncrypted: "x",
       hasSecret: false,
     });
+    await providerRepo.createModel(db, {
+      orgId,
+      connectionId: conn.id,
+      providerKind: "ollama",
+      modelId: "gemma3:4b",
+      displayName: "Gemma3:4b",
+      modelRef: `ollama:${conn.id}:gemma3:4b`,
+    });
 
-    const called: string[] = [];
     const { models } = await buildModelCatalog({
       db,
       orgId,
       role: "admin",
       env: env({ providerMode: "live" }),
-      listOllama: async (input) => {
-        called.push(input.baseUrl);
-        if (input.baseUrl.includes("10.0.0.5")) {
-          return [{ name: "deepseek-r1" }];
-        }
-        return [];
-      },
     });
 
-    expect(called).toContain("http://10.0.0.5:11434");
-    expect(models.map((m) => m.modelRef)).toContain(
-      `ollama:${conn.id}:deepseek-r1`,
+    expect(models.map((m) => m.modelRef)).toEqual([
+      `ollama:${conn.id}:gemma3:4b`,
+    ]);
+  });
+
+  it("platform openai key adds cloud models", async () => {
+    const { createDb, newId, organizations, organizationsExt, testMigrate } =
+      await import("@maximus/db");
+    await testMigrate(DATABASE_URL);
+    const db = createDb(DATABASE_URL);
+    const orgId = newId("org");
+    await db.insert(organizations).values({
+      id: orgId,
+      name: "Keys",
+      slug: orgId,
+    });
+    await db.insert(organizationsExt).values({ orgId, settings: {} });
+
+    const { models } = await buildModelCatalog({
+      db,
+      orgId,
+      role: "owner",
+      env: env({ providerMode: "live", openaiApiKey: "sk-test" }),
+    });
+
+    expect(models.map((m) => m.modelRef)).toEqual(
+      expect.arrayContaining([
+        "openai:platform:gpt-4.1",
+        "openai:platform:gpt-image-1",
+      ]),
     );
+    expect(models.some((m) => m.modelRef.startsWith("anthropic:"))).toBe(false);
   });
 });

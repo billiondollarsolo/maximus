@@ -48,7 +48,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/auth/me"
 | DELETE | `/api/auth/account` | Hard-delete account (`confirm: "DELETE"`) |
 | GET/PUT | `/api/me/instructions` | Personalization → chat system prompt |
 | GET/POST/PATCH/DELETE | `/api/projects` | Projects; PATCH can assign `conversationId` |
-| GET | `/api/models` | Allowed models (gated platform + Ollama `/api/tags` discovery + org BYOK) |
+| GET | `/api/models` | Allowed models (platform keys only + enabled org offerings; no auto Ollama dump) |
 | GET | `/api/conversations` | List / `?id=` / `?q=` / `?scope=` / `?projectId=` |
 | SPA | `/` · `/c/{conversationId}` · `/projects` | Deep links |
 | PATCH | `/api/conversations` | Title, archive/unarchive (`archive: true\|false`), activeLeafId |

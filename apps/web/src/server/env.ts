@@ -6,7 +6,8 @@ export function serverEnv() {
       "postgres://maximus:maximus@localhost:5432/maximus",
     valkeyUrl: process.env.VALKEY_URL ?? "redis://localhost:6379",
     encryptionKey: process.env.ENCRYPTION_KEY,
-    providerMode: (process.env.PROVIDER_MODE === "live" ? "live" : "fake") as
+    // Default live: no demo models. Opt in to fake adapter only when set.
+    providerMode: (process.env.PROVIDER_MODE === "fake" ? "fake" : "live") as
       | "live"
       | "fake",
     openaiApiKey: process.env.OPENAI_API_KEY,
