@@ -913,6 +913,14 @@ function RotateKeyDialog({
   );
 }
 
+function formatOllamaLabel(name: string): string {
+  const bare = name.replace(/:latest$/, "");
+  return bare
+    .split(/[-_]/)
+    .map((p) => (p.length ? p[0]!.toUpperCase() + p.slice(1) : p))
+    .join(" ");
+}
+
 function AddModelDialog({
   conn,
   onOpenChange,
@@ -933,15 +941,87 @@ function AddModelDialog({
   const [displayName, setDisplayName] = useState("");
   const [inputRate, setInputRate] = useState("");
   const [outputRate, setOutputRate] = useState("");
+  /** Ollama: discovered tags from /api/tags */
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [tagsError, setTagsError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [customMode, setCustomMode] = useState(false);
+
+  const isOllama = conn?.kind === "ollama";
+  const registered = useMemo(
+    () => new Set((conn?.models ?? []).map((m) => m.modelId)),
+    [conn],
+  );
 
   useEffect(() => {
-    if (conn) {
-      setModelId("");
-      setDisplayName("");
-      setInputRate("");
-      setOutputRate("");
-    }
+    if (!conn) return;
+    setModelId("");
+    setDisplayName("");
+    setInputRate("");
+    setOutputRate("");
+    setQuery("");
+    setCustomMode(conn.kind !== "ollama");
+    setTags([]);
+    setTagsError(null);
+
+    if (conn.kind !== "ollama") return;
+
+    let cancelled = false;
+    setTagsLoading(true);
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/providers", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "list_tags", id: conn.id }),
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          models?: string[];
+          error?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok) {
+          setTagsError(data.error ?? "Could not list Ollama models");
+          setTags([]);
+          setCustomMode(true);
+          return;
+        }
+        const list = Array.isArray(data.models) ? data.models : [];
+        setTags(list);
+        if (list.length === 0) {
+          setTagsError("No models on this Ollama host — pull one or enter an id");
+          setCustomMode(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setTagsError("Could not reach Ollama");
+          setCustomMode(true);
+        }
+      } finally {
+        if (!cancelled) setTagsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [conn]);
+
+  const filteredTags = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = q
+      ? tags.filter((t) => t.toLowerCase().includes(q))
+      : tags;
+    return list;
+  }, [tags, query]);
+
+  function pickTag(name: string) {
+    setModelId(name);
+    setDisplayName(formatOllamaLabel(name));
+    setCustomMode(false);
+    setQuery("");
+  }
 
   return (
     <Dialog open={conn != null} onOpenChange={onOpenChange}>
@@ -949,23 +1029,134 @@ function AddModelDialog({
         title="Add model"
         description={
           conn
-            ? `Offering on ${conn.name}. Rates optional (USD per 1M tokens).`
+            ? isOllama
+              ? `Pick a model from ${conn.name} (Ollama /api/tags), or enter a custom id. Rates optional.`
+              : `Offering on ${conn.name}. Rates optional (USD per 1M tokens).`
             : undefined
         }
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Model id">
-            <Input
-              value={modelId}
-              onChange={(e) => setModelId(e.target.value)}
-              placeholder="gpt-4.1"
-            />
-          </Field>
+          {isOllama && !customMode ? (
+            <div className="sm:col-span-2 space-y-2">
+              <Field label="Installed models">
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={
+                    tagsLoading
+                      ? "Loading from Ollama…"
+                      : "Search models… e.g. llama, qwen"
+                  }
+                  disabled={tagsLoading}
+                  autoFocus
+                />
+              </Field>
+              {tagsError ? (
+                <p className="text-xs text-amber-500/90">{tagsError}</p>
+              ) : null}
+              <div
+                className="max-h-48 overflow-y-auto rounded-md border border-border-subtle bg-bg-elevated"
+                role="listbox"
+                aria-label="Ollama models"
+              >
+                {tagsLoading ? (
+                  <p className="px-3 py-4 text-sm text-text-muted">
+                    Fetching /api/tags…
+                  </p>
+                ) : filteredTags.length === 0 ? (
+                  <p className="px-3 py-4 text-sm text-text-muted">
+                    {tags.length === 0
+                      ? "No models discovered."
+                      : "No matches for that search."}
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-border-subtle">
+                    {filteredTags.map((name) => {
+                      const already = registered.has(name);
+                      const selected = modelId === name;
+                      return (
+                        <li key={name}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={selected}
+                            disabled={already}
+                            onClick={() => pickTag(name)}
+                            className={[
+                              "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm transition-colors",
+                              already
+                                ? "cursor-not-allowed opacity-40"
+                                : "hover:bg-bg-hover",
+                              selected
+                                ? "bg-accent/15 text-text-primary"
+                                : "text-text-secondary",
+                            ].join(" ")}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate font-medium text-text-primary">
+                                {formatOllamaLabel(name)}
+                              </span>
+                              <span className="block truncate font-mono text-[11px] text-text-faint">
+                                {name}
+                              </span>
+                            </span>
+                            {already ? (
+                              <Badge className="shrink-0 text-[10px]">added</Badge>
+                            ) : selected ? (
+                              <Badge className="shrink-0 text-[10px]">selected</Badge>
+                            ) : null}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+              <button
+                type="button"
+                className="text-xs text-text-muted underline-offset-2 hover:text-text-primary hover:underline"
+                onClick={() => {
+                  setCustomMode(true);
+                  setModelId("");
+                  setDisplayName("");
+                }}
+              >
+                Enter a custom model id…
+              </button>
+            </div>
+          ) : (
+            <>
+              <Field label="Model id">
+                <Input
+                  value={modelId}
+                  onChange={(e) => setModelId(e.target.value)}
+                  placeholder={isOllama ? "llama3.2:latest" : "gpt-4.1"}
+                  autoFocus
+                />
+              </Field>
+              {isOllama ? (
+                <div className="sm:col-span-2 -mt-1">
+                  <button
+                    type="button"
+                    className="text-xs text-text-muted underline-offset-2 hover:text-text-primary hover:underline"
+                    onClick={() => {
+                      setCustomMode(false);
+                      setModelId("");
+                      setDisplayName("");
+                    }}
+                    disabled={tagsLoading || tags.length === 0}
+                  >
+                    ← Back to discovered models
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
           <Field label="Display name">
             <Input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="GPT-4.1 (prod)"
+              placeholder={isOllama ? "Llama 3.2" : "GPT-4.1 (prod)"}
             />
           </Field>
           <Field label="Input $/1M">
@@ -983,6 +1174,12 @@ function AddModelDialog({
             />
           </Field>
         </div>
+        {isOllama && modelId && !customMode ? (
+          <p className="text-xs text-text-muted">
+            Selected:{" "}
+            <span className="font-mono text-text-secondary">{modelId}</span>
+          </p>
+        ) : null}
         <DialogFooter>
           <Button
             type="button"

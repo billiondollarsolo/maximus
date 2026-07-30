@@ -98,6 +98,7 @@ export {
   defaultPlatformCatalog,
   defaultPlatformModelRef,
   ollamaDiscoveredCatalog,
+  formatOllamaDisplayName,
   type PlatformCatalogEnv,
 } from "./platform-catalog.js";
 export { composeCatalog, type ComposeCatalogInput } from "./compose-catalog.js";

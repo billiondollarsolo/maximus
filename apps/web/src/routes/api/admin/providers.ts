@@ -11,6 +11,7 @@ import {
   assertSafeBaseUrl,
   decryptSecret,
   encryptSecret,
+  listOllamaModels,
   testProviderConnection,
 } from "@maximus/provider-gateway";
 import { sessionFromRequest } from "#/server/cookies";
@@ -126,7 +127,7 @@ export const Route = createFileRoute("/api/admin/providers")({
           const ctx = await requireAuth(sessionFromRequest(request), db);
           requireOrgRole(ctx, "admin");
           const body = (await request.json()) as {
-            action?: "rotate" | "test" | "create";
+            action?: "rotate" | "test" | "create" | "list_tags";
             id?: string;
             kind?: ProviderKind;
             name?: string;
@@ -145,6 +146,37 @@ export const Route = createFileRoute("/api/admin/providers")({
             inputUsdPer1m?: number | null;
             outputUsdPer1m?: number | null;
           };
+
+          // Live Ollama tags for admin model picker (GET /api/tags)
+          if (body.action === "list_tags" && body.id) {
+            const existing = await providerRepo.getProviderConnectionForOrg(
+              db,
+              ctx.orgId,
+              body.id,
+            );
+            if (!existing) throw new AppError("NOT_FOUND", "Connection not found");
+            if (existing.kind !== "ollama") {
+              throw new AppError(
+                "VALIDATION",
+                "list_tags is only supported for ollama connections",
+              );
+            }
+            if (!existing.baseUrl?.trim()) {
+              throw new AppError(
+                "VALIDATION",
+                "baseUrl required on ollama connection to list models",
+              );
+            }
+            const tags = await listOllamaModels({
+              baseUrl: existing.baseUrl,
+              allowPrivateBaseUrls: env.allowPrivateBaseUrls,
+              timeoutMs: 8_000,
+            });
+            return jsonOk({
+              models: tags.map((t) => t.name),
+              baseUrl: existing.baseUrl,
+            });
+          }
 
           if (body.action === "rotate" && body.id && body.apiKey != null) {
             const encKey = requireEncryptionKey(env.encryptionKey);

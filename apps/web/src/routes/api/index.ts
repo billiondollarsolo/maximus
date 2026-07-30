@@ -45,7 +45,7 @@ const CATALOG = {
     { method: "PATCH", path: "/api/admin/overview/settings", auth: "admin" },
     { method: "POST", path: "/api/admin/overview/probe", auth: "admin" },
     { method: "GET", path: "/api/admin/providers", auth: "admin" },
-    { method: "POST", path: "/api/admin/providers", auth: "admin" },
+    { method: "POST", path: "/api/admin/providers", auth: "admin", note: "create|test|rotate|list_tags" },
     { method: "PATCH", path: "/api/admin/providers", auth: "admin" },
     { method: "DELETE", path: "/api/admin/providers", auth: "admin" },
     { method: "GET", path: "/api/admin/models", auth: "admin" },

@@ -95,8 +95,8 @@ export function ollamaDiscoveredCatalog(input: {
   return rows;
 }
 
-function formatOllamaDisplayName(name: string): string {
-  // llama3.2:latest → Llama 3.2
+/** llama3.2:latest → Llama 3.2 */
+export function formatOllamaDisplayName(name: string): string {
   const bare = name.replace(/:latest$/, "");
   return bare
     .split(/[-_]/)
