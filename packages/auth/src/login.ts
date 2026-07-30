@@ -8,10 +8,15 @@ export async function loginWithPassword(
   input: { email: string; password: string },
   db: Db = getDb(),
 ): Promise<{ sessionToken: string; userId: string; orgId: string }> {
+  const email = input.email?.toLowerCase().trim();
+  if (!email || !input.password) {
+    throw new AppError("UNAUTHORIZED", "Invalid credentials");
+  }
+
   const [user] = await db
     .select()
     .from(users)
-    .where(eq(users.email, input.email))
+    .where(eq(users.email, email))
     .limit(1);
   if (!user) throw new AppError("UNAUTHORIZED", "Invalid credentials");
 
@@ -33,6 +38,7 @@ export async function loginWithPassword(
     .limit(1);
   if (!mem) throw new AppError("FORBIDDEN", "No organization membership");
 
+  // New session on each login (rotation)
   const sessionToken = await createSession(db, user.id, mem.organizationId);
   return { sessionToken, userId: user.id, orgId: mem.organizationId };
 }

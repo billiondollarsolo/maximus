@@ -3,13 +3,13 @@ import { requireAuth, requireOrgRole } from "@maximus/auth";
 import { createDb, providerRepo, usageRepo } from "@maximus/db";
 import {
   AppError,
-  isAppError,
   serializeModelRef,
   type ProviderKind,
 } from "@maximus/domain";
 import { encryptSecret } from "@maximus/provider-gateway";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { guardMutation, jsonError, jsonOk } from "#/server/api";
 
 export const Route = createFileRoute("/api/admin/providers")({
   server: {
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/api/admin/providers")({
             db,
             ctx.orgId,
           );
-          return Response.json({
+          return jsonOk({
             connections: connections.map((c) => ({
               id: c.id,
               kind: c.kind,
@@ -35,22 +35,18 @@ export const Route = createFileRoute("/api/admin/providers")({
             })),
           });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
       POST: async ({ request }) => {
         try {
+          guardMutation(request);
           const env = serverEnv();
           if (!env.encryptionKey) {
-            return Response.json(
-              { error: "ENCRYPTION_KEY required for BYOK" },
-              { status: 500 },
+            throw new AppError(
+              "VALIDATION",
+              "ENCRYPTION_KEY required for BYOK",
+              500,
             );
           }
           const db = createDb(env.databaseUrl);
@@ -96,7 +92,7 @@ export const Route = createFileRoute("/api/admin/providers")({
             resourceId: conn.id,
             meta: { kind: body.kind, name: body.name },
           });
-          return Response.json({
+          return jsonOk({
             connection: {
               id: conn.id,
               kind: conn.kind,
@@ -106,13 +102,7 @@ export const Route = createFileRoute("/api/admin/providers")({
             },
           });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },

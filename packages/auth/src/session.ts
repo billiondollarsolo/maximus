@@ -107,3 +107,12 @@ export function requireOrgRole(ctx: AuthContext, min: OrgRole): void {
     throw new AppError("FORBIDDEN", "Insufficient role");
   }
 }
+
+/** Revoke a single session by token (logout). */
+export async function revokeSession(
+  token: string | null | undefined,
+  db: Db = getDb(),
+): Promise<void> {
+  if (!token) return;
+  await db.delete(sessions).where(eq(sessions.token, token));
+}

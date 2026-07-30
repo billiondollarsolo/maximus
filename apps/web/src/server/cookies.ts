@@ -19,9 +19,17 @@ export function sessionFromRequest(request: Request): string | null {
 }
 
 export function sessionCookieHeader(token: string): string {
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 14}`;
+  const secure =
+    process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true"
+      ? "; Secure"
+      : "";
+  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24 * 14}${secure}`;
 }
 
 export function clearSessionCookieHeader(): string {
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`;
+  const secure =
+    process.env.NODE_ENV === "production" || process.env.COOKIE_SECURE === "true"
+      ? "; Secure"
+      : "";
+  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure}`;
 }

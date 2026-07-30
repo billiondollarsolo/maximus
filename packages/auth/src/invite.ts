@@ -61,6 +61,12 @@ export async function acceptInvite(
   if (!inv || inv.expiresAt < new Date()) {
     throw new AppError("NOT_FOUND", "Invite not found or expired");
   }
+  if (!input.password || input.password.length < 10) {
+    throw new AppError(
+      "VALIDATION",
+      "password must be at least 10 characters",
+    );
+  }
 
   let [user] = await db
     .select()

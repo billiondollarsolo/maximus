@@ -69,3 +69,12 @@ export {
   type ChatTurnInputShape,
   type NormalizedChatTurnInput,
 } from "./chat-input.js";
+export {
+  isModelAllowed,
+  type AllowlistRule,
+} from "./model-allow.js";
+export {
+  modelsForUser,
+  type CatalogModel,
+} from "./models-for-user.js";
+export { defaultPlatformCatalog } from "./platform-catalog.js";

@@ -1,10 +1,12 @@
 # Maximus — Enterprise ChatGPT Clone
 
-**Status:** Living plan — first-ship core (WP0–WP17) largely implemented; **next = polish + enterprise hardening (WP18+)**  
+**Status:** Living plan — first-ship core (WP0–WP17) largely implemented; **Phase 4 enterprise polish (WP18–WP40) is the active program**  
 **Repo:** `/Users/mj/mjcode/billiondollarsolo/maximus`  
 **Canonical path:** `docs/plan.md` (this file)  
 **Product name:** Maximus  
 **North star:** Looks, feels, and works like ChatGPT for daily chat; ships enterprise controls large companies expect; elite TypeScript engineering with small files, Postgres, and test-first delivery.
+
+**Enterprise bar:** Secure-by-default · Encrypt sensitive data · TLS everywhere in prod · DRY pure contracts · ChatGPT-class UI · Operable (health/logs/backups) · Auditable · Tested security properties
 
 ---
 
@@ -28,23 +30,30 @@
 16. [Security, privacy, compliance posture](#16-security-privacy-compliance-posture)
 17. [Observability & ops](#17-observability--ops)
 18. [TDD methodology (mandatory)](#18-tdd-methodology-mandatory)
-… first-ship WPs …
-22. [Phase 3+ product backlog](#22-phase-3-backlog)
-**23. [Shipped vs next (honest inventory)](#23-shipped-vs-next-honest-inventory)**  
-**24. [Phase 4 — Enterprise polish program](#24-phase-4--enterprise-polish-program)**  
-**25. [WP18+ work packages](#25-wp18-work-packages)**  
-**26. [Security & encryption deep dive](#26-security--encryption-deep-dive)**  
-**27. [Docker, TLS & production deploy](#27-docker-tls--production-deploy)**  
-**28. [DRY / architecture hygiene](#28-dry--architecture-hygiene)**  
-**29. [Elite UI polish bar](#29-elite-ui-polish-bar)**  
-**30. [Enterprise quality gates & compliance track](#30-enterprise-quality-gates--compliance-track)**
 19. [Test matrix](#19-test-matrix)
-20. [Work packages (granular tasks)](#20-work-packages-granular-tasks)
+20. [Work packages WP0–WP17](#20-work-packages-granular-tasks)
 21. [Definition of done (first ship)](#21-definition-of-done-first-ship)
-22. [Phase 3+ backlog](#22-phase-3-backlog)
-23. [Risks & mitigations](#23-risks--mitigations)
-24. [Open discussion topics](#24-open-discussion-topics)
-25. [Glossary](#25-glossary)
+22. [Phase 3+ product backlog](#22-phase-3-product-backlog)
+23. [Shipped vs next (honest inventory)](#23-shipped-vs-next-honest-inventory)
+24. [Phase 4 — Enterprise polish program](#24-phase-4--enterprise-polish-program)
+25. [WP18–WP40 work packages](#25-wp18-work-packages)
+26. [Security & encryption deep dive](#26-security--encryption-deep-dive)
+27. [Docker, TLS & production deploy](#27-docker-tls--production-deploy)
+28. [DRY / architecture hygiene](#28-dry--architecture-hygiene)
+29. [Elite UI polish bar](#29-elite-ui-polish-bar)
+30. [Enterprise quality gates & compliance](#30-enterprise-quality-gates--compliance-track)
+31. [Risks & mitigations](#31-risks--mitigations)
+32. [Discussion topics](#32-discussion-topics)
+33. [Glossary](#33-glossary)
+34. [Phase 5 — Platform maturity](#34-phase-5--platform-maturity)
+35. [Engineering best-practices catalog](#35-engineering-best-practices-catalog)
+36. [Supply chain, SBOM & dependency hygiene](#36-supply-chain-sbom--dependency-hygiene)
+37. [HA, backup, disaster recovery](#37-ha-backup-disaster-recovery)
+38. [Session, MFA & identity hardening](#38-session-mfa--identity-hardening)
+39. [Input validation, errors & API excellence](#39-input-validation-errors--api-excellence)
+40. [Performance, capacity & cost controls](#40-performance-capacity--cost-controls)
+
+Appendices: A env · B demo path · C module map · D UI matrix · E threat model · F WP0 TDD · G decisions · H UI rules · I AGENTS.md · **J security checklist** · **K prod go-live** · **L elite UI scorecard**
 
 ---
 
@@ -944,44 +953,57 @@ See also `docs/ui-parity-checklist.md` (to create):
 
 ## 15. Enterprise admin surfaces
 
-| Screen | Capabilities | Table? |
+**Product routes (Phase 4):** `/admin` (overview), `/admin/members`, `/admin/providers`, `/admin/models`, `/admin/usage`, `/admin/audit`, plus org settings. Member role: hide nav + API 403. Owner/admin: full matrix E.4.
+
+| Screen | Capabilities | UI |
 | --- | --- | --- |
-| Overview | User count, message volume 7d, token spend 7d | cards |
-| Members | List, role change, remove, pending invites | TanStack Table |
-| Invites | Create invite, revoke | Table |
-| Providers | Add/edit/disable connections, test | forms + table |
-| Models | Enable/disable, sort, allowlist by role | Table |
-| Usage | Filter by user/model/date; CSV export | Table |
-| Audit | Filter by action/actor/date | Table |
-| SSO | Stub “Coming in 2.1” + disabled form | — |
-| Org settings | Name, default model, budgets, retention | form |
+| Overview | Users, 7d messages, tokens, est. $; system health | cards |
+| Members | Invite, role change, remove, pending invites | TanStack Table |
+| Providers | BYOK add/edit/disable, test connection; secrets never shown | forms + table |
+| Models | Enable/disable, sort, allowlist by role, default model | table |
+| Usage | Filter user/model/date; CSV; budget status | table |
+| Audit | Filter action/actor/date | table |
+| Org settings | Name, default model, budgets, retention, rateLimitFailOpen | form |
+| SSO | Stub “Coming in 2.1” until WP29 | disabled form |
+
+**UI law:** dense enterprise tables, confirm destructive ops, empty states — not marketing dashboards. See WP20 + §29.5.
 
 ---
 
 ## 16. Security, privacy, compliance posture
 
-| Control | v1 requirement |
+| Control | v1 / Phase 4 requirement |
 | --- | --- |
-| Secrets | Server-only; encrypted BYOK; never in logs |
-| Session | httpOnly secure cookies; CSRF strategy per Better Auth + Start |
-| Authz | Fail closed; tests for cross-tenant |
-| SSRF | Base URL policy |
-| Rate limit | Per user + per org on `/api/chat` |
-| Headers | CSP baseline, HSTS in prod compose/docs |
-| PII | Audit log retains actor ids; export includes user content (owner only) |
-| Training | Document: providers may process data per their terms; self-host Ollama stays local |
-| Dependencies | pnpm audit in CI; lockfile committed |
+| Secrets | Server-only; AES-GCM BYOK; never in logs/client bundle |
+| Session | HttpOnly + Secure (prod) + SameSite; rotate on login; revoke UI |
+| CSRF | Same-origin guard minimum; token if needed |
+| Authz | Fail closed; E.4 matrix tests; 404 cross-tenant |
+| SSRF | Base URL policy; no cloud metadata; private only if allow flag |
+| Rate limit | Per user + org on chat; separate login/upload buckets |
+| Headers | CSP, HSTS (prod), nosniff, frame deny, Referrer-Policy, Permissions-Policy |
+| Encryption | KEK versioning; rotation runbook; optional KMS |
+| TLS | Mandatory in prod compose (Caddy); HTTP→HTTPS |
+| PII | Audit retains actor ids; export owner-only content (D12) |
+| Training | Document provider terms; Ollama stays local |
+| Dependencies | pnpm audit CI; lockfile; Renovate |
+| Containers | Non-root, scanned, pinned digests |
 | Migrations | Expand/contract; never edit applied |
+| Disclosure | security.txt + process (WP30) |
+
+Deep dive: §26 · Docker/TLS: §27 · Checklists: Appendix J–K
 
 ---
 
 ## 17. Observability & ops
 
-- Structured JSON logs: `requestId`, `orgId`, `userId`, `modelRef`, `latencyMs`, `errorCode`
-- Health: `GET /api/health` → db ping + optional rustfs head
-- Metrics (phase 2.1): OpenTelemetry hooks
-- Backups: documented `pg_dump`; rustfs volume backup
-- Compose profiles: `dev` (hot reload), `prod` (built image)
+- Structured JSON logs: `requestId`, `orgId`, `userId`, `modelRef`, `latencyMs`, `errorCode` — **redact secrets**
+- Health: `GET /api/health` → db + valkey (+ deep: storage); include `version`/`gitSha` when set
+- Metrics (WP26): OpenTelemetry on chat path; rate_limit_trips; token counters
+- Error tracking: optional Sentry-compatible DSN
+- Backups: `pg_dump` + rustfs volume; encrypted archives; restore drill (§37)
+- Compose: `dev` hot reload · `prod` TLS image stack
+- Admin system status page (WP26)
+- Alerts (self-host doc): health failing, disk, error rate — customer-owned
 
 ---
 
@@ -1513,17 +1535,32 @@ Estimate is relative (S/M/L), not calendar commitments.
 
 ## 21. Definition of done (first ship)
 
-- [ ] All WP0–WP17 acceptance criteria met
-- [ ] Phase 0–2 features from product checklist live
-- [ ] Invite-only org with 3 roles works
-- [ ] OpenAI + Anthropic + Ollama + openai_compatible verified (manual or integration with recorded fixtures)
-- [ ] RustFS attachments work in compose
-- [ ] No plaintext API keys in DB
-- [ ] Cross-tenant isolation tests green
-- [ ] UI parity checklist signed off
-- [ ] CI green on main
-- [ ] Runbook: deploy, backup, bootstrap, rotate encryption key (document limitations)
-- [ ] Known issues list for 2.1 (OIDC, etc.)
+**Audit note (2026-07-29):** Core backend + shell + tests shipped. Phase 4 product UI, security headers, health, and prod compose are **in progress** on main working tree; Playwright E2E and full elite UI remain open.
+
+### 21.1 First-ship core (closed)
+
+- [x] Core WP0–WP17 backend + shell + integration tests (see §23.1)
+- [x] Invite-only org with 3 roles (package/API)
+- [x] OpenAI + Anthropic + Ollama + openai_compatible (fake + live HTTP adapters)
+- [x] Attachments schema + upload API + paperclip → attachmentIds
+- [x] No plaintext API keys in DB (AES-GCM BYOK tests)
+- [x] Cross-tenant isolation tests green
+- [x] CI quality scripts (`pnpm test/typecheck/lint`) green on main
+- [x] Runbook present (`docs/runbook.md`) with key rotation notes
+- [~] UI parity checklist — shell/chrome strong; full ChatGPT polish → §29 / WP25
+
+### 21.2 Phase 4 gate (enterprise-ready product)
+
+- [x] Login/invite/settings/admin **pages** — WP18/WP20 (member 403 UI)
+- [x] Dynamic model catalog UI — `modelsForUser` + `/api/models` + ModelSelect WP19
+- [x] Security headers + same-origin guard + Secure cookies + session revoke WP21
+- [x] `/api/health` (postgres + valkey)
+- [x] `docker/Dockerfile` + `docker-compose.prod.yml` + Caddy TLS scaffold WP23
+- [ ] Playwright E1–E8 WP28
+- [ ] Encryption rotation CLI + dual-key read WP22
+- [ ] OTel + structured logs WP26
+- [ ] Known issues list for 2.1 (OIDC) WP29
+- [ ] Appendix K prod go-live signed
 
 ---
 
@@ -1534,54 +1571,80 @@ Product depth beyond first-ship chat OS (can interleave with Phase 4 polish).
 | Item | Priority | Notes |
 | --- | --- | --- |
 | OIDC SSO | P0 enterprise | Google/Okta/Entra; complete `sso_configs`; SCIM later |
-| Dynamic model catalog UI | P0 | Load ModelSelect from org-enabled models + allowlist (not hardcoded) |
-| Login / invite / settings pages | P0 | Elite ChatGPT-class auth + settings UX (not API-only) |
-| Full admin SPA | P0 | Members, providers, models, usage charts, audit tables (TanStack Table) |
+| Dynamic model catalog UI | P0 | Load ModelSelect from org-enabled models + allowlist |
+| Login / invite / settings pages | P0 | Elite ChatGPT-class auth + settings UX |
+| Full admin SPA | P0 | Members, providers, models, usage, audit (TanStack Table) |
 | Projects + custom instructions UI | P1 | Already in schema/prompt assembly |
 | LLM retitle job | P1 | Non-blocking; respect `title_source=user` |
-| Vision: real multimodal to providers | P1 | Fetch attachment bytes; map to OpenAI/Anthropic image parts |
+| Vision: real multimodal to providers | P1 | Fetch attachment bytes; map to image parts |
 | PDF/text extraction pipeline | P1 | OCR optional; virus scan hook |
-| RAG / knowledge bases | P2 | PGVector in same Postgres; cite sources in markdown |
+| MFA TOTP for owners | P1 | §38 |
+| Org API keys (OpenAI-compat proxy) | P2 | Rate limits + audit |
+| RAG / knowledge bases | P2 | PGVector; cite sources |
 | Assistants / GPTs presets | P2 | System prompt + tools + model + knowledge |
 | Canvas / artifacts side panel | P2 | |
 | Shared conversation links | P2 | Org-scoped, expiring, audit |
 | Web search tool | P2 | Pluggable provider |
-| OpenAI-compatible proxy API | P2 | Org API keys; rate limits; audit |
 | Voice STT/TTS | P3 | |
 | Image generation | P3 | |
 | Memory (cross-chat facts) | P3 | |
 | SCIM / SAML | P3 | Large IdP estates |
 | Horizontal multi-region | P3 | Stateless web + Valkey + S3 |
+| Mobile native shell | P3 | Optional; web-first |
 
 ---
 
 ## 23. Shipped vs next (honest inventory)
 
-### 23.1 Shipped (first-ship core)
+### 23.1 Shipped (first-ship core) — verified against repo
 
 - Monorepo, AGENTS.md, global CSS + Lucide, ChatGPT-class shell (dark/light)
-- Postgres schema + migrate, repos, server-authoritative `runChatTurn`
+- Postgres schema + migrate, repos, server-authoritative `runChatTurn` + `assertChatTurnInput`
 - Invite-only auth (session tables), roles, D12 privacy
-- Multi-provider resolve + fake/live HTTP streaming (OpenAI-compat, Anthropic, Ollama)
+- Multi-provider resolve + fake/live HTTP streaming
 - BYOK AES-GCM, SSRF guards, Valkey rate limits, usage + cost_micros
 - Uploads API + paperclip UI → attachmentIds; export MD/JSON; feedback
 - Admin **APIs**: providers, models/allowlist, members, usage, audit
 - Integration tests (authz, allowlist, BYOK, branch, attach-only, export)
 
-### 23.2 Immediate next (product completeness)
+### 23.2 Shipped in Phase 4 (product completeness + security posture)
 
-1. Dynamic model picker (API-driven)  
-2. Login / bootstrap / accept-invite **pages**  
-3. Admin **UI** (not just APIs)  
-4. Settings: personalization, data export/delete, theme in settings nav  
-5. Projects UI + move chat to project  
-6. Message virtualization + sidebar virtualization at scale  
-7. Playwright E1–E8 against compose stack  
-8. Production Docker + TLS reverse proxy (Caddy/Traefik/nginx)
+| Area | Shipped | Residual polish |
+| --- | --- | --- |
+| Auth UX | Login/bootstrap/invite pages; status API; session revoke on logout; bootstrap locked when users exist | Valkey login lockout; multi-session list |
+| Settings | general / personalization / data / account | persist personalization to prompt assembly |
+| Admin SPA | overview, members, providers, models, usage, audit + **403 for members** | denser tables, charts, confirm dialogs |
+| Models | `modelsForUser`, `GET /api/models`, dynamic ModelSelect + vision badge | full capability badges, mid-chat model persist UX |
+| Security | headers on API helpers, same-origin `guardMutation`, Secure cookies, admin APIs on `jsonOk` | CSP nonces, body limits, magic-byte upload, login RL |
+| Deploy | Dockerfile (non-root user), prod compose, Caddyfile, `/api/health` | migrate one-shot, pin digests, Valkey password, backup scripts |
+| DRY | domain contracts + shared server helpers on auth/admin | remaining chat routes, ESLint boundary bans |
+| E2E | 105 unit/integration tests green | Playwright E1–E8, visual regression |
 
-### 23.3 Enterprise polish themes (Phase 4)
+### 23.3 Immediate next (finish then expand)
 
-Security · Encryption · TLS/Docker · DRY · Elite UI · Observability · Compliance · DR
+1. Finish auth/settings/admin pages → quality bar + deny paths  
+2. Wire security headers on **every** API response; CSRF on mutations  
+3. Prod compose smoke (TLS path or mkcert local)  
+4. DRY sweep: all routes via `jsonOk`/`guardMutation`  
+5. Elite UI: toasts, skeletons, branch switcher, virtualization  
+6. WP22 encryption ops + WP26 observability  
+7. WP28 Playwright + CI compose  
+8. WP30–WP40 maturity (supply chain, DR, MFA, perf)
+
+### 23.4 Enterprise polish themes
+
+| Theme | Sections | WP |
+| --- | --- | --- |
+| Security | §16, §26, App J | WP21, WP30 |
+| Encryption | §26.3, §38 | WP22 |
+| Docker / TLS | §27, App K | WP23 |
+| DRY | §28, §35 | WP24 |
+| Elite UI | §29, App L | WP25, WP31 |
+| Observability | §17, §26.6 | WP26 |
+| Compliance / DR | §30, §37 | WP27, WP32 |
+| Supply chain | §36 | WP33 |
+| Identity | §38 | WP18, WP29, WP34 |
+| Performance / cost | §40 | WP35 |
 
 ---
 
@@ -1594,102 +1657,136 @@ Security · Encryption · TLS/Docker · DRY · Elite UI · Observability · Comp
 | Principle | Rule |
 | --- | --- |
 | **Secure by default** | Fail closed (rate limit, authz, TLS, cookies); opt-in looseness only via org settings |
-| **Encrypt everything sensitive** | BYOK keys, SSO secrets, optional field-level for PII exports; TLS in transit |
+| **Encrypt everything sensitive** | BYOK keys, SSO secrets; TLS in transit; encrypted backups |
+| **Least privilege** | Role matrix E.4; no admin message read (D12); scoped cookies |
 | **DRY contracts** | One pure validator per concern (`assertChatTurnInput` pattern); no dual UI/server rules |
 | **Elite UI** | ChatGPT density + motion + a11y AA; design system only; no one-off pages |
 | **Operable** | Health, metrics, logs, backups, runbooks, zero-downtime migrate path |
 | **Auditable** | Every admin mutation + auth anomaly → `audit_events` |
-| **Testable** | Security properties have tests (authz matrix, SSRF, crypto, rate limit, TLS config smoke) |
+| **Testable** | Security properties have tests (authz matrix, SSRF, crypto, rate limit, headers) |
+| **Reproducible deploys** | Pinned images, multi-stage builds, no secrets in layers |
+| **Observable** | requestId everywhere; no silent failures; SLO-oriented metrics |
 
 ### 24.2 Outcomes (definition of “enterprise ready”)
 
-- [ ] Deploy with `docker compose -f docker-compose.prod.yml` + TLS certificates  
+- [ ] Deploy with `docker compose -f docker/docker-compose.prod.yml` + TLS  
 - [ ] A+ security headers (CSP, HSTS, Referrer-Policy, Permissions-Policy)  
-- [ ] Session cookies Secure + HttpOnly + SameSite; CSRF on non-GET mutations  
+- [ ] Session cookies Secure + HttpOnly + SameSite; CSRF/same-origin on non-GET  
 - [ ] Encryption key management documented (generate, backup, rotate, re-enter BYOK)  
 - [ ] Admin UI + member UX complete for daily ops without curl  
-- [ ] Model catalog fully dynamic; no hardcoded model list in production builds  
-- [ ] OpenTelemetry traces on chat path; structured JSON logs; no secret leakage  
+- [ ] Model catalog fully dynamic; no hardcoded models in prod builds  
+- [ ] OpenTelemetry traces on chat path; structured JSON logs; secret redaction  
 - [ ] Playwright E1–E8 green in CI against compose  
 - [ ] Load smoke: 50 concurrent fake streams without OOM  
-- [ ] Threat model ADR signed; dependency audit clean (or accepted exceptions)
+- [ ] Threat model + Appendix J checklist signed; `pnpm audit` clean or ADR exceptions  
+- [ ] Backup/restore drill documented and run once  
+- [ ] SBOM generated for release images  
+
+### 24.3 Non-goals for Phase 4 (defer to Phase 5 / product backlog)
+
+- Full multi-region active-active  
+- SCIM provisioning  
+- SOC2 Type II audit engagement (docs only)  
+- Custom WAF product (document Cloudflare/nginx patterns only)  
+- Mobile native apps  
+
+### 24.4 Success metrics
+
+| Metric | Target |
+| --- | --- |
+| Authz matrix coverage | 100% of E.4 rows tested |
+| Critical a11y (axe) | 0 on shell + chat + admin |
+| Mean chat first-token (fake) | < 100ms local |
+| Prod cold start (compose) | < 90s healthy |
+| Secret scan false-negatives | 0 known plaintext keys in git |
+| Dual validation bugs | 0 (single domain contract) |
 
 ---
 
-## 25. WP18+ work packages
+## 25. WP18–WP40 work packages
 
 ### WP18 — Auth UX + session hardening (L)
 
 **Goal:** Elite login/invite/settings; cookie/CSRF hardened.
 
-- [ ] Pages: `/login`, `/invite/$id`, `/settings/*` (General, Personalization, Data, Account)  
-- [ ] Bootstrap first-run wizard when no users exist  
-- [ ] Session: Secure cookies in prod; rotate session on login; logout all sessions  
-- [ ] CSRF middleware (TanStack Start) for POST/PATCH/DELETE  
-- [ ] Password policy (length, breach check optional); lockout after N failures (Valkey)  
-- [ ] Tests: invite flow E2E; CSRF rejects missing token; lockout trips  
+- [~] Pages: `/login`, `/invite/$id`, `/settings/*` (General, Personalization, Data, Account)  
+- [~] Bootstrap first-run path when no users (`/api/auth/status` + login page)  
+- [~] Session: Secure cookies in prod (`COOKIE_SECURE`); HttpOnly session  
+- [ ] Rotate session id on login; logout-all-sessions  
+- [~] Same-origin guard for mutations (`guardMutation`)  
+- [ ] Full CSRF double-submit or origin+token if cookie SameSite insufficient for cross-site  
+- [ ] Password policy (min length 10, optional complexity); lockout after N failures (Valkey)  
+- [ ] Account: list/revoke sessions  
+- [ ] Tests: invite flow; CSRF/origin rejects; lockout trips; member cannot hit admin  
 
-**Acceptance:** Member can join via invite UI only; no open signup; cookies secure in prod compose.
+**Acceptance:** Member joins via invite UI only; no open signup; cookies secure in prod compose.
 
 ### WP19 — Dynamic models + elite chat polish (L)
 
 **Goal:** ModelSelect from server; ChatGPT-grade thread UX.
 
-- [ ] `GET /api/models` — enabled + allowlisted for role  
-- [ ] ModelSelect loads live; capability badges (vision/tools)  
+- [~] `GET /api/models` — enabled + allowlisted for role (`modelsForUser`)  
+- [~] ModelSelect loads live  
+- [ ] Capability badges (vision/tools)  
 - [ ] Persist `conversation.model_ref`; mid-chat switch = next turn only  
 - [ ] Virtualized message list + conversation list (TanStack Virtual)  
 - [ ] Streaming markdown stable (no full remount)  
 - [ ] Branch switcher UI when siblings > 1  
-- [ ] Empty state chips + keyboard shortcuts from Appendix D  
-- [ ] Attachment chips: preview images; remove before send; size/mime errors toast  
+- [ ] Empty state chips + keyboard shortcuts (Appendix D)  
+- [ ] Attachment chips: preview; remove before send; size/mime toasts  
+- [ ] Stop generation UX polish; error bubble + retry  
 
-**Acceptance:** No hardcoded models in prod; 500-chat sidebar smooth; regen/edit/branch all polished.
+**Acceptance:** No hardcoded models in prod; 500-chat sidebar smooth; regen/edit/branch polished.
 
 ### WP20 — Admin SPA (L)
 
 **Goal:** Enterprise admin without leaving the product.
 
-- [ ] `/admin` shell (owner/admin only; 403 UI for members)  
+- [~] `/admin` shell (owner/admin only; 403 UI for members)  
+- [~] Overview, members, providers, models, usage, audit route shells  
 - [ ] Overview cards: users, messages 7d, tokens, estimated $  
-- [ ] Members table (TanStack Table): invite, role change, remove, pending invites  
+- [ ] Members table (TanStack Table): invite, role change, remove, pending  
 - [ ] Providers: add/edit/disable, test connection, never show plaintext secrets  
 - [ ] Models: enable/disable, allowlist by role, sort  
 - [ ] Usage: filters, CSV export, cost when priced  
 - [ ] Audit: filter by action/actor/date  
 - [ ] Org settings: name, budgets, retention, rateLimitFailOpen, default model  
 - [ ] SSO stub page “Coming 2.1”  
+- [ ] Confirm dialogs for destructive actions  
 
-**Acceptance:** All admin APIs have UI; member cannot see admin nav.
+**Acceptance:** All admin APIs have UI; member cannot see admin nav; secrets never rendered.
 
 ### WP21 — Security hardening pack (L)
 
 **Goal:** Defense-in-depth for enterprise review.
 
-- [ ] Security headers middleware (CSP, HSTS, X-Content-Type-Options, frame-ancestors none)  
-- [ ] Request body size limits; upload MIME allowlist (already partial) + magic-byte check  
+- [~] Security headers helper (CSP, HSTS, X-Content-Type-Options, frame deny)  
+- [ ] Apply headers on **all** responses (HTML + API); tighten CSP (nonces if needed)  
+- [ ] Request body size limits; upload MIME allowlist + magic-byte check  
 - [ ] Path traversal / zip-bomb guards on extract  
-- [ ] SSRF: extend to redirect following blocks; optional DNS rebinding guard  
-- [ ] Secret redaction in logs (Authorization, cookies, ciphertext never logged)  
-- [ ] Dependency: `pnpm audit` CI gate; Renovate/Dependabot  
-- [ ] Rate limit: login, invite, upload, chat (separate buckets)  
-- [ ] Content Security: no inline scripts; nonces if needed  
-- [ ] Penetration checklist doc + automated smoke for authz matrix  
+- [ ] SSRF: redirect following blocks; optional DNS rebinding guard  
+- [ ] Secret redaction in logs (Authorization, cookies, ciphertext)  
+- [ ] Rate limit: login, invite, upload, chat (separate Valkey buckets)  
+- [ ] `pnpm audit` CI gate; Renovate/Dependabot  
+- [ ] Penetration checklist (Appendix J) + authz matrix CI job  
 - [ ] Optional: WAF notes (Cloudflare) for SaaS deploy  
+- [ ] Security.txt + contact for responsible disclosure  
 
-**Acceptance:** Header smoke test; authz matrix CI job; audit log on security-sensitive events.
+**Acceptance:** Header smoke test; authz matrix CI; audit on security-sensitive events.
 
 ### WP22 — Encryption & secrets management (M)
 
 **Goal:** Enterprise-grade key handling.
 
-- [ ] Document envelope encryption: `ENCRYPTION_KEY` = KEK; version in `credentials_meta`  
-- [ ] Key rotation runbook: dual-read old/new; re-encrypt job; re-enter BYOK if lost  
-- [ ] Optional: external KMS (AWS KMS / GCP KMS / Vault) adapter interface  
-- [ ] Encrypt SSO client secrets (same primitive)  
-- [ ] At-rest: Postgres volume encryption note (LUKS/cloud disk); S3 SSE if cloud  
-- [ ] Generate keys: `pnpm secrets:generate` CLI  
+- [x] AES-256-GCM BYOK encrypt/decrypt + tests  
+- [ ] Document envelope encryption: `ENCRYPTION_KEY` = KEK; version in meta  
+- [ ] Dual-read old/new key; re-encrypt job; re-enter BYOK if lost  
+- [ ] `pnpm secrets:generate` CLI  
+- [ ] Optional KMS adapter interface (AWS KMS / GCP KMS / Vault)  
+- [ ] Encrypt SSO client secrets with same primitive  
+- [ ] At-rest: Postgres volume encryption note; S3 SSE when cloud  
 - [ ] Tests: rotate path; wrong version fails closed  
+- [ ] Never log ciphertext or KEK  
 
 **Acceptance:** No plaintext secrets in DB/logs; rotation documented and tested.
 
@@ -1699,22 +1796,26 @@ Security · Encryption · TLS/Docker · DRY · Elite UI · Observability · Comp
 
 ```
 services:
-  caddy|traefik   # TLS termination, HTTP→HTTPS, HSTS
-  web             # Start production image (non-root)
-  postgres        # healthcheck, volume, no public port in prod
-  valkey          # no public port; password/ACL
-  rustfs          # internal only; bucket bootstrap job
-  migrate         # one-shot job before web
+  caddy            # TLS termination, HTTP→HTTPS, HSTS, SSE flush
+  web              # production image (non-root target)
+  postgres         # healthcheck, volume, no public port
+  valkey           # no public port; password/ACL later
+  rustfs           # internal only
+  migrate          # one-shot before web (target)
 ```
 
-- [ ] Multi-stage `Dockerfile` (build + distroless/node-slim runtime, non-root user)  
-- [ ] `docker-compose.prod.yml`: internal network; only 443 published  
-- [ ] TLS: Caddy automatic HTTPS or Traefik + Let’s Encrypt; local mkcert profile for dev  
-- [ ] Env: secrets via files/Docker secrets; never bake keys into image  
-- [ ] Health: `/api/health` (db + valkey + optional storage) for orchestrators  
-- [ ] Resource limits, restart policies, log driver  
-- [ ] Backup scripts: `pg_dump` + rustfs volume; restore drill doc  
-- [ ] Optional: Kubernetes/Helm chart (later)  
+- [~] Multi-stage `docker/Dockerfile`  
+- [~] `docker/docker-compose.prod.yml` + `Caddyfile`  
+- [ ] Non-root user in image; read-only root FS where possible  
+- [ ] Migrate one-shot job + `depends_on` condition  
+- [ ] Valkey requirepass / ACL in prod  
+- [ ] Secrets via env files (600) or Docker secrets — never bake into image  
+- [~] Health: `/api/health` (db + valkey)  
+- [ ] Resource limits, restart policies, log rotation  
+- [ ] Image pin digests (not only tags)  
+- [ ] Backup scripts + restore drill doc  
+- [ ] mkcert local TLS profile for prod-compose on laptop  
+- [ ] Optional later: Helm chart  
 
 **Acceptance:** Fresh machine: clone → compose up → HTTPS login → chat works.
 
@@ -1722,122 +1823,264 @@ services:
 
 **Goal:** Eliminate dual contracts and copy-paste.
 
-- [ ] Inventory pure contracts: chat input ✅, export ✅, model-ref, authz, pricing  
-- [ ] Extract shared `requireApiAuth` + error mapper for all `/api/*` routes  
+- [x] Chat input, export, model-ref, RBAC, pricing, modelsForUser pure contracts  
+- [~] Shared `jsonOk` / `jsonError` / `guardMutation`  
+- [ ] Migrate **all** `/api/*` to shared helpers + security headers  
 - [ ] Shared pagination cursor helper  
 - [ ] Shared SSE writer utility  
-- [ ] ESLint: ban direct `fetch` to provider hosts outside gateway  
+- [ ] `assertUploadIntent` domain contract  
+- [ ] ESLint: ban direct provider `fetch` outside gateway  
 - [ ] ESLint: ban page-local CSS; ban non-Lucide icons  
 - [ ] Boundary tests: domain cannot import db  
 - [ ] Route handlers thin: max ~80 LOC; logic in packages  
+- [ ] Single error → HTTP status map  
 
-**Acceptance:** No duplicated validation between UI and server for chat/export/authz.
+**Acceptance:** No duplicated validation between UI and server for chat/export/authz/models.
 
 ### WP25 — Elite UI system (L)
 
 **Goal:** Pixel-and-feel enterprise ChatGPT clone.
 
-- [ ] Design tokens audit: spacing scale, radii, elevation, focus rings  
-- [ ] Motion: sidebar collapse, message appear, reduced-motion respect  
-- [ ] Toasts, command palette (⌘K search), confirm dialogs  
+- [ ] Design tokens audit: spacing, radii, elevation, focus rings  
+- [ ] Motion: sidebar collapse, message appear, `prefers-reduced-motion`  
+- [ ] Toasts, command palette (⌘K), confirm dialogs  
 - [ ] Skeleton loaders for history/thread  
-- [ ] Empty/error/offline states  
+- [ ] Empty / error / offline states  
 - [ ] Mobile drawer polish; safe-area insets  
-- [ ] A11y: axe CI, keyboard map from Appendix D, live region for streaming  
+- [ ] A11y: axe CI, keyboard map Appendix D, `aria-live` streaming  
 - [ ] Visual regression (Playwright screenshots) dark + light  
-- [ ] Wordmark, favicon, PWA manifest optional  
+- [ ] Wordmark, favicon, optional PWA manifest  
+- [ ] Score ≥ 95 on Appendix L elite UI scorecard  
 
-**Acceptance:** UI parity checklist 100%; axe critical = 0.
+**Acceptance:** UI parity checklist 100%; axe critical = 0; both themes.
 
 ### WP26 — Observability & SRE (M)
 
-- [ ] Structured JSON logs (pino/consola) with requestId  
-- [ ] OpenTelemetry traces on `/api/chat` + DB  
-- [ ] Metrics: chat_requests, tokens, errors, rate_limit_trips  
-- [ ] `/api/health` deep vs shallow  
-- [ ] Error tracking hook (Sentry-compatible, optional)  
+- [~] `/api/health` shallow (db + valkey)  
+- [ ] Deep health: storage head, optional provider ping (admin-only)  
+- [ ] Structured JSON logs (pino) with requestId / orgId / userId  
+- [ ] OpenTelemetry traces on `/api/chat` + DB queries  
+- [ ] Metrics: chat_requests, tokens, errors, rate_limit_trips, latency histograms  
+- [ ] Error tracking hook (Sentry-compatible, optional env)  
 - [ ] Admin “system status” page  
+- [ ] No secrets in log fields (redaction middleware tests)  
 
 ### WP27 — Compliance & data governance (M)
 
 - [ ] Retention jobs: purge archived chats after N days (org setting)  
 - [ ] GDPR-style user export + hard delete (own data)  
 - [ ] Org data export (owner only)  
-- [ ] DPA-ready docs: subprocessors (LLM providers), data flows diagram  
+- [ ] DPA-ready docs: subprocessors, data-flow diagram  
 - [ ] Break-glass admin read (optional, audited, time-boxed) — product decision  
 - [ ] Legal: no-training disclaimer for BYOK/self-host  
+- [ ] Cookie/privacy notice stub for SaaS mode  
 
 ### WP28 — E2E & quality automation (M)
 
-- [ ] Playwright: E1–E8 from plan §19.3  
-- [ ] CI job: compose up → migrate → e2e → tear down  
+- [ ] Playwright: E1–E8 from §19.3  
+- [ ] CI: compose up → migrate → e2e → tear down  
 - [ ] Contract tests for OpenAI-compat stream parser  
 - [ ] Chaos: Valkey down + fail-closed / fail-open org  
 - [ ] Load: k6 fake chat 50 VUs  
+- [ ] Visual smoke dark + light  
 
 ### WP29 — OIDC SSO (2.1) (L)
 
 - [ ] Enable OIDC for org; map claims → users/memberships  
-- [ ] JIT provisioning; disable password for SSO users (policy)  
+- [ ] JIT provisioning; password policy for SSO users  
 - [ ] Admin SSO config UI (secrets encrypted)  
 - [ ] Tests with mock IdP  
 
-### Suggested order after first ship
+### WP30 — Application security program (M)
+
+- [ ] Formal threat model doc (`docs/security/threat-model.md` from App E)  
+- [ ] STRIDE review of upload + BYOK + admin paths  
+- [ ] Authz matrix automated suite (every E.4 cell)  
+- [ ] Security regression pack: SSRF cases, path traversal, XSS smoke  
+- [ ] `security.txt`, vulnerability disclosure process  
+- [ ] Optional annual pen-test checklist for customers  
+
+### WP31 — Design system completion (M)
+
+- [ ] Radix dialogs, dropdowns, tabs fully tokenized  
+- [ ] Form field patterns (label, error, hint) shared  
+- [ ] Data table primitive (TanStack Table + density)  
+- [ ] EmptyState / ErrorState / OfflineBanner modules  
+- [ ] Story-less but **fixture-driven** visual tests  
+- [ ] Icon-only button a11y name rule  
+
+### WP32 — Backup, restore & DR drills (M)
+
+- [ ] `scripts/backup.sh` (pg_dump + rustfs volume)  
+- [ ] `scripts/restore.sh` with dry-run  
+- [ ] Document RPO/RTO targets (self-host defaults)  
+- [ ] Quarterly restore drill checkbox in runbook  
+- [ ] Encrypt backup artifacts at rest  
+- [ ] Postgres PITR notes for advanced ops  
+
+### WP33 — Supply chain & container hardening (M)
+
+- [ ] SBOM (Syft/Trivy) on release  
+- [ ] Trivy scan CI gate for Dockerfile  
+- [ ] Pin base image digests  
+- [ ] Dependabot/Renovate config  
+- [ ] gitleaks / secret scan pre-commit or CI  
+- [ ] Provenance attestation optional (cosign)  
+
+### WP34 — MFA, device trust & session UX (M)
+
+- [ ] TOTP MFA optional for owner/admin  
+- [ ] Recovery codes (hashed at rest)  
+- [ ] Session list + revoke in Account settings  
+- [ ] “New login” audit event  
+- [ ] Optional step-up auth for BYOK reveal/rotate  
+
+### WP35 — Performance, virtualization & cost guardrails (M)
+
+- [ ] TanStack Virtual for messages + sidebar  
+- [ ] Server pagination defaults (conversations, audit, usage)  
+- [ ] Org budget hard-stop when `cost_micros` exceeds cap  
+- [ ] Per-model token estimates in ModelSelect  
+- [ ] Stream backpressure / max concurrent streams per user  
+- [ ] Bundle analysis; route-level code split admin  
+
+### WP36 — API excellence & versioning (S)
+
+- [ ] Consistent error JSON: `{ code, message, requestId }`  
+- [ ] OpenAPI stub for public-ish routes (health, future proxy)  
+- [ ] Idempotency-Key for invite create (optional)  
+- [ ] Deprecation headers policy for future breaking changes  
+
+### WP37 — Multi-instance & sticky-less chat (M)
+
+- [ ] Stateless web: no local stream state required after reconnect  
+- [ ] Valkey optional stream cancel pub/sub (nice-to-have)  
+- [ ] Document horizontal scale: N web behind Caddy  
+- [ ] Connection pool sizing guide (Postgres)  
+
+### WP38 — Developer experience enterprise (S)
+
+- [ ] `pnpm secrets:generate`  
+- [ ] `pnpm doctor` (env + docker health)  
+- [ ] Dev seed script (demo org + fake chats)  
+- [ ] VS Code / launch configs optional  
+- [ ] CONTRIBUTING.md short path  
+
+### WP39 — Documentation enterprise pack (S)
+
+- [ ] `docs/security/*` (threat model, data flow, headers)  
+- [ ] `docs/ops/*` (TLS, backup, capacity)  
+- [ ] `docs/compliance/subprocessors.md`  
+- [ ] Architecture decision records for KMS, SSO, budgets  
+- [ ] Customer-facing security one-pager  
+
+### WP40 — Release engineering (S)
+
+- [ ] Semver + CHANGELOG  
+- [ ] GitHub Release with image tags  
+- [ ] Migration compatibility matrix  
+- [ ] Rollback runbook  
+- [ ] Version endpoint (`/api/health` includes `version` + git sha)  
+
+### Suggested order
 
 ```
-WP18 Auth UX/session → WP19 Models + chat polish → WP20 Admin SPA
-  → WP21 Security headers/CSRF → WP22 Encryption ops → WP23 Docker/TLS
+WP18 Auth UX → WP19 Models/chat → WP20 Admin SPA
+  → WP21 Security → WP22 Encryption → WP23 Docker/TLS
   → WP24 DRY → WP25 Elite UI → WP26 OTel → WP27 Governance
-  → WP28 E2E CI → WP29 OIDC
+  → WP28 E2E → WP30 AppSec → WP31 Design system
+  → WP32 DR → WP33 Supply chain → WP34 MFA
+  → WP35 Perf/cost → WP36 API → WP37 Scale
+  → WP38 DX → WP39 Docs → WP40 Release
+  → WP29 OIDC (2.1)
 ```
 
-Parallelize WP21/22/23 once WP18–20 unblocked product.
+Parallelize freely after WP18–20: security/deploy/DRY/UI tracks are independent.
 
 ---
 
 ## 26. Security & encryption deep dive
 
-### 26.1 Trust boundaries (refresh)
+### 26.1 Trust boundaries
 
 1. Browser ↔ TLS terminator ↔ web  
 2. Web ↔ Postgres (private network)  
-3. Web ↔ Valkey (private, password)  
+3. Web ↔ Valkey (private, password in prod)  
 4. Web ↔ RustFS (private)  
 5. Web ↔ external LLM APIs (egress allowlist optional)  
 6. Admin actions ↔ audit log  
+7. CI/CD ↔ registry (supply chain boundary)
 
 ### 26.2 Controls matrix
 
-| Control | Status first-ship | Phase 4 target |
+| Control | First-ship | Phase 4 target |
 | --- | --- | --- |
-| Authn invite-only | Done | + SSO, lockout, MFA optional |
-| Authz org+role+owner | Done | SCIM groups |
-| BYOK AES-GCM | Done | KMS envelope, rotation job |
-| SSRF base URL | Done | Redirect/DNS hardening |
-| Rate limit Valkey | Done | Per-route buckets + login |
-| Server-authoritative history | Done | Keep |
-| TLS | Dev HTTP | Prod HTTPS mandatory |
-| CSP/HSTS | Partial | Full middleware |
-| CSRF | Open | Required non-GET |
+| Authn invite-only | Done | + lockout, session revoke, MFA (WP34) |
+| Authz org+role+owner | Done | Full E.4 automation + SCIM later |
+| BYOK AES-GCM | Done | Versioned KEK, rotation job, optional KMS |
+| SSRF base URL | Done | Redirect + DNS hardening |
+| Rate limit Valkey | Done | Per-route buckets (login/upload/chat) |
+| Server-authoritative history | Done | Keep forever |
+| TLS | Dev HTTP | Prod HTTPS mandatory via Caddy |
+| CSP/HSTS | Helpers present | All responses + CSP tighten |
+| CSRF / same-origin | Guard helper | Universal on mutations |
 | Secret logging | Careful | Redaction middleware + tests |
-| Dependency audit | Manual | CI gate |
+| Dependency audit | Manual | CI gate + Renovate |
+| Container harden | Scaffold | Non-root, scan, pin digests |
+| Backup encryption | Doc only | Scripts + drill |
 
 ### 26.3 Encryption standards
 
-- **Algorithm:** AES-256-GCM only for app-level secrets  
-- **KEK:** 32-byte key from env/secret manager; never in git  
-- **Versioning:** `credentials_meta.v` for multi-key read  
-- **Transit:** TLS 1.2+ only; disable weak ciphers at proxy  
-- **At rest:** cloud disk encryption + optional S3 SSE  
-- **Backups:** encrypt dumps; restrict access  
+| Layer | Standard |
+| --- | --- |
+| App secrets (BYOK, SSO) | AES-256-GCM; 12-byte IV; auth tag; version byte |
+| KEK | 32-byte key from env / secret manager; never git |
+| Password | scrypt (current) or Argon2id upgrade path |
+| Transit | TLS 1.2+ at proxy; prefer TLS 1.3; HSTS |
+| At rest | Cloud disk / LUKS for volumes; optional S3 SSE |
+| Backups | Encrypted archives; restricted access |
+| Sessions | Opaque high-entropy tokens; server-side store |
 
-### 26.4 Authn best practices
+**Forbidden:** ECB, custom crypto, client-side storage of provider keys, logging decrypted secrets.
 
-- Argon2id or scrypt (current) with strong params  
-- Session tokens: high entropy, server-side revoke  
-- Cookie: `Secure; HttpOnly; SameSite=Lax` (Strict if feasible)  
-- MFA TOTP optional for owners (later)  
+### 26.4 Encryption operational lifecycle
+
+```
+generate KEK → store in secret manager → app encrypts DEK material
+  → credentials_meta.v tags ciphertext
+  → rotation: introduce KEK_n+1 → dual-read → re-encrypt job
+  → retire KEK_n after audit complete
+  → if KEK lost: re-enter all BYOK (irrecoverable ciphertexts)
+```
+
+### 26.5 Authn best practices
+
+- Min password length 10 (owner bootstrap enforced)  
+- Session tokens: high entropy, revoke on logout  
+- Cookie: `Secure; HttpOnly; SameSite=Lax` (Strict when SPA+API same-site allows)  
+- Rotate session on privilege elevation  
+- MFA TOTP for owners (WP34)  
 - Device/session list in Account settings  
+- Login rate limit + progressive delay  
+
+### 26.6 Logging & secret redaction
+
+Redact keys matching: `authorization`, `cookie`, `password`, `api_key`, `apiKey`, `ciphertext`, `ENCRYPTION_KEY`, `token`.  
+Tests must assert redaction on sample log lines.
+
+### 26.7 Network security
+
+- Prod: only 80/443 published  
+- Internal DNS names only for postgres/valkey/rustfs  
+- Optional egress proxy for LLM calls  
+- Document Cloudflare / external WAF in front of Caddy for SaaS  
+
+### 26.8 XSS / injection posture
+
+- React default escaping; no `dangerouslySetInnerHTML` except sanitised markdown pipeline  
+- Markdown: allowlist tags; no raw HTML script  
+- CSP as second line of defense  
+- SQL via Drizzle parameterized only  
 
 ---
 
@@ -1848,8 +2091,9 @@ Parallelize WP21/22/23 once WP18–20 unblocked product.
 | Env | Compose | TLS | Notes |
 | --- | --- | --- | --- |
 | dev | `docker/docker-compose.yml` | optional mkcert | hot reload web on host |
-| prod | `docker-compose.prod.yml` | Caddy/Traefik | published 443 only |
-| ci | compose + health waits | internal | e2e |
+| prod | `docker/docker-compose.prod.yml` | Caddy auto HTTPS | publish 80/443 only |
+| ci | compose + health waits | internal HTTP | e2e |
+| laptop-prod | prod compose + mkcert | local TLS | validate headers/HSTS path |
 
 ### 27.2 Production checklist
 
@@ -1857,18 +2101,25 @@ Parallelize WP21/22/23 once WP18–20 unblocked product.
 - [ ] Read-only root FS where possible  
 - [ ] No Postgres/Valkey/RustFS ports on host  
 - [ ] Secrets via env files with 600 perms or Docker secrets  
-- [ ] Migrate job before web starts (`depends_on` + completion)  
+- [ ] Migrate job before web starts  
 - [ ] Healthchecks on all services  
-- [ ] Log rotation  
-- [ ] Automatic HTTPS + redirect  
+- [ ] Log rotation / json logs  
+- [ ] Automatic HTTPS + HTTP→HTTPS redirect  
+- [ ] HSTS at proxy and/or app  
+- [ ] SSE: disable buffering / flush_interval -1  
 - [ ] Backup cron documented  
-- [ ] Image pin digests (not only `:latest`)  
+- [ ] Image pin digests  
+- [ ] Resource limits (CPU/mem)  
+- [ ] `restart: unless-stopped`  
+- [ ] Version label on image  
 
 ### 27.3 Reverse proxy requirements for SSE
 
 - Disable response buffering for `/api/chat`  
-- Long `proxy_read_timeout` / Caddy flush intervals  
-- Document nginx `proxy_buffering off`  
+- Long read timeouts (10m+)  
+- Caddy: `flush_interval -1`  
+- nginx: `proxy_buffering off;` + `proxy_read_timeout`  
+- WebSockets not required for v1 chat (SSE only)
 
 ### 27.4 Network diagram
 
@@ -1877,50 +2128,110 @@ Internet
    │ HTTPS :443
    ▼
  TLS proxy (Caddy)
-   │
+   │  security headers, HSTS, HTTP redirect
    ▼
- web :3000 (internal)
-   ├── postgres :5432
-   ├── valkey :6379
-   └── rustfs :9000
-        └── egress → OpenAI / Anthropic / Ollama (optional host network)
+ web :3000 (internal, non-root)
+   ├── postgres :5432   (volume encrypted at host)
+   ├── valkey :6379     (password)
+   └── rustfs :9000     (internal)
+         └── egress → OpenAI / Anthropic / Ollama
 ```
+
+### 27.5 Dockerfile standards
+
+- Multi-stage: deps → build → runtime  
+- Runtime: node-slim or distroless; `USER` non-root  
+- No devDependencies in final image  
+- `NODE_ENV=production`  
+- HEALTHCHECK → `/api/health`  
+- Never `COPY .env`  
+
+### 27.6 Compose service contracts
+
+| Service | Publishes ports? | Volume | Health |
+| --- | --- | --- | --- |
+| caddy | 80, 443 | certs | caddy |
+| web | no | no (stateless) | `/api/health` |
+| postgres | no | pgdata | `pg_isready` |
+| valkey | no | optional | `valkey-cli ping` |
+| rustfs | no | data | HTTP ready |
+| migrate | no | no | exit 0 |
+
+### 27.7 TLS certificate strategy
+
+| Mode | How |
+| --- | --- |
+| Public prod | Caddy + Let’s Encrypt (DOMAIN + open 80/443) |
+| Private/corp | Caddy + internal CA or mounted certs |
+| Laptop | mkcert + Caddy local_certs or host TLS terminate |
+| CI | HTTP internal only |
 
 ---
 
 ## 28. DRY / architecture hygiene
 
-### 28.1 Contract pattern (mandatory going forward)
+### 28.1 Contract pattern (mandatory)
 
-Any rule enforced by both UI and server **must** live in `@maximus/domain` (or shared package) with unit tests.
+Any rule enforced by both UI and server **must** live in `@maximus/domain` with unit tests.
 
-| Domain | Module | Consumers |
+| Domain | Module | Status |
 | --- | --- | --- |
-| Chat send/edit/regen | `assertChatTurnInput` ✅ | UI, `runChatTurn` |
-| Export access | `exportConversation` ✅ | `/api/export`, tests |
-| Titles | `heuristicTitle` + `conversationTitleFromInput` ✅ | create conversation |
-| Model refs | `parseModelRef` ✅ | gateway, UI |
-| RBAC | `policies/rbac` ✅ | auth, admin |
-| Pricing | `computeCostMicros` ✅ | usage write |
-| Upload limits | **TODO** `assertUploadIntent` | uploads API + composer |
+| Chat send/edit/regen | `assertChatTurnInput` | ✅ |
+| Export access | export builders + policies | ✅ |
+| Titles | `heuristicTitle` + helpers | ✅ |
+| Model refs | `parseModelRef` | ✅ |
+| RBAC | `policies/rbac` | ✅ |
+| Pricing | `computeCostMicros` | ✅ |
+| Model catalog filter | `modelsForUser` | ✅ |
+| Allowlist | `isModelAllowed` | ✅ |
+| Upload limits | `assertUploadIntent` | TODO |
+| Org settings parse | pure parse/validate | TODO |
 
 ### 28.2 Shared server utilities (WP24)
 
 ```
-packages/server-kit/   # or apps/web/src/server/
+apps/web/src/server/   # or packages/server-kit later
+  api.ts               # jsonOk, jsonError, guardMutation
+  security.ts          # withSecurityHeaders, assertSameOrigin
+  cookies.ts           # session cookie options
+  env.ts               # appUrl, cookieSecure
+  # future:
   auth.ts              # requireApiSession
-  errors.ts            # toJsonError(AppError)
   sse.ts               # writeSseEvent
   pagination.ts
   request-id.ts
+  log.ts               # redacting logger
 ```
 
-### 28.3 File size & module laws (reaffirm)
+### 28.3 File size & module laws
 
 - Soft max ~250 LOC; route files thin shells  
 - One concern per file  
-- No business logic in React components beyond view state  
+- No business logic in React beyond view state  
 - Gateway is the only place that talks to LLM HTTP  
+- No second CSS system; Lucide only via `Icon`  
+
+### 28.4 DRY anti-patterns (ban)
+
+1. Validating the same Zod shape in UI and server without shared schema  
+2. Copy-pasting authz checks instead of `canAdminOrg` etc.  
+3. Per-route security header sets  
+4. Inline fetch to OpenAI from a feature component  
+5. Hardcoded model lists in UI  
+6. Ad-hoc `Response.json` without `AppError` mapping  
+
+### 28.5 Import graph (reaffirm)
+
+```
+domain ← (pure)
+config ← env only
+provider-gateway ← domain, config
+db ← domain, (gateway types only if needed)
+auth ← domain, db, config
+rate-limit ← domain
+storage ← config
+apps/web ← everything (composition root)
+```
 
 ---
 
@@ -1934,35 +2245,53 @@ packages/server-kit/   # or apps/web/src/server/
 - Sidebar date groups; hover actions; collapse animation  
 - Message actions on hover; branch `‹ 1/N ›`  
 - Code blocks: lang label + copy + syntax highlight  
+- Consistent elevation / border tokens; no random grays  
 
 ### 29.2 Interaction
 
-- Keyboard: ⌘N new chat, ⌘K search, Enter/Shift+Enter, Esc, ⌘. stop  
-- Optimistic UI where safe; always reconcile from server on reload  
+- Keyboard: Appendix D map fully wired  
+- Optimistic UI where safe; reconcile from server on reload  
 - Toasts for errors (rate limit, upload fail, network)  
 - Disabled states + spinners consistent  
+- Focus restoration after dialogs  
 
 ### 29.3 Accessibility
 
-- WCAG AA contrast  
+- WCAG AA contrast both themes  
 - Focus visible; trap in dialogs  
 - `aria-live` for streaming completion  
-- Icons decorative `aria-hidden` via `Icon` wrapper  
+- Icons decorative `aria-hidden` via `Icon`  
 - Reduced motion  
+- Form labels associated; errors announced  
 
 ### 29.4 Performance UX
 
-- Virtualize long threads  
+- Virtualize long threads and long sidebars  
 - Paginate history  
 - Prefetch conversation on row hover (optional)  
 - Avoid layout thrash during stream  
+- Skeleton placeholders, not empty flashes  
 
 ### 29.5 Admin UI elite bar
 
 - Dense tables, filters, empty states  
 - Confirm destructive actions  
 - Never display secrets; show “•••• set” + rotate  
-- Usage charts (simple, readable)  
+- Usage charts simple and readable  
+- Sticky table headers; keyboard row nav where practical  
+
+### 29.6 Motion & micro-interactions
+
+- 150–200ms ease for sidebar / menus  
+- Message fade/slide subtle  
+- Streaming caret  
+- Respect `prefers-reduced-motion: reduce` → instant  
+
+### 29.7 Content design
+
+- Error copy: human, actionable, no stack traces  
+- Empty states teach next action  
+- Confirm copy names the resource  
 
 ---
 
@@ -1971,16 +2300,17 @@ packages/server-kit/   # or apps/web/src/server/
 ### 30.1 CI pipeline (target)
 
 ```
-lint → typecheck → unit → integration (postgres+valkey services)
-  → build → e2e (playwright) → pnpm audit → image build
+lint → typecheck → unit → integration (postgres+valkey)
+  → build → e2e (playwright) → pnpm audit → image build → trivy
 ```
 
 ### 30.2 Security gates
 
-- [ ] Authz matrix tests required for any new resource  
+- [ ] Authz matrix tests for any new resource  
 - [ ] No high/critical npm vulns without ADR exception  
 - [ ] Secret scan (gitleaks) on PR  
 - [ ] Container scan (trivy) on release images  
+- [ ] Header smoke on `/` and `/api/health`  
 
 ### 30.3 Release checklist
 
@@ -1989,14 +2319,27 @@ lint → typecheck → unit → integration (postgres+valkey services)
 - [ ] Rollback note  
 - [ ] Encryption key backup verified  
 - [ ] Runbook updated  
+- [ ] Appendix K go-live signed  
 
 ### 30.4 Compliance artifacts (docs/)
 
 - [ ] `docs/security/threat-model.md`  
 - [ ] `docs/security/data-flow.md`  
+- [ ] `docs/security/headers.md`  
 - [ ] `docs/ops/backup-restore.md`  
 - [ ] `docs/ops/tls-and-proxy.md`  
+- [ ] `docs/ops/capacity.md`  
 - [ ] `docs/compliance/subprocessors.md`  
+
+### 30.5 Policy defaults (org settings)
+
+| Setting | Default | Notes |
+| --- | --- | --- |
+| rateLimitFailOpen | false | D16 |
+| retentionDays | null (keep) | purge job when set |
+| allowPrivateBaseUrls | env-driven | SSRF |
+| budgetMicros | null | hard-stop when set |
+| defaultModelRef | platform default | picker |
 
 ---
 
@@ -2016,6 +2359,13 @@ lint → typecheck → unit → integration (postgres+valkey services)
 | Admin privacy vs compliance | Conflict | D12: no message bodies; break-glass later |
 | Light theme QA surface | Visual regressions | Dual-theme tokens + Playwright smoke both themes |
 | LLM retitle cost/latency | Extra calls | Non-blocking; cheap model; skip if no platform key |
+| Prod TLS misconfig | Cookies/mixed content | Caddy defaults + Appendix K |
+| KEK loss | Permanent BYOK loss | Secret manager + re-enter runbook |
+| Scope creep WP18–40 | Never ship | Ordered WPs; Phase 4 exit metrics |
+| Supply-chain vuln | Compromised dep | audit + Renovate + pin digests |
+| SSE buffering in corp proxy | Broken streams | §27.3 docs; health/stream smoke |
+| Dual validation regressions | Authz/UX bugs | DRY contracts + boundary lint |
+| Elite UI unfinished | “Almost ChatGPT” feel | Appendix L scorecard gate |
 
 ---
 
@@ -2114,6 +2464,261 @@ Admin UI v1: show $ aggregates; editing price book can be read-only seed + simpl
 | WP | Work package |
 | Valkey | Open-source Redis-protocol data store (rate limits) |
 | cost_micros | Integer micro-USD cost on a usage event |
+| KEK | Key encryption key (`ENCRYPTION_KEY`) for BYOK envelope |
+| SBOM | Software bill of materials for release artifacts |
+| Same-origin guard | Reject mutations whose Origin/Referer host ≠ app host |
+
+---
+
+## 34. Phase 5 — Platform maturity
+
+Beyond Phase 4 “enterprise ready.” Ship only when Phase 4 outcomes are green.
+
+| Track | Items |
+| --- | --- |
+| Identity | OIDC (WP29), SCIM, SAML bridge, directory sync |
+| Data plane | RAG/PGVector, assistants, shared links, org API proxy |
+| Scale | Multi-region read replicas, Valkey cluster, object storage CDN |
+| Trust | SOC2 evidence pack, pen-test remediation, bug bounty |
+| Product | Canvas, voice, image gen, memory |
+| Mobile | Responsive complete first; native shells later |
+
+**Entry criteria:** Appendix K signed; WP18–WP28 complete; zero critical security findings open.
+
+---
+
+## 35. Engineering best-practices catalog
+
+### 35.1 TypeScript & correctness
+
+- `strict` TS everywhere; no ambient `any` without comment  
+- Branded ids optional; never confuse userId/orgId/conversationId  
+- Exhaustive `switch` on discriminated unions  
+- Prefer pure functions + thin I/O shells  
+
+### 35.2 API design
+
+- JSON errors: `{ code, message, requestId }`  
+- 401 unauthenticated · 403 forbidden · 404 cross-tenant  
+- Idempotent GETs; mutations audited when admin-grade  
+- SSE for chat only; no long-poll dual path  
+
+### 35.3 Database
+
+- Expand/contract migrations; never edit applied SQL  
+- Every tenant table has `org_id` (+ index)  
+- Transactions for multi-row chat writes  
+- No N+1 in list endpoints; explicit column selects  
+
+### 35.4 Testing
+
+- Red→Green→Refactor for domain/gateway/authz/crypto  
+- Integration tests against real Postgres in CI  
+- Fake provider default; live adapters gated  
+- Negative tests mandatory for authz  
+
+### 35.5 Code review bar
+
+- Security: authz + secrets + SSRF touched?  
+- DRY: new dual validation?  
+- UI: D17 laws?  
+- Size: files under soft max?  
+- Tests: evidence of green run  
+
+### 35.6 Git & releases
+
+- Conventional commits  
+- No secrets in history  
+- Small PRs per WP concern  
+- CHANGELOG for user-visible changes  
+
+---
+
+## 36. Supply chain, SBOM & dependency hygiene
+
+### 36.1 Principles
+
+- Lockfile committed; `pnpm` only  
+- Justify every new dependency in PR  
+- Prefer stdlib / existing TanStack/Radix/Lucide  
+- Pin Docker base digests for prod  
+
+### 36.2 Automation (WP33)
+
+| Tool | When |
+| --- | --- |
+| `pnpm audit` | CI every PR |
+| Renovate/Dependabot | weekly PRs |
+| gitleaks | CI + optional pre-commit |
+| Trivy/Grype | image build |
+| Syft SBOM | release artifact |
+
+### 36.3 Accepting risk
+
+High/critical vuln → either upgrade, replace, or ADR exception with expiry date. No silent ignore.
+
+### 36.4 Build reproducibility
+
+- Multi-stage Docker; no `npm install` at runtime  
+- CI builds the same Dockerfile as prod  
+- Record `git sha` in `/api/health`  
+
+---
+
+## 37. HA, backup, disaster recovery
+
+### 37.1 Default self-host posture
+
+| Component | HA v1 | Notes |
+| --- | --- | --- |
+| web | scale horizontally | stateless |
+| postgres | single primary | backups critical |
+| valkey | single | fail-closed chat if down (D16) |
+| rustfs | single volume | backup volume |
+| caddy | single | or external LB |
+
+### 37.2 RPO / RTO targets (defaults for docs)
+
+| | Target (self-host default) |
+| --- | --- |
+| RPO | ≤ 24h (daily dump) — improve with PITR |
+| RTO | ≤ 4h restore to known-good compose |
+
+Customers may tighten; Maximus documents how, not a SLA in OSS mode.
+
+### 37.3 Backup contents
+
+1. Postgres logical dump (or volume snapshot)  
+2. RustFS/object volume  
+3. Encryption key materials (secret manager — **not** in dump)  
+4. `.env` / compose secrets inventory (offline)  
+5. Caddy/cert note (Let’s Encrypt re-issues)
+
+### 37.4 Restore drill (quarterly)
+
+1. Fresh VM  
+2. Restore DB + object volume  
+3. Inject KEK  
+4. `compose up`  
+5. Login + open known conversation + send fake chat  
+6. Record time-to-green in runbook log  
+
+### 37.5 Failure modes
+
+| Failure | User impact | Mitigation |
+| --- | --- | --- |
+| Postgres down | full outage | restart; restore |
+| Valkey down | chat 429/fail closed | fix Valkey; or org fail-open |
+| RustFS down | uploads fail; chat text ok | restore volume |
+| LLM provider down | provider errors | multi-provider; clear UX |
+| KEK lost | cannot decrypt BYOK | re-enter keys |
+
+---
+
+## 38. Session, MFA & identity hardening
+
+### 38.1 Session model (current → target)
+
+| Aspect | Current | Target |
+| --- | --- | --- |
+| Store | Postgres session table | keep |
+| Cookie | HttpOnly; Secure in prod | + __Host- prefix if path allows |
+| Rotation | on login path | + on password change / MFA enable |
+| List/revoke | partial | Account settings UI |
+| Absolute TTL | configure | e.g. 30d idle 7d |
+
+### 38.2 MFA (WP34)
+
+- TOTP (RFC 6238) for owner/admin first  
+- Recovery codes hashed (scrypt)  
+- Step-up for: rotate BYOK, change SSO, delete org  
+- Audit: `mfa.enabled`, `mfa.challenge_failed`  
+
+### 38.3 Invite hardening
+
+- Single-use tokens; expiry  
+- Rate limit accept + create  
+- Email enumeration: generic errors  
+- Role assignment cannot mint owner except owner  
+
+### 38.4 Bootstrap hardening
+
+- Only when zero users  
+- Strong password required  
+- Audit `org.bootstrap`  
+- Disable bootstrap permanently after first user (already)  
+
+---
+
+## 39. Input validation, errors & API excellence
+
+### 39.1 Validation law
+
+1. Parse with Zod (or domain assert) at boundary  
+2. Never trust client for history, orgId, role, prices  
+3. Cap string lengths (title, message text, custom instructions)  
+4. Cap array lengths (attachmentIds, batch ops)  
+
+### 39.2 Standard error envelope
+
+```json
+{
+  "error": {
+    "code": "RATE_LIMITED",
+    "message": "Too many requests. Try again shortly.",
+    "requestId": "…"
+  }
+}
+```
+
+Map `AppError` codes → HTTP status once (shared helper).
+
+### 39.3 Idempotency (selective)
+
+- Invite create: optional `Idempotency-Key`  
+- Chat: not idempotent (streams); client retries only on network fail before stream starts  
+
+### 39.4 Pagination
+
+- Cursor-based for conversations, audit, usage  
+- Default limits; max cap enforced server-side  
+
+---
+
+## 40. Performance, capacity & cost controls
+
+### 40.1 Client performance
+
+- Virtualize messages + sidebar  
+- Code-split `/admin/*`  
+- Avoid re-rendering full markdown tree every token (append-friendly)  
+- Image attachments: thumbnail, lazy load  
+
+### 40.2 Server performance
+
+- Connection pool size guide (web replicas × pool < postgres max)  
+- Index: `(org_id, updated_at)` conversations; usage time ranges  
+- Stream: write assistant message incrementally or finalize once (document choice)  
+- Rate limits protect shared capacity  
+
+### 40.3 Cost controls
+
+| Control | Mechanism |
+| --- | --- |
+| Per-user RPM | Valkey |
+| Per-org RPM | Valkey |
+| Budget | `budgetMicros` vs sum `cost_micros` |
+| Model allowlist | role rules |
+| Provider disable | admin toggle |
+| Fake mode | CI/e2e zero $ |
+
+### 40.4 Capacity planning sketch (self-host)
+
+| Seats | Web replicas | Postgres | Notes |
+| --- | --- | --- | --- |
+| ≤ 50 | 1 | 1 small | compose default |
+| ≤ 500 | 2–3 | 1 medium | pool + Valkey |
+| ≤ 5k | 4+ behind LB | primary + backup | consider managed PG |
 
 ---
 
@@ -2154,9 +2759,27 @@ SMTP_FROM=Maximus <noreply@localhost>
 
 # Valkey (rate limits)
 VALKEY_URL=redis://localhost:6379
+# VALKEY_PASSWORD=  # prod compose should set requirepass
 RATE_LIMIT_USER_PER_MIN=60
 RATE_LIMIT_ORG_PER_MIN=600
 RATE_LIMIT_FAIL_OPEN=false
+RATE_LIMIT_LOGIN_PER_MIN=10
+RATE_LIMIT_UPLOAD_PER_MIN=30
+
+# Security / cookies
+COOKIE_SECURE=false          # true in prod compose
+# CSRF_SECRET=               # if double-submit token path enabled
+# TRUST_PROXY=true           # when behind Caddy
+
+# Observability (Phase 4)
+# LOG_LEVEL=info
+# OTEL_EXPORTER_OTLP_ENDPOINT=
+# SENTRY_DSN=
+# APP_VERSION=               # injected at image build
+
+# Production compose
+# DOMAIN=maximus.example.com
+# POSTGRES_PASSWORD=
 ```
 
 ---
@@ -2721,6 +3344,129 @@ When an agent (or human) violates a rule and it was ambiguous: **update AGENTS.m
 
 ---
 
-*Living plan. First-ship core largely implemented. Next: WP18–WP29 (enterprise polish — security, Docker/TLS, encryption, DRY, elite UI, admin SPA, E2E). See §23–§30.*
+## Appendix J — Security hardening checklist (executable)
+
+Use before calling a release “enterprise ready.” Check only with evidence.
+
+### J.1 Authn / session
+
+- [ ] No open registration; bootstrap only when user count = 0  
+- [ ] Invite required for new members; expired/used invites rejected  
+- [ ] Passwords hashed (scrypt/Argon2); never logged  
+- [ ] Session cookie HttpOnly; Secure in prod; SameSite set  
+- [ ] Logout clears server session + cookie  
+- [ ] Login rate limited  
+- [ ] Optional: MFA for owners (WP34)
+
+### J.2 Authz
+
+- [ ] Every resource id checked for org membership  
+- [ ] Cross-tenant id → **404** not 403  
+- [ ] Member cannot access `/admin/*` APIs or UI  
+- [ ] Admin cannot read others’ message bodies (D12)  
+- [ ] Owner-only: delete org / transfer ownership  
+- [ ] E.4 matrix automated tests green  
+
+### J.3 Injection / XSS / SSRF
+
+- [ ] Drizzle/parameterized SQL only  
+- [ ] Markdown sanitised; no arbitrary HTML script  
+- [ ] CSP present on HTML responses  
+- [ ] `assertSafeBaseUrl` on all user base URLs  
+- [ ] Upload MIME + size limits; no path traversal in keys  
+
+### J.4 Crypto / secrets
+
+- [ ] BYOK ciphertext only in DB  
+- [ ] ENCRYPTION_KEY not in git / image layers  
+- [ ] Rotation runbook tested or tabletop  
+- [ ] Logs redaction tests green  
+
+### J.5 Transport / deploy
+
+- [ ] Prod: HTTPS only; HSTS  
+- [ ] Internal services not published  
+- [ ] Non-root container user  
+- [ ] Health endpoint used by orchestrator  
+
+### J.6 Abuse
+
+- [ ] Chat rate limits  
+- [ ] Upload rate limits  
+- [ ] Org budget hard-stop when configured  
+- [ ] Valkey down → fail closed by default  
+
+---
+
+## Appendix K — Production go-live checklist
+
+### K.1 Pre-flight
+
+- [ ] `ENCRYPTION_KEY` generated and backed up offline / secret manager  
+- [ ] `BETTER_AUTH_SECRET` (or session secret) set  
+- [ ] `DOMAIN` DNS points to host  
+- [ ] Postgres password not default in real prod  
+- [ ] Platform provider keys set **or** BYOK planned  
+- [ ] `COOKIE_SECURE=true`  
+- [ ] `RATE_LIMIT_FAIL_OPEN=false` unless consciously overridden  
+
+### K.2 Deploy
+
+- [ ] `docker compose -f docker/docker-compose.prod.yml up -d --build`  
+- [ ] Migrate completed successfully  
+- [ ] `GET https://$DOMAIN/api/health` → ok  
+- [ ] Security headers present (CSP, HSTS)  
+- [ ] Bootstrap first owner via UI or API  
+- [ ] Login works over HTTPS  
+- [ ] Fake or live chat completes  
+- [ ] Admin can invite a member  
+
+### K.3 Post-flight
+
+- [ ] Backup job scheduled  
+- [ ] Log shipping / disk monitoring noted  
+- [ ] Runbook link shared with ops  
+- [ ] Version recorded in CHANGELOG  
+- [ ] Appendix J signed for this release  
+
+### K.4 Rollback
+
+- [ ] Previous image tag known  
+- [ ] DB migrate rollback/forward strategy understood  
+- [ ] KEK unchanged during app-only rollback  
+
+---
+
+## Appendix L — Elite UI scorecard
+
+Score each 0–5. Target **≥ 95 / 100** for Phase 4 UI exit (WP25).
+
+| # | Criterion | Pts |
+| --- | --- | --- |
+| 1 | Dark theme parity with ChatGPT density | /5 |
+| 2 | Light theme complete (no unstyled flashes) | /5 |
+| 3 | Sidebar: date groups, hover actions, collapse | /5 |
+| 4 | Composer geometry + model chip + attach | /5 |
+| 5 | Streaming UX stable (no full remount jank) | /5 |
+| 6 | Branch switcher when siblings > 1 | /5 |
+| 7 | Markdown + code copy works | /5 |
+| 8 | Empty state + suggestion chips | /5 |
+| 9 | Toasts / error copy human | /5 |
+| 10 | Keyboard map Appendix D (core set) | /5 |
+| 11 | Focus rings + dialog trap | /5 |
+| 12 | axe critical issues = 0 | /5 |
+| 13 | Mobile drawer + safe areas | /5 |
+| 14 | Settings pages complete | /5 |
+| 15 | Login / invite elite, not “bootstrap form” | /5 |
+| 16 | Admin tables dense + empty states | /5 |
+| 17 | Secrets never shown in admin | /5 |
+| 18 | Skeletons / loading consistency | /5 |
+| 19 | Reduced motion respected | /5 |
+| 20 | No page-local CSS; Lucide only; thin routes | /5 |
+| | **Total** | **/100** |
+
+---
+
+*Living plan. First-ship core largely implemented. Active program: **WP18–WP40** enterprise polish — security, Docker/TLS, encryption, DRY, elite UI, admin SPA, observability, DR, supply chain, MFA, E2E. See §23–§40 and Appendices J–L.*
 
 

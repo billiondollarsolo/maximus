@@ -1,5 +1,6 @@
 export function serverEnv() {
   return {
+    appUrl: process.env.APP_URL ?? "http://localhost:3000",
     databaseUrl:
       process.env.DATABASE_URL ??
       "postgres://maximus:maximus@localhost:5432/maximus",

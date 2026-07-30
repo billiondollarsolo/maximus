@@ -1,0 +1,15 @@
+# TLS reverse proxy for Maximus production compose.
+# Set DOMAIN env for real certificates; localhost uses internal TLS for local prod-smoke.
+
+{$DOMAIN:localhost} {
+	encode gzip
+	reverse_proxy web:3000 {
+		flush_interval -1
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+}

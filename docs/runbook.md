@@ -8,9 +8,29 @@ cp .env.example .env
 # set ENCRYPTION_KEY to 32-byte base64, e.g.:
 # node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 pnpm install
-DATABASE_URL=postgres://maximus:maximus@localhost:5432/maximus pnpm --filter @maximus/db migrate
+DATABASE_URL=postgres://maximus:maximus@localhost:5432/maximus pnpm db:migrate
 pnpm dev
 ```
+
+## Production compose (TLS)
+
+```bash
+export ENCRYPTION_KEY="$(node -e "console.log(require('crypto').randomBytes(32).toString('base64'))")"
+export DOMAIN=maximus.example.com
+# optional: POSTGRES_PASSWORD, OPENAI_API_KEY, etc.
+docker compose -f docker/docker-compose.prod.yml up -d --build
+```
+
+- Only Caddy publishes 80/443; Postgres/Valkey/RustFS stay on the internal network.
+- SSE: Caddy `flush_interval -1` so chat streams are not buffered.
+- Health: `GET /api/health` (postgres + valkey checks).
+
+## Encryption key rotation
+
+1. Generate a new `ENCRYPTION_KEY` and keep the old value offline.
+2. Re-enter all org BYOK API keys in Admin → Providers (ciphertexts cannot be re-read without the old key).
+3. Update SSO secrets the same way when enabled.
+4. Never commit keys; store in a secret manager for multi-node deploys.
 
 ## Bootstrap first owner
 

@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { bootstrapOwner } from "@maximus/auth";
+import { acceptInvite } from "@maximus/auth";
 import { createDb } from "@maximus/db";
 import { AppError } from "@maximus/domain";
-import { serverEnv } from "#/server/env";
 import { sessionCookieHeader } from "#/server/cookies";
+import { serverEnv } from "#/server/env";
 import { guardMutation, jsonError, jsonOk } from "#/server/api";
 
-export const Route = createFileRoute("/api/auth/bootstrap")({
+export const Route = createFileRoute("/api/auth/invite")({
   server: {
     handlers: {
       POST: async ({ request }) => {
@@ -15,22 +15,18 @@ export const Route = createFileRoute("/api/auth/bootstrap")({
           const env = serverEnv();
           const db = createDb(env.databaseUrl);
           const body = (await request.json()) as {
-            email?: string;
+            inviteId?: string;
             password?: string;
             name?: string;
-            orgName?: string;
           };
-          const email = body.email ?? process.env.BOOTSTRAP_EMAIL;
-          const password = body.password ?? process.env.BOOTSTRAP_PASSWORD;
-          if (!email || !password) {
-            throw new AppError("VALIDATION", "email and password required");
+          if (!body.inviteId || !body.password) {
+            throw new AppError("VALIDATION", "inviteId and password required");
           }
-          const result = await bootstrapOwner(
+          const result = await acceptInvite(
             {
-              email,
-              password,
+              inviteId: body.inviteId,
+              password: body.password,
               name: body.name,
-              orgName: body.orgName,
             },
             db,
           );

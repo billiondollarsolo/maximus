@@ -5,8 +5,11 @@ import {
   Plus,
   Search,
   Settings,
+  Shield,
   Sun,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Button, Icon, IconButton, Separator } from "#/components/ui";
 import { Wordmark } from "#/components/layout/wordmark";
 import { useTheme } from "#/features/theme/theme-provider";
@@ -29,6 +32,15 @@ export function SidebarNav({
   conversations?: FakeConversation[];
 }) {
   const { theme, toggleTheme } = useTheme();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    void fetch("/api/auth/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { role?: string } | null) => {
+        setIsAdmin(d?.role === "admin" || d?.role === "owner");
+      });
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -105,13 +117,33 @@ export function SidebarNav({
           onClick={toggleTheme}
         />
         {!collapsed ? (
-          <Button variant="ghost" className="flex-1 justify-start text-text-muted">
+          <Link
+            to="/settings/general"
+            className="inline-flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted hover:bg-bg-composer hover:text-text-primary"
+          >
             <Icon icon={Settings} size="sm" />
             Settings
-          </Button>
+          </Link>
         ) : (
-          <IconButton icon={Settings} label="Settings" />
+          <Link to="/settings/general">
+            <IconButton icon={Settings} label="Settings" />
+          </Link>
         )}
+        {isAdmin ? (
+          collapsed ? (
+            <Link to="/admin">
+              <IconButton icon={Shield} label="Admin" />
+            </Link>
+          ) : (
+            <Link
+              to="/admin"
+              className="inline-flex flex-1 items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-muted hover:bg-bg-composer hover:text-text-primary"
+            >
+              <Icon icon={Shield} size="sm" />
+              Admin
+            </Link>
+          )
+        ) : null}
       </div>
     </div>
   );

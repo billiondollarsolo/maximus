@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import {
   getDb,
   members,
@@ -9,11 +9,22 @@ import {
   newId,
   type Db,
 } from "@maximus/db";
+import { AppError } from "@maximus/domain";
 import { hashPassword } from "./password.js";
 import { createSession } from "./session.js";
 
+const MIN_PASSWORD_LEN = 10;
+
+/** True when no users exist — first-run bootstrap UI may show. */
+export async function needsBootstrap(db: Db = getDb()): Promise<boolean> {
+  const [row] = await db.select({ n: count() }).from(users);
+  return (row?.n ?? 0) === 0;
+}
+
 /**
- * Bootstrap first owner + org. Idempotent if email already exists.
+ * Bootstrap first owner + org.
+ * Only allowed when the users table is empty (first deploy).
+ * Idempotent: same email after bootstrap logs them in via createSession.
  */
 export async function bootstrapOwner(
   input: {
@@ -24,13 +35,28 @@ export async function bootstrapOwner(
   },
   db: Db = getDb(),
 ): Promise<{ userId: string; orgId: string; sessionToken: string }> {
+  if (!input.email?.trim()) {
+    throw new AppError("VALIDATION", "email required");
+  }
+  if (!input.password || input.password.length < MIN_PASSWORD_LEN) {
+    throw new AppError(
+      "VALIDATION",
+      `password must be at least ${MIN_PASSWORD_LEN} characters`,
+    );
+  }
+
+  const [userCount] = await db.select({ n: count() }).from(users);
+  const totalUsers = userCount?.n ?? 0;
+
   const [existing] = await db
     .select()
     .from(users)
-    .where(eq(users.email, input.email))
+    .where(eq(users.email, input.email.toLowerCase().trim()))
     .limit(1);
 
   if (existing) {
+    // Only allow re-bootstrap login for the first owner when others may not exist,
+    // or always if this exact user already exists (dev convenience).
     const [mem] = await db
       .select()
       .from(members)
@@ -44,6 +70,13 @@ export async function bootstrapOwner(
     };
   }
 
+  if (totalUsers > 0) {
+    throw new AppError(
+      "FORBIDDEN",
+      "Bootstrap is only allowed when no users exist; use invite",
+    );
+  }
+
   const userId = newId("user");
   const orgId = newId("org");
   const baseSlug = (input.orgName ?? "default")
@@ -53,7 +86,7 @@ export async function bootstrapOwner(
 
   await db.insert(users).values({
     id: userId,
-    email: input.email,
+    email: input.email.toLowerCase().trim(),
     name: input.name ?? "Owner",
     emailVerified: true,
   });

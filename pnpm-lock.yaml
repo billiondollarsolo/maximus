@@ -86,9 +86,15 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      ioredis:
+        specifier: ^5.6.1
+        version: 5.11.1
       lucide-react:
         specifier: ^0.487.0
         version: 0.487.0(react@19.2.8)
+      postgres:
+        specifier: ^3.4.7
+        version: 3.4.9
       react:
         specifier: ^19.2.0
         version: 19.2.8

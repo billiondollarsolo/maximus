@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createInvite, requireAuth, requireOrgRole } from "@maximus/auth";
 import { createDb, membersRepo, usageRepo } from "@maximus/db";
-import { AppError, isAppError, type OrgRole } from "@maximus/domain";
+import { AppError, type OrgRole } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { guardMutation, jsonError, jsonOk } from "#/server/api";
 
 export const Route = createFileRoute("/api/admin/members")({
   server: {
@@ -18,19 +19,14 @@ export const Route = createFileRoute("/api/admin/members")({
             membersRepo.listMembers(db, ctx.orgId),
             membersRepo.listPendingInvites(db, ctx.orgId),
           ]);
-          return Response.json({ members, invites });
+          return jsonOk({ members, invites });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
       POST: async ({ request }) => {
         try {
+          guardMutation(request);
           const env = serverEnv();
           const db = createDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
@@ -43,7 +39,7 @@ export const Route = createFileRoute("/api/admin/members")({
           };
           if (body.action === "invite") {
             if (!body.email || !body.role) {
-              return Response.json({ error: "email and role required" }, { status: 400 });
+              throw new AppError("VALIDATION", "email and role required");
             }
             const inv = await createInvite(
               ctx,
@@ -58,7 +54,7 @@ export const Route = createFileRoute("/api/admin/members")({
               resourceId: inv.id,
               meta: { email: body.email, role: body.role },
             });
-            return Response.json({ invite: inv });
+            return jsonOk({ invite: inv });
           }
           if (body.action === "setRole" && body.userId && body.role) {
             const row = await membersRepo.setMemberRole(db, {
@@ -74,7 +70,7 @@ export const Route = createFileRoute("/api/admin/members")({
               resourceId: body.userId,
               meta: { role: body.role },
             });
-            return Response.json({ member: row });
+            return jsonOk({ member: row });
           }
           if (body.action === "remove" && body.userId) {
             await membersRepo.removeMember(db, {
@@ -88,17 +84,11 @@ export const Route = createFileRoute("/api/admin/members")({
               resourceType: "member",
               resourceId: body.userId,
             });
-            return Response.json({ ok: true });
+            return jsonOk({ ok: true });
           }
-          return Response.json({ error: "invalid action" }, { status: 400 });
+          throw new AppError("VALIDATION", "invalid action");
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },

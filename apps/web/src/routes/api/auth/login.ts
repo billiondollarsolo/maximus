@@ -1,15 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { loginWithPassword } from "@maximus/auth";
 import { createDb } from "@maximus/db";
-import { AppError, isAppError } from "@maximus/domain";
+import { AppError } from "@maximus/domain";
 import { serverEnv } from "#/server/env";
 import { sessionCookieHeader } from "#/server/cookies";
+import { guardMutation, jsonError, jsonOk } from "#/server/api";
 
 export const Route = createFileRoute("/api/auth/login")({
   server: {
     handlers: {
       POST: async ({ request }) => {
         try {
+          guardMutation(request);
           const env = serverEnv();
           const db = createDb(env.databaseUrl);
           const body = (await request.json()) as {
@@ -17,16 +19,13 @@ export const Route = createFileRoute("/api/auth/login")({
             password?: string;
           };
           if (!body.email || !body.password) {
-            return Response.json(
-              { error: "email and password required" },
-              { status: 400 },
-            );
+            throw new AppError("VALIDATION", "email and password required");
           }
           const result = await loginWithPassword(
             { email: body.email, password: body.password },
             db,
           );
-          return Response.json(
+          return jsonOk(
             { ok: true, userId: result.userId, orgId: result.orgId },
             {
               headers: {
@@ -35,13 +34,7 @@ export const Route = createFileRoute("/api/auth/login")({
             },
           );
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Login failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },

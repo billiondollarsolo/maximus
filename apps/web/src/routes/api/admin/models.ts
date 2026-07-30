@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth, requireOrgRole } from "@maximus/auth";
 import { createDb, providerRepo, usageRepo } from "@maximus/db";
-import { AppError, isAppError } from "@maximus/domain";
+import { AppError } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { guardMutation, jsonError, jsonOk } from "#/server/api";
 
 export const Route = createFileRoute("/api/admin/models")({
   server: {
@@ -18,19 +19,14 @@ export const Route = createFileRoute("/api/admin/models")({
             providerRepo.listModels(db, ctx.orgId),
             providerRepo.listAllowlist(db, ctx.orgId),
           ]);
-          return Response.json({ models, allowlist });
+          return jsonOk({ models, allowlist });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
       POST: async ({ request }) => {
         try {
+          guardMutation(request);
           const env = serverEnv();
           const db = createDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
@@ -58,7 +54,7 @@ export const Route = createFileRoute("/api/admin/models")({
               resourceId: row.id,
               meta: { modelRef: body.modelRef, role: body.role },
             });
-            return Response.json({ allowlist: row });
+            return jsonOk({ allowlist: row });
           }
           if (
             body.action === "create" &&
@@ -81,17 +77,11 @@ export const Route = createFileRoute("/api/admin/models")({
               resourceType: "model",
               resourceId: row.id,
             });
-            return Response.json({ model: row });
+            return jsonOk({ model: row });
           }
-          return Response.json({ error: "invalid action" }, { status: 400 });
+          throw new AppError("VALIDATION", "invalid action");
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },

@@ -1,0 +1,87 @@
+# Production-oriented stack: only proxy publishes ports.
+# Usage:
+#   export ENCRYPTION_KEY=... BETTER_AUTH_SECRET=... DOMAIN=maximus.example
+#   docker compose -f docker/docker-compose.prod.yml up -d
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      NODE_ENV: production
+      APP_URL: https://${DOMAIN:-localhost}
+      DATABASE_URL: postgres://maximus:${POSTGRES_PASSWORD:-maximus}@postgres:5432/maximus
+      VALKEY_URL: redis://valkey:6379
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?set ENCRYPTION_KEY}
+      PROVIDER_MODE: ${PROVIDER_MODE:-fake}
+      COOKIE_SECURE: "true"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      S3_ENDPOINT: http://rustfs:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-maximus}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-maximussecret}
+      S3_BUCKET: maximus-uploads
+      S3_FORCE_PATH_STYLE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: maximus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-maximus}
+      POSTGRES_DB: maximus
+    volumes:
+      - maximus_pg_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maximus -d maximus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # no host ports in prod
+    restart: unless-stopped
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:-maximus}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:-maximussecret}
+    volumes:
+      - maximus_rustfs_prod:/data
+    restart: unless-stopped
+
+volumes:
+  maximus_pg_prod:
+  maximus_rustfs_prod:
+  caddy_data:
+  caddy_config:

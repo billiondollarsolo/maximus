@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAuth, requireOrgRole } from "@maximus/auth";
 import { createDb, usageQueryRepo } from "@maximus/db";
-import { AppError, isAppError } from "@maximus/domain";
 import { sessionFromRequest } from "#/server/cookies";
 import { serverEnv } from "#/server/env";
+import { jsonError, jsonOk } from "#/server/api";
 
 export const Route = createFileRoute("/api/admin/audit")({
   server: {
@@ -14,16 +14,12 @@ export const Route = createFileRoute("/api/admin/audit")({
           const db = createDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           requireOrgRole(ctx, "admin");
-          const events = await usageQueryRepo.listAudit(db, { orgId: ctx.orgId });
-          return Response.json({ events });
+          const events = await usageQueryRepo.listAudit(db, {
+            orgId: ctx.orgId,
+          });
+          return jsonOk({ events });
         } catch (err) {
-          if (isAppError(err) || err instanceof AppError) {
-            return Response.json(
-              { error: err.message, code: err.code },
-              { status: err.status },
-            );
-          }
-          return Response.json({ error: "Failed" }, { status: 500 });
+          return jsonError(err);
         }
       },
     },

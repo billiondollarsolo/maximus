@@ -10,23 +10,75 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminAuditRouteImport } from './routes/admin.audit'
+import { Route as AdminMembersRouteImport } from './routes/admin.members'
+import { Route as AdminModelsRouteImport } from './routes/admin.models'
+import { Route as AdminProvidersRouteImport } from './routes/admin.providers'
+import { Route as AdminUsageRouteImport } from './routes/admin.usage'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiConversationsRouteImport } from './routes/api/conversations'
 import { Route as ApiExportRouteImport } from './routes/api/export'
 import { Route as ApiFeedbackRouteImport } from './routes/api/feedback'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiModelsRouteImport } from './routes/api/models'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
+import { Route as InviteInviteIdRouteImport } from './routes/invite.$inviteId'
+import { Route as SettingsAccountRouteImport } from './routes/settings.account'
+import { Route as SettingsDataRouteImport } from './routes/settings.data'
+import { Route as SettingsGeneralRouteImport } from './routes/settings.general'
+import { Route as SettingsPersonalizationRouteImport } from './routes/settings.personalization'
 import { Route as ApiAdminAuditRouteImport } from './routes/api/admin/audit'
 import { Route as ApiAdminMembersRouteImport } from './routes/api/admin/members'
 import { Route as ApiAdminModelsRouteImport } from './routes/api/admin/models'
 import { Route as ApiAdminProvidersRouteImport } from './routes/api/admin/providers'
 import { Route as ApiAdminUsageRouteImport } from './routes/api/admin/usage'
 import { Route as ApiAuthBootstrapRouteImport } from './routes/api/auth/bootstrap'
+import { Route as ApiAuthInviteRouteImport } from './routes/api/auth/invite'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
+import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
+import { Route as ApiAuthStatusRouteImport } from './routes/api/auth/status'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/admin/audit',
+  path: '/admin/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminMembersRoute = AdminMembersRouteImport.update({
+  id: '/admin/members',
+  path: '/admin/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminModelsRoute = AdminModelsRouteImport.update({
+  id: '/admin/models',
+  path: '/admin/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminProvidersRoute = AdminProvidersRouteImport.update({
+  id: '/admin/providers',
+  path: '/admin/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsageRoute = AdminUsageRouteImport.update({
+  id: '/admin/usage',
+  path: '/admin/usage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -49,9 +101,44 @@ const ApiFeedbackRoute = ApiFeedbackRouteImport.update({
   path: '/api/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiModelsRoute = ApiModelsRouteImport.update({
+  id: '/api/models',
+  path: '/api/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiUploadsRoute = ApiUploadsRouteImport.update({
   id: '/api/uploads',
   path: '/api/uploads',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteInviteIdRoute = InviteInviteIdRouteImport.update({
+  id: '/invite/$inviteId',
+  path: '/invite/$inviteId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsAccountRoute = SettingsAccountRouteImport.update({
+  id: '/settings/account',
+  path: '/settings/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsDataRoute = SettingsDataRouteImport.update({
+  id: '/settings/data',
+  path: '/settings/data',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsGeneralRoute = SettingsGeneralRouteImport.update({
+  id: '/settings/general',
+  path: '/settings/general',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsPersonalizationRoute = SettingsPersonalizationRouteImport.update({
+  id: '/settings/personalization',
+  path: '/settings/personalization',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAdminAuditRoute = ApiAdminAuditRouteImport.update({
@@ -84,9 +171,19 @@ const ApiAuthBootstrapRoute = ApiAuthBootstrapRouteImport.update({
   path: '/api/auth/bootstrap',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthInviteRoute = ApiAuthInviteRouteImport.update({
+  id: '/api/auth/invite',
+  path: '/api/auth/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
   id: '/api/auth/login',
   path: '/api/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
+  id: '/api/auth/logout',
+  path: '/api/auth/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthMeRoute = ApiAuthMeRouteImport.update({
@@ -94,122 +191,246 @@ const ApiAuthMeRoute = ApiAuthMeRouteImport.update({
   path: '/api/auth/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthStatusRoute = ApiAuthStatusRouteImport.update({
+  id: '/api/auth/status',
+  path: '/api/auth/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/members': typeof AdminMembersRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/providers': typeof AdminProvidersRoute
+  '/admin/usage': typeof AdminUsageRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRoute
   '/api/export': typeof ApiExportRoute
   '/api/feedback': typeof ApiFeedbackRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/models': typeof ApiModelsRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/invite/$inviteId': typeof InviteInviteIdRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/personalization': typeof SettingsPersonalizationRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
   '/api/admin/members': typeof ApiAdminMembersRoute
   '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
+  '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/status': typeof ApiAuthStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/members': typeof AdminMembersRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/providers': typeof AdminProvidersRoute
+  '/admin/usage': typeof AdminUsageRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRoute
   '/api/export': typeof ApiExportRoute
   '/api/feedback': typeof ApiFeedbackRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/models': typeof ApiModelsRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/invite/$inviteId': typeof InviteInviteIdRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/personalization': typeof SettingsPersonalizationRoute
+  '/admin': typeof AdminIndexRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
   '/api/admin/members': typeof ApiAdminMembersRoute
   '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
+  '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/status': typeof ApiAuthStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/members': typeof AdminMembersRoute
+  '/admin/models': typeof AdminModelsRoute
+  '/admin/providers': typeof AdminProvidersRoute
+  '/admin/usage': typeof AdminUsageRoute
   '/api/chat': typeof ApiChatRoute
   '/api/conversations': typeof ApiConversationsRoute
   '/api/export': typeof ApiExportRoute
   '/api/feedback': typeof ApiFeedbackRoute
+  '/api/health': typeof ApiHealthRoute
+  '/api/models': typeof ApiModelsRoute
   '/api/uploads': typeof ApiUploadsRoute
+  '/invite/$inviteId': typeof InviteInviteIdRoute
+  '/settings/account': typeof SettingsAccountRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/general': typeof SettingsGeneralRoute
+  '/settings/personalization': typeof SettingsPersonalizationRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
   '/api/admin/members': typeof ApiAdminMembersRoute
   '/api/admin/models': typeof ApiAdminModelsRoute
   '/api/admin/providers': typeof ApiAdminProvidersRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
+  '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
+  '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/me': typeof ApiAuthMeRoute
+  '/api/auth/status': typeof ApiAuthStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
+    | '/admin/audit'
+    | '/admin/members'
+    | '/admin/models'
+    | '/admin/providers'
+    | '/admin/usage'
     | '/api/chat'
     | '/api/conversations'
     | '/api/export'
     | '/api/feedback'
+    | '/api/health'
+    | '/api/models'
     | '/api/uploads'
+    | '/invite/$inviteId'
+    | '/settings/account'
+    | '/settings/data'
+    | '/settings/general'
+    | '/settings/personalization'
+    | '/admin/'
     | '/api/admin/audit'
     | '/api/admin/members'
     | '/api/admin/models'
     | '/api/admin/providers'
     | '/api/admin/usage'
     | '/api/auth/bootstrap'
+    | '/api/auth/invite'
     | '/api/auth/login'
+    | '/api/auth/logout'
     | '/api/auth/me'
+    | '/api/auth/status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/login'
+    | '/admin/audit'
+    | '/admin/members'
+    | '/admin/models'
+    | '/admin/providers'
+    | '/admin/usage'
     | '/api/chat'
     | '/api/conversations'
     | '/api/export'
     | '/api/feedback'
+    | '/api/health'
+    | '/api/models'
     | '/api/uploads'
+    | '/invite/$inviteId'
+    | '/settings/account'
+    | '/settings/data'
+    | '/settings/general'
+    | '/settings/personalization'
+    | '/admin'
     | '/api/admin/audit'
     | '/api/admin/members'
     | '/api/admin/models'
     | '/api/admin/providers'
     | '/api/admin/usage'
     | '/api/auth/bootstrap'
+    | '/api/auth/invite'
     | '/api/auth/login'
+    | '/api/auth/logout'
     | '/api/auth/me'
+    | '/api/auth/status'
   id:
     | '__root__'
     | '/'
+    | '/login'
+    | '/admin/audit'
+    | '/admin/members'
+    | '/admin/models'
+    | '/admin/providers'
+    | '/admin/usage'
     | '/api/chat'
     | '/api/conversations'
     | '/api/export'
     | '/api/feedback'
+    | '/api/health'
+    | '/api/models'
     | '/api/uploads'
+    | '/invite/$inviteId'
+    | '/settings/account'
+    | '/settings/data'
+    | '/settings/general'
+    | '/settings/personalization'
+    | '/admin/'
     | '/api/admin/audit'
     | '/api/admin/members'
     | '/api/admin/models'
     | '/api/admin/providers'
     | '/api/admin/usage'
     | '/api/auth/bootstrap'
+    | '/api/auth/invite'
     | '/api/auth/login'
+    | '/api/auth/logout'
     | '/api/auth/me'
+    | '/api/auth/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminMembersRoute: typeof AdminMembersRoute
+  AdminModelsRoute: typeof AdminModelsRoute
+  AdminProvidersRoute: typeof AdminProvidersRoute
+  AdminUsageRoute: typeof AdminUsageRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiConversationsRoute: typeof ApiConversationsRoute
   ApiExportRoute: typeof ApiExportRoute
   ApiFeedbackRoute: typeof ApiFeedbackRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ApiModelsRoute: typeof ApiModelsRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
+  InviteInviteIdRoute: typeof InviteInviteIdRoute
+  SettingsAccountRoute: typeof SettingsAccountRoute
+  SettingsDataRoute: typeof SettingsDataRoute
+  SettingsGeneralRoute: typeof SettingsGeneralRoute
+  SettingsPersonalizationRoute: typeof SettingsPersonalizationRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   ApiAdminAuditRoute: typeof ApiAdminAuditRoute
   ApiAdminMembersRoute: typeof ApiAdminMembersRoute
   ApiAdminModelsRoute: typeof ApiAdminModelsRoute
   ApiAdminProvidersRoute: typeof ApiAdminProvidersRoute
   ApiAdminUsageRoute: typeof ApiAdminUsageRoute
   ApiAuthBootstrapRoute: typeof ApiAuthBootstrapRoute
+  ApiAuthInviteRoute: typeof ApiAuthInviteRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
+  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthMeRoute: typeof ApiAuthMeRoute
+  ApiAuthStatusRoute: typeof ApiAuthStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -219,6 +440,55 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/admin/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/members': {
+      id: '/admin/members'
+      path: '/admin/members'
+      fullPath: '/admin/members'
+      preLoaderRoute: typeof AdminMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/models': {
+      id: '/admin/models'
+      path: '/admin/models'
+      fullPath: '/admin/models'
+      preLoaderRoute: typeof AdminModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/providers': {
+      id: '/admin/providers'
+      path: '/admin/providers'
+      fullPath: '/admin/providers'
+      preLoaderRoute: typeof AdminProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/usage': {
+      id: '/admin/usage'
+      path: '/admin/usage'
+      fullPath: '/admin/usage'
+      preLoaderRoute: typeof AdminUsageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -249,11 +519,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiFeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/models': {
+      id: '/api/models'
+      path: '/api/models'
+      fullPath: '/api/models'
+      preLoaderRoute: typeof ApiModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/uploads': {
       id: '/api/uploads'
       path: '/api/uploads'
       fullPath: '/api/uploads'
       preLoaderRoute: typeof ApiUploadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite/$inviteId': {
+      id: '/invite/$inviteId'
+      path: '/invite/$inviteId'
+      fullPath: '/invite/$inviteId'
+      preLoaderRoute: typeof InviteInviteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/account': {
+      id: '/settings/account'
+      path: '/settings/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof SettingsAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/data': {
+      id: '/settings/data'
+      path: '/settings/data'
+      fullPath: '/settings/data'
+      preLoaderRoute: typeof SettingsDataRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/general': {
+      id: '/settings/general'
+      path: '/settings/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof SettingsGeneralRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/personalization': {
+      id: '/settings/personalization'
+      path: '/settings/personalization'
+      fullPath: '/settings/personalization'
+      preLoaderRoute: typeof SettingsPersonalizationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/admin/audit': {
@@ -298,11 +617,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthBootstrapRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/invite': {
+      id: '/api/auth/invite'
+      path: '/api/auth/invite'
+      fullPath: '/api/auth/invite'
+      preLoaderRoute: typeof ApiAuthInviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/login': {
       id: '/api/auth/login'
       path: '/api/auth/login'
       fullPath: '/api/auth/login'
       preLoaderRoute: typeof ApiAuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/logout': {
+      id: '/api/auth/logout'
+      path: '/api/auth/logout'
+      fullPath: '/api/auth/logout'
+      preLoaderRoute: typeof ApiAuthLogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/me': {
@@ -312,25 +645,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/status': {
+      id: '/api/auth/status'
+      path: '/api/auth/status'
+      fullPath: '/api/auth/status'
+      preLoaderRoute: typeof ApiAuthStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
+  AdminAuditRoute: AdminAuditRoute,
+  AdminMembersRoute: AdminMembersRoute,
+  AdminModelsRoute: AdminModelsRoute,
+  AdminProvidersRoute: AdminProvidersRoute,
+  AdminUsageRoute: AdminUsageRoute,
   ApiChatRoute: ApiChatRoute,
   ApiConversationsRoute: ApiConversationsRoute,
   ApiExportRoute: ApiExportRoute,
   ApiFeedbackRoute: ApiFeedbackRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ApiModelsRoute: ApiModelsRoute,
   ApiUploadsRoute: ApiUploadsRoute,
+  InviteInviteIdRoute: InviteInviteIdRoute,
+  SettingsAccountRoute: SettingsAccountRoute,
+  SettingsDataRoute: SettingsDataRoute,
+  SettingsGeneralRoute: SettingsGeneralRoute,
+  SettingsPersonalizationRoute: SettingsPersonalizationRoute,
+  AdminIndexRoute: AdminIndexRoute,
   ApiAdminAuditRoute: ApiAdminAuditRoute,
   ApiAdminMembersRoute: ApiAdminMembersRoute,
   ApiAdminModelsRoute: ApiAdminModelsRoute,
   ApiAdminProvidersRoute: ApiAdminProvidersRoute,
   ApiAdminUsageRoute: ApiAdminUsageRoute,
   ApiAuthBootstrapRoute: ApiAuthBootstrapRoute,
+  ApiAuthInviteRoute: ApiAuthInviteRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
+  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthMeRoute: ApiAuthMeRoute,
+  ApiAuthStatusRoute: ApiAuthStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
