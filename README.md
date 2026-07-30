@@ -185,8 +185,7 @@ Product plan and work packages: **[docs/plan.md](./docs/plan.md)**
 
 ## License
 
-**Private / all rights reserved** until you choose an open-source license.  
-To publish OSS: pick MIT/Apache-2.0, add `LICENSE`, and update this section.
+[MIT](./LICENSE) © 2026 mjtechguy and Maximus contributors
 
 ---
 
