@@ -113,6 +113,9 @@ services:
       valkey:
         condition: service_healthy
         required: false
+      rustfs:
+        condition: service_started
+        required: false
       migrate:
         condition: service_completed_successfully
     expose:
@@ -209,6 +212,7 @@ services:
       RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?Set S3_SECRET_KEY}
     volumes:
       - maximus_rustfs:/data
+    # No first-class health endpoint on all builds; app entrypoint retries bucket create.
     restart: unless-stopped
     logging: *default-logging
     networks:
