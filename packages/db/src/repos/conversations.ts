@@ -47,6 +47,7 @@ export async function listConversations(
     limit?: number;
     /** default active (not archived); `archived` = only archived */
     scope?: "active" | "archived" | "all";
+    projectId?: string | null;
   },
 ) {
   const scope = input.scope ?? "active";
@@ -57,6 +58,13 @@ export async function listConversations(
         ? undefined
         : isNull(conversations.archivedAt);
 
+  const projectClause =
+    input.projectId === undefined
+      ? undefined
+      : input.projectId === null
+        ? isNull(conversations.projectId)
+        : eq(conversations.projectId, input.projectId);
+
   return db
     .select()
     .from(conversations)
@@ -65,6 +73,7 @@ export async function listConversations(
         eq(conversations.orgId, input.orgId),
         eq(conversations.userId, input.userId),
         archiveClause,
+        projectClause,
       ),
     )
     .orderBy(desc(conversations.updatedAt))

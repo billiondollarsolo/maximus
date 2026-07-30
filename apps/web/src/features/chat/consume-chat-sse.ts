@@ -1,4 +1,4 @@
-import type { ContentPartUi, ServerMsg } from "./chat-types";
+import type { ContentPartUi, GenerationMetricsUi, ServerMsg } from "./chat-types";
 
 export type ChatSseHandlers = {
   onMeta?: (conversationId: string) => void;
@@ -7,6 +7,7 @@ export type ChatSseHandlers = {
     content: string | undefined,
     status: string | undefined,
     contentParts?: ContentPartUi[],
+    metrics?: GenerationMetricsUi,
   ) => void;
 };
 
@@ -36,6 +37,7 @@ export async function consumeChatSse(
           content?: string;
           status?: string;
           contentParts?: ContentPartUi[];
+          metrics?: GenerationMetricsUi;
         };
         if (ev.type === "meta" && ev.conversationId) {
           handlers.onMeta?.(ev.conversationId);
@@ -44,7 +46,12 @@ export async function consumeChatSse(
           handlers.onText?.(ev.text);
         }
         if (ev.type === "done") {
-          handlers.onDone?.(ev.content, ev.status, ev.contentParts);
+          handlers.onDone?.(
+            ev.content,
+            ev.status,
+            ev.contentParts,
+            ev.metrics,
+          );
         }
       } catch {
         // ignore partial JSON
@@ -80,6 +87,7 @@ export function finalizeAssistant(
   content: string | undefined,
   status: string | undefined,
   contentParts?: ContentPartUi[],
+  metrics?: GenerationMetricsUi,
 ): ServerMsg[] {
   return msgs.map((m) =>
     m.id === tempAsstId
@@ -97,6 +105,17 @@ export function finalizeAssistant(
                 },
               ],
           status: status ?? "complete",
+          metrics: metrics ?? m.metrics,
+          tokenUsage: metrics
+            ? {
+                input: metrics.inputTokens,
+                output: metrics.outputTokens,
+                latencyMs: metrics.latencyMs,
+                ttftMs: metrics.ttftMs ?? undefined,
+                tokensPerSec: metrics.tokensPerSec ?? undefined,
+                providerKind: metrics.providerKind,
+              }
+            : m.tokenUsage,
         }
       : m,
   );

@@ -115,6 +115,7 @@ export async function* streamAssistant(args: {
   let full = "";
   let inputTokens = 0;
   let outputTokens = 0;
+  let firstTokenAt: number | null = null;
   let status: "complete" | "aborted" | "error" = "complete";
 
   try {
@@ -122,6 +123,7 @@ export async function* streamAssistant(args: {
       signal: args.input.signal,
     })) {
       if (chunk.type === "text") {
+        if (firstTokenAt == null) firstTokenAt = Date.now();
         full += chunk.text;
         yield { type: "text", text: chunk.text };
       } else if (chunk.type === "usage") {
@@ -146,6 +148,18 @@ export async function* streamAssistant(args: {
     }
   }
 
+  const latencyMs = Date.now() - started;
+  const ttftMs =
+    firstTokenAt != null ? Math.max(0, firstTokenAt - started) : null;
+  // Prefer provider usage; if missing, estimate output from length (~4 chars/token)
+  if (!outputTokens && full.length) {
+    outputTokens = Math.max(1, Math.round(full.length / 4));
+  }
+  const tokensPerSec =
+    latencyMs > 0 && outputTokens > 0
+      ? Math.round((outputTokens / (latencyMs / 1000)) * 10) / 10
+      : null;
+
   const price = await usageRepo.findPrice(args.db, {
     orgId: args.ctx.orgId,
     providerKind: resolved.providerKind,
@@ -163,10 +177,27 @@ export async function* streamAssistant(args: {
       : null,
   });
 
+  const metrics = {
+    latencyMs,
+    ttftMs,
+    inputTokens,
+    outputTokens,
+    tokensPerSec,
+    modelRef: args.modelRef,
+    providerKind: resolved.providerKind,
+  };
+
   await messageRepo.updateMessage(args.db, args.assistantId, {
     status,
     content: textParts(full),
-    tokenUsage: { input: inputTokens, output: outputTokens },
+    tokenUsage: {
+      input: inputTokens,
+      output: outputTokens,
+      latencyMs,
+      ttftMs: ttftMs ?? undefined,
+      tokensPerSec: tokensPerSec ?? undefined,
+      providerKind: resolved.providerKind,
+    },
   });
   await conversationRepo.updateConversation(args.db, args.conversationId, {
     activeLeafId: args.assistantId,
@@ -182,9 +213,9 @@ export async function* streamAssistant(args: {
     inputTokens,
     outputTokens,
     costMicros,
-    latencyMs: Date.now() - started,
+    latencyMs,
     status: status === "complete" ? "ok" : status,
   });
 
-  yield { type: "done", status, content: full };
+  yield { type: "done", status, content: full, metrics };
 }

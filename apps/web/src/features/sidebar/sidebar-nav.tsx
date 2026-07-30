@@ -163,7 +163,13 @@ export function SidebarNav({
             </kbd>
           }
         />
-        <NavItem icon={Folder} label="Projects" />
+        <Link
+          to="/projects"
+          className="flex h-10 w-full items-center gap-2.5 rounded-[var(--radius-md)] px-2.5 text-[13.5px] text-text-secondary no-underline transition-colors hover:bg-bg-sidebar-hover hover:text-text-primary"
+        >
+          <Icon icon={Folder} size="sm" className="shrink-0 opacity-90" />
+          <span className="min-w-0 flex-1 truncate text-left">Projects</span>
+        </Link>
       </div>
 
       {(searchOpen || searchQuery) && (

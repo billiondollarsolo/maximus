@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminMembersRouteImport } from './routes/admin.members'
@@ -25,6 +26,7 @@ import { Route as ApiExportRouteImport } from './routes/api/export'
 import { Route as ApiFeedbackRouteImport } from './routes/api/feedback'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiModelsRouteImport } from './routes/api/models'
+import { Route as ApiProjectsRouteImport } from './routes/api/projects'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
 import { Route as CConversationIdRouteImport } from './routes/c.$conversationId'
 import { Route as InviteInviteIdRouteImport } from './routes/invite.$inviteId'
@@ -41,6 +43,7 @@ import { Route as ApiAdminPricesRouteImport } from './routes/api/admin/prices'
 import { Route as ApiAdminProvidersRouteImport } from './routes/api/admin/providers'
 import { Route as ApiAdminUsageRouteImport } from './routes/api/admin/usage'
 import { Route as ApiAttachmentsIdRouteImport } from './routes/api/attachments.$id'
+import { Route as ApiAuthAccountRouteImport } from './routes/api/auth/account'
 import { Route as ApiAuthBootstrapRouteImport } from './routes/api/auth/bootstrap'
 import { Route as ApiAuthInviteRouteImport } from './routes/api/auth/invite'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
@@ -60,6 +63,11 @@ const IndexRoute = IndexRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectsRoute = ProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -130,6 +138,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const ApiModelsRoute = ApiModelsRouteImport.update({
   id: '/api/models',
   path: '/api/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectsRoute = ApiProjectsRouteImport.update({
+  id: '/api/projects',
+  path: '/api/projects',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiUploadsRoute = ApiUploadsRouteImport.update({
@@ -212,6 +225,11 @@ const ApiAttachmentsIdRoute = ApiAttachmentsIdRouteImport.update({
   path: '/api/attachments/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthAccountRoute = ApiAuthAccountRouteImport.update({
+  id: '/api/auth/account',
+  path: '/api/auth/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthBootstrapRoute = ApiAuthBootstrapRouteImport.update({
   id: '/api/auth/bootstrap',
   path: '/api/auth/bootstrap',
@@ -267,6 +285,7 @@ const ApiAdminOverviewStreamRoute = ApiAdminOverviewStreamRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/members': typeof AdminMembersRoute
   '/admin/models': typeof AdminModelsRoute
@@ -279,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/api/feedback': typeof ApiFeedbackRoute
   '/api/health': typeof ApiHealthRoute
   '/api/models': typeof ApiModelsRoute
+  '/api/projects': typeof ApiProjectsRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/c/$conversationId': typeof CConversationIdRoute
   '/invite/$inviteId': typeof InviteInviteIdRoute
@@ -297,6 +317,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/providers': typeof ApiAdminProvidersRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
+  '/api/auth/account': typeof ApiAuthAccountRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
   '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
@@ -311,6 +332,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/members': typeof AdminMembersRoute
   '/admin/models': typeof AdminModelsRoute
@@ -323,6 +345,7 @@ export interface FileRoutesByTo {
   '/api/feedback': typeof ApiFeedbackRoute
   '/api/health': typeof ApiHealthRoute
   '/api/models': typeof ApiModelsRoute
+  '/api/projects': typeof ApiProjectsRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/c/$conversationId': typeof CConversationIdRoute
   '/invite/$inviteId': typeof InviteInviteIdRoute
@@ -341,6 +364,7 @@ export interface FileRoutesByTo {
   '/api/admin/providers': typeof ApiAdminProvidersRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
+  '/api/auth/account': typeof ApiAuthAccountRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
   '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
@@ -356,6 +380,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
   '/admin/members': typeof AdminMembersRoute
   '/admin/models': typeof AdminModelsRoute
@@ -368,6 +393,7 @@ export interface FileRoutesById {
   '/api/feedback': typeof ApiFeedbackRoute
   '/api/health': typeof ApiHealthRoute
   '/api/models': typeof ApiModelsRoute
+  '/api/projects': typeof ApiProjectsRoute
   '/api/uploads': typeof ApiUploadsRoute
   '/c/$conversationId': typeof CConversationIdRoute
   '/invite/$inviteId': typeof InviteInviteIdRoute
@@ -386,6 +412,7 @@ export interface FileRoutesById {
   '/api/admin/providers': typeof ApiAdminProvidersRoute
   '/api/admin/usage': typeof ApiAdminUsageRoute
   '/api/attachments/$id': typeof ApiAttachmentsIdRoute
+  '/api/auth/account': typeof ApiAuthAccountRoute
   '/api/auth/bootstrap': typeof ApiAuthBootstrapRoute
   '/api/auth/invite': typeof ApiAuthInviteRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
@@ -402,6 +429,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/projects'
     | '/admin/audit'
     | '/admin/members'
     | '/admin/models'
@@ -414,6 +442,7 @@ export interface FileRouteTypes {
     | '/api/feedback'
     | '/api/health'
     | '/api/models'
+    | '/api/projects'
     | '/api/uploads'
     | '/c/$conversationId'
     | '/invite/$inviteId'
@@ -432,6 +461,7 @@ export interface FileRouteTypes {
     | '/api/admin/providers'
     | '/api/admin/usage'
     | '/api/attachments/$id'
+    | '/api/auth/account'
     | '/api/auth/bootstrap'
     | '/api/auth/invite'
     | '/api/auth/login'
@@ -446,6 +476,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/projects'
     | '/admin/audit'
     | '/admin/members'
     | '/admin/models'
@@ -458,6 +489,7 @@ export interface FileRouteTypes {
     | '/api/feedback'
     | '/api/health'
     | '/api/models'
+    | '/api/projects'
     | '/api/uploads'
     | '/c/$conversationId'
     | '/invite/$inviteId'
@@ -476,6 +508,7 @@ export interface FileRouteTypes {
     | '/api/admin/providers'
     | '/api/admin/usage'
     | '/api/attachments/$id'
+    | '/api/auth/account'
     | '/api/auth/bootstrap'
     | '/api/auth/invite'
     | '/api/auth/login'
@@ -490,6 +523,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/login'
+    | '/projects'
     | '/admin/audit'
     | '/admin/members'
     | '/admin/models'
@@ -502,6 +536,7 @@ export interface FileRouteTypes {
     | '/api/feedback'
     | '/api/health'
     | '/api/models'
+    | '/api/projects'
     | '/api/uploads'
     | '/c/$conversationId'
     | '/invite/$inviteId'
@@ -520,6 +555,7 @@ export interface FileRouteTypes {
     | '/api/admin/providers'
     | '/api/admin/usage'
     | '/api/attachments/$id'
+    | '/api/auth/account'
     | '/api/auth/bootstrap'
     | '/api/auth/invite'
     | '/api/auth/login'
@@ -535,6 +571,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  ProjectsRoute: typeof ProjectsRoute
   AdminAuditRoute: typeof AdminAuditRoute
   AdminMembersRoute: typeof AdminMembersRoute
   AdminModelsRoute: typeof AdminModelsRoute
@@ -547,6 +584,7 @@ export interface RootRouteChildren {
   ApiFeedbackRoute: typeof ApiFeedbackRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiModelsRoute: typeof ApiModelsRoute
+  ApiProjectsRoute: typeof ApiProjectsRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
   CConversationIdRoute: typeof CConversationIdRoute
   InviteInviteIdRoute: typeof InviteInviteIdRoute
@@ -565,6 +603,7 @@ export interface RootRouteChildren {
   ApiAdminProvidersRoute: typeof ApiAdminProvidersRoute
   ApiAdminUsageRoute: typeof ApiAdminUsageRoute
   ApiAttachmentsIdRoute: typeof ApiAttachmentsIdRoute
+  ApiAuthAccountRoute: typeof ApiAuthAccountRoute
   ApiAuthBootstrapRoute: typeof ApiAuthBootstrapRoute
   ApiAuthInviteRoute: typeof ApiAuthInviteRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
@@ -588,6 +627,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects': {
+      id: '/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -686,6 +732,13 @@ declare module '@tanstack/react-router' {
       path: '/api/models'
       fullPath: '/api/models'
       preLoaderRoute: typeof ApiModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/projects': {
+      id: '/api/projects'
+      path: '/api/projects'
+      fullPath: '/api/projects'
+      preLoaderRoute: typeof ApiProjectsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/uploads': {
@@ -800,6 +853,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAttachmentsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/account': {
+      id: '/api/auth/account'
+      path: '/api/auth/account'
+      fullPath: '/api/auth/account'
+      preLoaderRoute: typeof ApiAuthAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/bootstrap': {
       id: '/api/auth/bootstrap'
       path: '/api/auth/bootstrap'
@@ -891,6 +951,7 @@ const ApiAdminOverviewRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  ProjectsRoute: ProjectsRoute,
   AdminAuditRoute: AdminAuditRoute,
   AdminMembersRoute: AdminMembersRoute,
   AdminModelsRoute: AdminModelsRoute,
@@ -903,6 +964,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFeedbackRoute: ApiFeedbackRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiModelsRoute: ApiModelsRoute,
+  ApiProjectsRoute: ApiProjectsRoute,
   ApiUploadsRoute: ApiUploadsRoute,
   CConversationIdRoute: CConversationIdRoute,
   InviteInviteIdRoute: InviteInviteIdRoute,
@@ -921,6 +983,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminProvidersRoute: ApiAdminProvidersRoute,
   ApiAdminUsageRoute: ApiAdminUsageRoute,
   ApiAttachmentsIdRoute: ApiAttachmentsIdRoute,
+  ApiAuthAccountRoute: ApiAuthAccountRoute,
   ApiAuthBootstrapRoute: ApiAuthBootstrapRoute,
   ApiAuthInviteRoute: ApiAuthInviteRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,

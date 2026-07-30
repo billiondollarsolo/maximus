@@ -33,8 +33,22 @@ export type ChatTurnEvent =
       status: "complete" | "aborted" | "error";
       content: string;
       contentParts?: ContentPart[];
+      /** Generation stats (OpenWebUI-style footer) */
+      metrics?: GenerationMetrics;
     }
   | { type: "error"; message: string; code?: string };
+
+export type GenerationMetrics = {
+  latencyMs: number;
+  /** Time to first token (streaming) */
+  ttftMs?: number | null;
+  inputTokens: number;
+  outputTokens: number;
+  /** outputTokens / (latencyMs/1000) when latency > 0 */
+  tokensPerSec?: number | null;
+  modelRef: string;
+  providerKind: string;
+};
 
 export type StreamAssistantInput = {
   encryptionKey?: string;

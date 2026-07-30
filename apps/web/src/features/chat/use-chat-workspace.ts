@@ -8,6 +8,7 @@ import type { UiMessage } from "./message-list";
 import {
   type ConvRow,
   type ServerMsg,
+  metricsFromTokenUsage,
   textFromContent,
 } from "./chat-types";
 import {
@@ -97,6 +98,9 @@ export function useChatWorkspace(
     const byId = new Map(treeMsgs.map((m) => [m.id, m]));
     return branch.map((node) => {
       const full = byId.get(node.id);
+      const metrics =
+        full?.metrics ??
+        metricsFromTokenUsage(full?.modelRef, full?.tokenUsage ?? null);
       return {
         id: node.id,
         role: node.role as UiMessage["role"],
@@ -105,6 +109,8 @@ export function useChatWorkspace(
         status: full?.status,
         parentMessageId: node.parentMessageId,
         position: node.position,
+        modelRef: full?.modelRef,
+        metrics,
       };
     });
   }, [tree, treeMsgs, activeLeafId]);
@@ -309,9 +315,16 @@ export function useChatWorkspace(
         onText: (t) => {
           setTreeMsgs((ms) => appendAssistantText(ms, tempAsstId, t));
         },
-        onDone: (content, status, contentParts) => {
+        onDone: (content, status, contentParts, metrics) => {
           setTreeMsgs((ms) =>
-            finalizeAssistant(ms, tempAsstId, content, status, contentParts),
+            finalizeAssistant(
+              ms,
+              tempAsstId,
+              content,
+              status,
+              contentParts,
+              metrics,
+            ),
           );
         },
       });

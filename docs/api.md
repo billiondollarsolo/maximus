@@ -45,14 +45,15 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/auth/me"
 | --- | --- | --- |
 | GET | `/api/auth/me` | User + org + role |
 | POST | `/api/auth/logout` | |
+| DELETE | `/api/auth/account` | Hard-delete account (`confirm: "DELETE"`) |
 | GET/PUT | `/api/me/instructions` | Personalization → chat system prompt |
+| GET/POST/PATCH/DELETE | `/api/projects` | Projects; PATCH can assign `conversationId` |
 | GET | `/api/models` | Allowed models (gated platform + Ollama `/api/tags` discovery + org BYOK) |
-| GET | `/api/conversations` | List / `?id=` detail+messages / `?q=` search |
-| SPA | `/` · `/c/{conversationId}` | ChatGPT-style deep links; ids are `conv_<uuid>` in DB |
+| GET | `/api/conversations` | List / `?id=` / `?q=` / `?scope=` / `?projectId=` |
+| SPA | `/` · `/c/{conversationId}` · `/projects` | Deep links |
 | PATCH | `/api/conversations` | Title, archive/unarchive (`archive: true\|false`), activeLeafId |
 | DELETE | `/api/conversations` | `{ id }` or bulk `{ bulk: "all"\|"archived", confirm: "DELETE" }` |
-| GET | `/api/conversations?scope=archived` | Archived list for settings |
-| POST | `/api/chat` | **SSE** chat/image-gen turns |
+| POST | `/api/chat` | **SSE** turns; `done.metrics` includes latency / tokens / tok/s |
 | POST | `/api/uploads` | Presign attachment |
 | GET | `/api/attachments/$id` | Fetch attachment bytes |
 | GET | `/api/export` | `?id=&format=md\|json` |
@@ -71,7 +72,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" "$APP/api/auth/me"
 | CRUD | `/api/admin/prices` | Pricing rows |
 | GET/POST | `/api/admin/members` | Members + invites |
 | GET | `/api/admin/usage` | Usage events |
-| GET | `/api/admin/audit` | Audit log |
+| GET | `/api/admin/audit` | Audit log (`?action=` `?since=` `?limit=`) |
 
 ## Live / SSE
 

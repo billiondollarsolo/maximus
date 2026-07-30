@@ -14,8 +14,17 @@ export const Route = createFileRoute("/api/admin/audit")({
           const db = getDb(env.databaseUrl);
           const ctx = await requireAuth(sessionFromRequest(request), db);
           requireOrgRole(ctx, "admin");
+          const url = new URL(request.url);
+          const action = url.searchParams.get("action") ?? undefined;
+          const sinceRaw = url.searchParams.get("since");
+          const since = sinceRaw ? new Date(sinceRaw) : undefined;
+          const limit = Number(url.searchParams.get("limit") ?? 100);
           const events = await usageQueryRepo.listAudit(db, {
             orgId: ctx.orgId,
+            action,
+            since:
+              since && !Number.isNaN(since.getTime()) ? since : undefined,
+            limit: Number.isFinite(limit) ? Math.min(500, limit) : 100,
           });
           return jsonOk({ events });
         } catch (err) {

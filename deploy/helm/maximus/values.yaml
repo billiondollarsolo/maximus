@@ -6,8 +6,9 @@ nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: maximus-web
-  tag: "latest"
+  # Default GHCR path after release tags (ci: release-ghcr.yml)
+  repository: ghcr.io/billiondollarsolo/maximus
+  tag: "0.1.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []

@@ -14,7 +14,8 @@ Every product surface is a **real URL** (bookmarkable, shareable, open-in-new-ta
 | `/settings/general` | session | Appearance |
 | `/settings/personalization` | session | Custom instructions |
 | `/settings/data` | session | Archived chats, unarchive, bulk delete |
-| `/settings/account` | session | Profile / logout |
+| `/settings/account` | session | Profile / logout / delete account |
+| `/projects` | session | List/create/delete projects |
 | `/admin` | admin | Overview (live) |
 | `/admin/members` | admin | Team + invite links `/invite/$id` |
 | `/admin/providers` | admin | BYOK / models / pricing |

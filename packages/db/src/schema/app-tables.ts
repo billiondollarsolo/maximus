@@ -128,7 +128,7 @@ export const messages = pgTable("messages", {
   content: jsonb("content").$type<unknown[]>().notNull(),
   status: text("status").notNull(),
   modelRef: text("model_ref"),
-  tokenUsage: jsonb("token_usage").$type<Record<string, number> | null>(),
+  tokenUsage: jsonb("token_usage").$type<Record<string, unknown> | null>(),
   error: jsonb("error").$type<Record<string, unknown> | null>(),
   position: integer("position").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

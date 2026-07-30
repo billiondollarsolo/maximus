@@ -45,6 +45,7 @@ export const Route = createFileRoute("/api/conversations")({
             scopeParam === "archived" || scopeParam === "all"
               ? scopeParam
               : "active";
+          const projectId = url.searchParams.get("projectId");
           const q = url.searchParams.get("q");
           const items = q
             ? await conversationRepo.searchConversations(db, {
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/api/conversations")({
                 orgId: ctx.orgId,
                 userId: ctx.user.id,
                 scope,
+                projectId: projectId || undefined,
               });
           return jsonOk({ conversations: items, scope });
         } catch (err) {

@@ -45,7 +45,7 @@ export async function updateMessage(
   patch: Partial<{
     content: unknown[];
     status: string;
-    tokenUsage: Record<string, number> | null;
+    tokenUsage: Record<string, unknown> | null;
     error: Record<string, unknown> | null;
     modelRef: string | null;
   }>,

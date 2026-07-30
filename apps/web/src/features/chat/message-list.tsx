@@ -14,7 +14,7 @@ import { Button, IconButton } from "#/components/ui";
 import { MarkdownRenderer } from "#/components/markdown/markdown-renderer";
 import { cn } from "#/lib/cn";
 import { AttachmentImage } from "./attachment-image";
-import type { ContentPartUi } from "./chat-types";
+import type { ContentPartUi, GenerationMetricsUi } from "./chat-types";
 
 export type UiMessage = {
   id: string;
@@ -24,7 +24,40 @@ export type UiMessage = {
   status?: string;
   parentMessageId?: string | null;
   position?: number;
+  modelRef?: string | null;
+  metrics?: GenerationMetricsUi | null;
 };
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(s < 10 ? 1 : 0)}s`;
+  const m = Math.floor(s / 60);
+  const rem = Math.round(s % 60);
+  return `${m}m ${rem}s`;
+}
+
+function GenerationFooter({ metrics }: { metrics: GenerationMetricsUi }) {
+  const bits: string[] = [];
+  bits.push(formatDuration(metrics.latencyMs));
+  if (metrics.ttftMs != null && metrics.ttftMs > 0) {
+    bits.push(`TTFT ${formatDuration(metrics.ttftMs)}`);
+  }
+  if (metrics.inputTokens || metrics.outputTokens) {
+    bits.push(`${metrics.inputTokens}→${metrics.outputTokens} tok`);
+  }
+  if (metrics.tokensPerSec != null && metrics.tokensPerSec > 0) {
+    bits.push(`${metrics.tokensPerSec} tok/s`);
+  }
+  if (metrics.providerKind) {
+    bits.push(metrics.providerKind);
+  }
+  const modelShort = metrics.modelRef?.split(":").pop();
+  if (modelShort) bits.push(modelShort);
+  return (
+    <p className="mt-2 text-[11px] tabular-nums text-text-faint">{bits.join(" · ")}</p>
+  );
+}
 
 /**
  * ChatGPT-style thread:
@@ -104,6 +137,9 @@ export function MessageList({
                         !m.content &&
                         !(m.parts ?? []).some((p) => p.type === "image") ? (
                           <span className="inline-block h-4 w-1.5 animate-pulse rounded-sm bg-text-muted" />
+                        ) : null}
+                        {m.status !== "streaming" && m.metrics ? (
+                          <GenerationFooter metrics={m.metrics} />
                         ) : null}
                       </div>
                     )}

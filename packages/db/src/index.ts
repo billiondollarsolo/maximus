@@ -35,3 +35,5 @@ export {
 } from "./repos/org-settings.js";
 export * as overviewRepo from "./repos/overview.js";
 export * as userSettingsRepo from "./repos/user-settings.js";
+export * as projectsRepo from "./repos/projects.js";
+export { deleteUserAccount } from "./repos/account.js";

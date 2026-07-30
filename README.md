@@ -102,6 +102,17 @@ Ops / ports / demo mode: **[docs/runbook.md](./docs/runbook.md)**
 
 ---
 
+## Container image (GHCR)
+
+Tagged releases push multi-label images via GitHub Actions:
+
+```text
+ghcr.io/billiondollarsolo/maximus:0.1.0
+ghcr.io/billiondollarsolo/maximus:latest
+```
+
+Workflow: [`.github/workflows/release-ghcr.yml`](./.github/workflows/release-ghcr.yml) (on `v*` tags).
+
 ## Production
 
 ```bash
@@ -145,6 +156,7 @@ Open `https://YOUR_DOMAIN` → bootstrap owner → invite the team.
 | [docs/deploy.md](./docs/deploy.md) | Production Compose & env |
 | [docs/deploy-external.md](./docs/deploy-external.md) | External Postgres / Valkey / S3 |
 | [docs/deploy-helm.md](./docs/deploy-helm.md) | Kubernetes Helm chart |
+| [SECURITY.md](./SECURITY.md) | Vulnerability reporting |
 | [docs/tls.md](./docs/tls.md) | ACME modes, DNS challenges |
 | [docs/runbook.md](./docs/runbook.md) | Health, demo mode, probes, backup |
 | [docs/api.md](./docs/api.md) | HTTP/SSE surface, auth, catalog |

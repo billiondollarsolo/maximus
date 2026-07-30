@@ -44,4 +44,8 @@ For **single users and small invite-only teams**. Not a SOC2 certification.
 
 ## Reporting issues
 
-Prefer private disclosure for security bugs until a `SECURITY.md` process is published. Do not open public issues with secret material.
+See [SECURITY.md](../SECURITY.md) for private disclosure. Do not open public issues with secret material.
+
+## Last review
+
+Code/packaging pass: [security-review-2026-07-30.md](./security-review-2026-07-30.md).
