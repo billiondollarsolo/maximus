@@ -85,7 +85,7 @@ pnpm dev                     # http://localhost:3000
 
 1. Open **http://localhost:3000** → **Create workspace** (first user is owner).  
 2. After bootstrap, the org is **invite-only**.  
-3. Default `PROVIDER_MODE=fake` streams demo replies with no API keys.
+3. Default `PROVIDER_MODE=live`. Set `PROVIDER_MODE=fake` only for E2E (adapter fakes replies; catalog still only shows real offerings / keys).
 
 For live models:
 
