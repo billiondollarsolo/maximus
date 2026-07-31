@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { cn } from "#/lib/cn";
 import { ConversationMenu } from "./conversation-menu";
 
-/** ChatGPT-style history row with deep link + ⋮ actions. */
+/** Conversation history row with deep link + ⋮ actions. */
 export function ConversationRow({
   id,
   title,

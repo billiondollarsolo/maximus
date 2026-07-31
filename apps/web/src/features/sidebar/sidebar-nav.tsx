@@ -15,6 +15,7 @@ import { useTheme } from "#/features/theme/theme-provider";
 import { cn } from "#/lib/cn";
 import { ConversationList } from "./conversation-list";
 import type { FakeConversation } from "./fake-conversations";
+import { SidebarBrandFooter } from "./sidebar-brand-footer";
 import { SidebarUserMenu } from "./sidebar-user-menu";
 
 function NavItem({
@@ -126,6 +127,7 @@ export function SidebarNav({
         <div className="px-1 pb-1 pt-0.5">
           <SidebarUserMenu collapsed />
         </div>
+        <SidebarBrandFooter collapsed />
       </div>
     );
   }
@@ -211,6 +213,7 @@ export function SidebarNav({
         />
         <SidebarUserMenu collapsed={false} />
       </div>
+      <SidebarBrandFooter />
     </div>
   );
 }

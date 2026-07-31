@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ChatIndexRouteImport } from './routes/_chat.index'
@@ -64,6 +65,11 @@ import { Route as ApiAdminOverviewStreamRouteImport } from './routes/api/admin/o
 
 const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -325,6 +331,7 @@ const ApiAdminOverviewStreamRoute = ApiAdminOverviewStreamRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
+  '/about': typeof AboutRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -377,6 +384,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/overview/stream': typeof ApiAdminOverviewStreamRoute
 }
 export interface FileRoutesByTo {
+  '/about': typeof AboutRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -432,6 +440,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
+  '/about': typeof AboutRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -488,6 +497,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/login'
     | '/projects'
     | '/admin/audit'
@@ -540,6 +550,7 @@ export interface FileRouteTypes {
     | '/api/admin/overview/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/about'
     | '/login'
     | '/projects'
     | '/admin/audit'
@@ -594,6 +605,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_chat'
+    | '/about'
     | '/login'
     | '/projects'
     | '/admin/audit'
@@ -649,6 +661,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
+  AboutRoute: typeof AboutRoute
   LoginRoute: typeof LoginRoute
   ProjectsRoute: typeof ProjectsRoute
   AdminAuditRoute: typeof AdminAuditRoute
@@ -704,6 +717,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof ChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1095,6 +1115,7 @@ const ApiAdminOverviewRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
+  AboutRoute: AboutRoute,
   LoginRoute: LoginRoute,
   ProjectsRoute: ProjectsRoute,
   AdminAuditRoute: AdminAuditRoute,

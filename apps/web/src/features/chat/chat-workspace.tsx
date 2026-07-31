@@ -11,7 +11,7 @@ import { useChatWorkspace } from "./use-chat-workspace";
 
 /**
  * Black canvas + expanded composer (model inside field). Mobile menu only in header.
- * URL: `/` = new chat, `/c/$conversationId` = sticky thread (ChatGPT-style).
+ * URL: `/` = new chat, `/c/$conversationId` = sticky thread deep link.
  */
 export function ChatWorkspace({
   conversationId = null,

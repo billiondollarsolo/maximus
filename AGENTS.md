@@ -2,7 +2,7 @@
 
 ## Mission
 
-Enterprise ChatGPT-class workspace: multi-provider chat, Postgres, invite-only orgs. Looks like ChatGPT; behaves like enterprise software.
+Self-hosted AI workspace: multi-provider chat, Postgres, invite-only orgs, and enterprise controls on infrastructure you operate.
 
 ## Non-negotiables
 

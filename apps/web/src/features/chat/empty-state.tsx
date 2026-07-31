@@ -1,5 +1,5 @@
 /**
- * ChatGPT empty canvas: centered headline only (composer is sibling below).
+ * Empty chat canvas: centered headline only (composer is sibling below).
  */
 export function EmptyState() {
   return (

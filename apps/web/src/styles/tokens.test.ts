@@ -7,7 +7,7 @@ const dir = dirname(fileURLToPath(import.meta.url));
 const tokens = readFileSync(join(dir, "tokens.css"), "utf8");
 
 describe("design tokens", () => {
-  it("uses near-black ChatGPT canvas", () => {
+  it("uses near-black app canvas", () => {
     expect(tokens).toMatch(/--bg-app:\s*#000000/);
     expect(tokens).toMatch(/--bg-sidebar:\s*#0a0a0a/);
   });

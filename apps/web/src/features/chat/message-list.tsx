@@ -109,7 +109,7 @@ function StreamingPlaceholder() {
 }
 
 /**
- * ChatGPT-style thread:
+ * Conversation thread:
  * - User: right-aligned soft rectangular bubble (no per-message avatar)
  * - Assistant: left brand mark + full-width prose
  * - Auto-scroll while stuck to bottom; jump-to-bottom chip when user scrolls up
@@ -185,7 +185,7 @@ export function MessageList({
     }, 0);
   }, [messages, stickToBottom]);
 
-  // New send → always re-stick (ChatGPT behavior)
+  // New send → always re-stick to the latest turn
   const prevCountRef = useRef(messages.length);
   useLayoutEffect(() => {
     const prev = prevCountRef.current;

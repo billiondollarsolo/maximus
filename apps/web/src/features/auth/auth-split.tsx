@@ -2,7 +2,7 @@ import { BrandMark } from "#/components/layout/brand-mark";
 import { cn } from "#/lib/cn";
 
 /**
- * Two-pane auth layout (Astronomer-style) branded for Maximus.
+ * Two-pane auth layout branded for Maximus.
  * Left: product pitch. Right: credentials form.
  */
 export function AuthSplit({
@@ -34,13 +34,13 @@ export function AuthSplit({
 
           <div className="my-auto max-w-lg py-16">
             <h1 className="text-[2.35rem] font-semibold leading-[1.15] tracking-tight text-white xl:text-[2.75rem]">
-              Enterprise ChatGPT-class{" "}
-              <span className="text-accent">workspace</span>
+              Your AI workspace,{" "}
+              <span className="text-accent">on your terms</span>
             </h1>
             <p className="mt-5 text-[15px] leading-relaxed text-white/55">
-              Multi-provider AI chat on your infrastructure. Invite-only orgs,
-              encrypted API keys, and admin controls — built for teams that
-              care about ownership.
+              Streaming multi-provider chat on infrastructure you operate.
+              Invite-only orgs, encrypted API keys, and live admin controls —
+              built for teams that care about ownership.
             </p>
           </div>
 

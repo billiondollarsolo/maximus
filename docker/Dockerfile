@@ -15,12 +15,16 @@ COPY packages/storage/package.json packages/storage/
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
+ARG APP_VERSION=0.1.5
+ENV VITE_APP_VERSION=$APP_VERSION
 COPY . .
 RUN pnpm --filter @maximus/web build
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
+ARG APP_VERSION=0.1.5
 ENV NODE_ENV=production
+ENV APP_VERSION=$APP_VERSION
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate \
   && useradd -m -u 10001 maximus \
   && apt-get update && apt-get install -y --no-install-recommends curl \

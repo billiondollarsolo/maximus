@@ -7,7 +7,7 @@ import { CodeBlock, InlineCode } from "./code-block";
 import { prepareStreamingMarkdown, textFromReactChildren } from "./stream-markdown";
 
 /**
- * ChatGPT-class assistant markdown: GFM + syntax highlighting + copyable fences.
+ * Assistant markdown: GFM + syntax highlighting + copyable fences.
  * Stream-safe (auto-closes open code fences). No raw HTML (XSS-safe).
  *
  * Pass `streaming` while tokens still arrive: still renders live GFM/markdown,

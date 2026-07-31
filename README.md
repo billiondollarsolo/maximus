@@ -5,7 +5,7 @@
 <h1 align="center">Maximus</h1>
 
 <p align="center">
-  <strong>Self-hosted AI workspace with ChatGPT-class UX — and keys that never leave your house.</strong>
+  <strong>Self-hosted AI workspace — your models, your data, your network.</strong>
 </p>
 
 <p align="center">
@@ -26,12 +26,12 @@
 
 ## Why Maximus?
 
-Public chat products are fast — and opaque. Maximus is for operators who want the **same muscle memory** (streaming turns, branches, model picker, dark canvas) without surrendering history, models, or compliance posture to a vendor.
+Vendor chat products are fast — and opaque about where data and keys live. Maximus is for operators who want **streaming multi-provider chat with branches, deep links, and a polished dark workspace** while keeping history, models, and compliance posture on infrastructure they control.
 
 | | |
 | --- | --- |
 | **Own the data plane** | Postgres, Valkey, S3-compatible storage — all under your compose file |
-| **Own the models** | Platform keys, BYOK (encrypted at rest), Ollama discovery, allowlists by role |
+| **Own the models** | Platform keys, BYOK (encrypted at rest), Ollama discovery, access grants by org/role/team/user |
 | **Own the surface** | Real deep links (`/c/{id}`), admin live overview, audit trail, invite-only org |
 | **Ship like software** | pnpm monorepo, TypeScript, domain package with unit tests, Playwright smoke |
 
@@ -244,5 +244,7 @@ SSO/OIDC, MFA, RAG, richer audit, org API proxy, and more — tracked in **[docs
 
 <p align="center">
   <img src="./apps/web/public/favicon.svg" alt="" width="28" height="28" /><br/>
-  <em>ChatGPT muscle memory. Server-side honesty.</em>
+  <em>Your models. Your data. Your network.</em><br/>
+  <a href="https://x.com/mjtechguy">@mjtechguy</a> ·
+  <a href="https://x.com/billiondollarsolo">@billiondollarsolo</a>
 </p>
