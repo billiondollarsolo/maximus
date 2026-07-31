@@ -9,6 +9,11 @@
 </p>
 
 <p align="center">
+  <strong>⚠️ Alpha software (v0.x) — not production-ready.</strong><br/>
+  APIs, UX, and ops defaults may change without a stable guarantee. Use for private experiments and self-host evaluation, not mission-critical or multi-tenant SaaS.
+</p>
+
+<p align="center">
   Streaming multi-provider chat · Invite-only orgs · Live admin control plane · Docker Compose · TLS by default
 </p>
 
@@ -35,9 +40,9 @@ Vendor chat products are fast — and opaque about where data and keys live. Max
 | **Own the surface** | Real deep links (`/c/{id}`), admin live overview, audit trail, invite-only org |
 | **Ship like software** | pnpm monorepo, TypeScript, domain package with unit tests, Playwright smoke |
 
-Built for **solo founders, security-conscious teams, and self-hosters** who want production defaults without a platform team of fifty.
+Built for **solo founders, security-conscious teams, and self-hosters** who want opinionated defaults without a platform team of fifty.
 
-> **Status:** open-source **beta** (v0.x). Excellent for private self-host. Not a multi-tenant public SaaS yet. Read [security-self-host.md](./docs/security-self-host.md) before exposing a host.
+> **Status: alpha (v0.x).** Expect breaking changes, rough edges, and incomplete enterprise polish. Fine for private self-host and dogfooding. **Not** production-ready for regulated or mission-critical workloads, and **not** a multi-tenant public SaaS. Read [security-self-host.md](./docs/security-self-host.md) before exposing a host.
 
 ---
 
@@ -244,7 +249,7 @@ SSO/OIDC, MFA, RAG, richer audit, org API proxy, and more — tracked in **[docs
 
 <p align="center">
   <img src="./apps/web/public/favicon.svg" alt="" width="28" height="28" /><br/>
-  <em>Your models. Your data. Your network.</em><br/>
+  <em>Your models. Your data. Your network. · Alpha (v0.x)</em><br/>
   <a href="https://x.com/mjtechguy">@mjtechguy</a> ·
   <a href="https://x.com/billiondollarsolo">@billiondollarsolo</a>
 </p>

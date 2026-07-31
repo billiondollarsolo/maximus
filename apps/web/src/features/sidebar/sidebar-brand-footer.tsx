@@ -38,6 +38,7 @@ export function SidebarBrandFooter({
         >
           Maximus v{APP_VERSION}
         </Link>
+        <span className="text-text-faint/50"> · alpha</span>
       </p>
       <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <a

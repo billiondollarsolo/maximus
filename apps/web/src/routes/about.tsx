@@ -53,6 +53,12 @@ function AboutPage() {
             Maximus is open source (MIT), built for private self-host and
             security-conscious teams. It is not a multi-tenant public SaaS.
           </p>
+          <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-[13.5px] text-amber-200/90">
+            <strong className="font-medium text-amber-100">Alpha (v0.x).</strong>{" "}
+            Not production-ready. Expect breaking changes and rough edges.
+            Suitable for private evaluation and dogfooding — not mission-critical
+            or regulated deployments yet.
+          </p>
         </section>
 
         <section className="mt-10">
