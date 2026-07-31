@@ -15,14 +15,14 @@ COPY packages/storage/package.json packages/storage/
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
-ARG APP_VERSION=0.1.5
+ARG APP_VERSION=0.1.6-alpha
 ENV VITE_APP_VERSION=$APP_VERSION
 COPY . .
 RUN pnpm --filter @maximus/web build
 
 FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
-ARG APP_VERSION=0.1.5
+ARG APP_VERSION=0.1.6-alpha
 ENV NODE_ENV=production
 ENV APP_VERSION=$APP_VERSION
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate \
