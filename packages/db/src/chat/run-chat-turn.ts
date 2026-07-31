@@ -32,6 +32,7 @@ import type {
 } from "./chat-turn-types.js";
 import { streamAssistant } from "./stream-assistant.js";
 import { resolveModelCapabilities } from "./resolve-model-capabilities.js";
+import { retitleConversation } from "./retitle-conversation.js";
 import { runImageGenTurn } from "./run-image-gen-turn.js";
 
 export type { ChatActor, ChatTurnEvent, ChatTurnInput } from "./chat-turn-types.js";
@@ -139,6 +140,9 @@ export async function* runChatTurn(input: {
     db,
     conversation.id,
   );
+  /** First user turn → heuristic title exists; LLM retitle after assistant. */
+  const isFirstUserTurn =
+    allMsgs.filter((m) => m.role === "user").length === 0;
   const tree = toTree(allMsgs);
   const streamInput: StreamAssistantInput = {
     encryptionKey: input.encryptionKey,
@@ -249,6 +253,13 @@ export async function* runChatTurn(input: {
     position: 0,
   });
 
+  // Point leaf at the streaming assistant immediately so a mid-turn reload
+  // (or active_leaf_id-null fallback) still resolves a real branch.
+  await conversationRepo.updateConversation(db, conversation.id, {
+    activeLeafId: asst.id,
+    modelRef: body.modelRef,
+  });
+
   yield {
     type: "meta",
     conversationId: conversation.id,
@@ -269,7 +280,9 @@ export async function* runChatTurn(input: {
     streamInput,
   );
 
-  yield* streamAssistant({
+  let assistantText = "";
+  let doneStatus: "complete" | "aborted" | "error" = "complete";
+  for await (const ev of streamAssistant({
     db,
     ctx,
     conversationId: conversation.id,
@@ -277,7 +290,38 @@ export async function* runChatTurn(input: {
     modelRef: body.modelRef,
     history,
     input: streamInput,
-  });
+  })) {
+    yield ev;
+    if (ev.type === "done") {
+      assistantText = ev.content ?? "";
+      doneStatus = ev.status;
+    }
+  }
+
+  // After first assistant reply: upgrade heuristic sidebar title (non-fatal).
+  if (
+    isFirstUserTurn &&
+    mode === "send" &&
+    doneStatus === "complete" &&
+    !input.signal?.aborted
+  ) {
+    const result = await retitleConversation({
+      db,
+      ctx,
+      conversationId: conversation.id,
+      modelRef: body.modelRef,
+      userText: normalized.text,
+      assistantText,
+      input: streamInput,
+    });
+    if (result.ok) {
+      yield {
+        type: "title",
+        title: result.title,
+        conversationId: conversation.id,
+      };
+    }
+  }
 }
 
 async function buildHistory(

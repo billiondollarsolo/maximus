@@ -5,12 +5,14 @@ import {
   effectiveMaxOutputTokens,
   effectiveNumCtx,
   estimateMessagesTokens,
+  isOpenAiMaxTokensUnsupportedError,
   isResourceAllowed,
   modelIdFromRef,
   parseModelRef,
   resolveEffectiveParams,
   shouldRefuseForContext,
   textParts,
+  type OpenAiMaxTokenParam,
 } from "@maximus/domain";
 import { getOrgSettings } from "../repos/org-settings.js";
 import {
@@ -227,20 +229,22 @@ export async function* streamAssistant(args: {
   const maxOutputTokens = effectiveMaxOutputTokens(caps);
   const numCtx = effectiveNumCtx(caps);
 
-  let adapter: FakeTextAdapter;
-  if (resolved.adapter.kind === "fake" || mode === "fake") {
-    adapter =
-      resolved.adapter.kind === "fake"
+  let openaiMaxTokenParam: OpenAiMaxTokenParam | undefined =
+    caps.openaiMaxTokenParam;
+
+  function buildAdapter(tokenParam?: OpenAiMaxTokenParam): FakeTextAdapter {
+    if (resolved.adapter.kind === "fake" || mode === "fake") {
+      return resolved.adapter.kind === "fake"
         ? resolved.adapter
         : createFakeTextAdapter({ modelId: resolved.modelId });
-  } else {
+    }
     const live = resolved.adapter as {
       kind: typeof ref.providerKind;
       modelId: string;
       baseUrl?: string;
       apiKey?: string;
     };
-    adapter = createLiveHttpAdapter({
+    return createLiveHttpAdapter({
       providerKind: live.kind,
       modelId: live.modelId,
       baseUrl: live.baseUrl ?? resolved.credentials.baseUrl,
@@ -253,8 +257,11 @@ export async function* streamAssistant(args: {
       frequencyPenalty: caps.frequencyPenalty,
       presencePenalty: caps.presencePenalty,
       stop: caps.stop,
+      openaiMaxTokenParam: tokenParam,
     });
   }
+
+  let adapter = buildAdapter(openaiMaxTokenParam);
 
   const messages: ProviderMessage[] = [
     ...system.map((s) => ({ role: "system", content: s })),
@@ -292,18 +299,23 @@ export async function* streamAssistant(args: {
   let firstTokenAt: number | null = null;
   let status: "complete" | "aborted" | "error" = "complete";
 
-  try {
-    for await (const chunk of adapter.stream(messages, {
-      signal: args.input.signal,
-      maxOutputTokens,
-      numCtx,
-      temperature: caps.temperature,
-      topP: caps.topP,
-      topK: caps.topK,
-      frequencyPenalty: caps.frequencyPenalty,
-      presencePenalty: caps.presencePenalty,
-      stop: caps.stop,
-    })) {
+  const streamOpts = {
+    signal: args.input.signal,
+    maxOutputTokens,
+    numCtx,
+    temperature: caps.temperature,
+    topP: caps.topP,
+    topK: caps.topK,
+    frequencyPenalty: caps.frequencyPenalty,
+    presencePenalty: caps.presencePenalty,
+    stop: caps.stop,
+    openaiMaxTokenParam,
+  };
+
+  async function* runStream(
+    ad: FakeTextAdapter,
+  ): AsyncGenerator<ChatTurnEvent> {
+    for await (const chunk of ad.stream(messages, streamOpts)) {
       if (chunk.type === "text") {
         if (firstTokenAt == null) firstTokenAt = Date.now();
         full += chunk.text;
@@ -311,6 +323,39 @@ export async function* streamAssistant(args: {
       } else if (chunk.type === "usage") {
         inputTokens = chunk.inputTokens;
         outputTokens = chunk.outputTokens;
+      }
+    }
+  }
+
+  try {
+    try {
+      yield* runStream(adapter);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "provider error";
+      // Auto-learn: OpenAI 400 says use max_completion_tokens — persist & retry once.
+      if (
+        err instanceof Error &&
+        err.name !== "AbortError" &&
+        isOpenAiMaxTokensUnsupportedError(message) &&
+        openaiMaxTokenParam !== "max_completion_tokens" &&
+        (ref.providerKind === "openai" ||
+          ref.providerKind === "openai_compatible")
+      ) {
+        openaiMaxTokenParam = "max_completion_tokens";
+        streamOpts.openaiMaxTokenParam = openaiMaxTokenParam;
+        await providerRepo.mergeModelCapabilitiesByRef(args.db, {
+          orgId: args.ctx.orgId,
+          modelRef: inferenceModelRef,
+          patch: { openaiMaxTokenParam: "max_completion_tokens" },
+        });
+        adapter = buildAdapter(openaiMaxTokenParam);
+        full = "";
+        inputTokens = 0;
+        outputTokens = 0;
+        firstTokenAt = null;
+        yield* runStream(adapter);
+      } else {
+        throw err;
       }
     }
   } catch (err) {
@@ -321,11 +366,11 @@ export async function* streamAssistant(args: {
       const message = err instanceof Error ? err.message : "provider error";
       await messageRepo.updateMessage(args.db, args.assistantId, {
         status: "error",
-        content: textParts(full),
+        content: textParts(full || message),
         error: { code: "PROVIDER_ERROR", message },
       });
       yield { type: "error", message, code: "PROVIDER_ERROR" };
-      yield { type: "done", status, content: full };
+      yield { type: "done", status, content: full || message };
       return;
     }
   }
@@ -369,6 +414,9 @@ export async function* streamAssistant(args: {
     providerKind: resolved.providerKind,
   };
 
+  // Persist message + leaf before closing the client stream so a refresh
+  // always sees durable content. Usage is best-effort after `done` so a
+  // slow billing write cannot leave the UI stuck on a completed turn.
   await messageRepo.updateMessage(args.db, args.assistantId, {
     status,
     content: textParts(full),
@@ -385,19 +433,24 @@ export async function* streamAssistant(args: {
     activeLeafId: args.assistantId,
     modelRef: args.modelRef,
   });
-  await usageRepo.insertUsageEvent(args.db, {
-    orgId: args.ctx.orgId,
-    userId: args.ctx.user.id,
-    conversationId: args.conversationId,
-    messageId: args.assistantId,
-    modelRef: args.modelRef,
-    providerKind: resolved.providerKind,
-    inputTokens,
-    outputTokens,
-    costMicros,
-    latencyMs,
-    status: status === "complete" ? "ok" : status,
-  });
 
   yield { type: "done", status, content: full, metrics };
+
+  try {
+    await usageRepo.insertUsageEvent(args.db, {
+      orgId: args.ctx.orgId,
+      userId: args.ctx.user.id,
+      conversationId: args.conversationId,
+      messageId: args.assistantId,
+      modelRef: args.modelRef,
+      providerKind: resolved.providerKind,
+      inputTokens,
+      outputTokens,
+      costMicros,
+      latencyMs,
+      status: status === "complete" ? "ok" : status,
+    });
+  } catch {
+    // non-fatal: message is already complete for the user
+  }
 }

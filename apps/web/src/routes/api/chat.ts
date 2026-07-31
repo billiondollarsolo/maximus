@@ -49,6 +49,8 @@ export const Route = createFileRoute("/api/chat")({
           const body = (await request.json()) as {
             input?: { text?: string; attachmentIds?: string[] };
             text?: string;
+            /** Prefer forwardedProps.modelRef (SPA); top-level modelRef accepted too */
+            modelRef?: string;
             forwardedProps?: {
               conversationId?: string;
               modelRef?: string;
@@ -63,6 +65,7 @@ export const Route = createFileRoute("/api/chat")({
           const text = body.input?.text ?? body.text ?? "";
           const modelRef =
             body.forwardedProps?.modelRef ??
+            body.modelRef ??
             defaultPlatformModelRef({
               providerMode: env.providerMode,
               openai: Boolean(env.openaiApiKey),
@@ -79,6 +82,24 @@ export const Route = createFileRoute("/api/chat")({
                   enc.encode(`data: ${JSON.stringify(obj)}\n\n`),
                 );
               };
+              // Large local models (e.g. 31B) can sit 30–120s loading weights
+              // before the first token. Without traffic, proxies/browsers drop
+              // the SSE socket and the UI looks "stuck" / empty until refresh.
+              const keepalive = setInterval(() => {
+                try {
+                  controller.enqueue(
+                    enc.encode(`: keepalive ${Date.now()}\n\n`),
+                  );
+                  send({
+                    type: "status",
+                    phase: "waiting_for_model",
+                    message:
+                      "Waiting for the model (large models can take a while to load)…",
+                  });
+                } catch {
+                  // stream already closed
+                }
+              }, 12_000);
               try {
                 for await (const ev of runChatTurn({
                   db,
@@ -119,6 +140,7 @@ export const Route = createFileRoute("/api/chat")({
                 const code = isAppError(err) ? err.code : "PROVIDER_ERROR";
                 send({ type: "error", message, code });
               } finally {
+                clearInterval(keepalive);
                 controller.close();
               }
             },
@@ -127,9 +149,11 @@ export const Route = createFileRoute("/api/chat")({
           return withSecurityHeaders(
             new Response(stream, {
               headers: {
-                "Content-Type": "text/event-stream",
-                "Cache-Control": "no-cache",
+                "Content-Type": "text/event-stream; charset=utf-8",
+                "Cache-Control": "no-cache, no-transform",
                 Connection: "keep-alive",
+                // Disable proxy buffering (nginx / some CDNs)
+                "X-Accel-Buffering": "no",
               },
             }),
           );

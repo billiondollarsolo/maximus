@@ -26,6 +26,8 @@ export type LiveAdapterConfig = {
   frequencyPenalty?: number;
   presencePenalty?: number;
   stop?: string[];
+  /** Learned OpenAI max-token field (persisted on model capabilities). */
+  openaiMaxTokenParam?: ModelCapabilities["openaiMaxTokenParam"];
 };
 
 function capsFromOpts(cfg: LiveAdapterConfig, opts: StreamOpts): ModelCapabilities {
@@ -38,6 +40,8 @@ function capsFromOpts(cfg: LiveAdapterConfig, opts: StreamOpts): ModelCapabiliti
     frequencyPenalty: opts.frequencyPenalty ?? cfg.frequencyPenalty,
     presencePenalty: opts.presencePenalty ?? cfg.presencePenalty,
     stop: opts.stop ?? cfg.stop,
+    openaiMaxTokenParam:
+      opts.openaiMaxTokenParam ?? cfg.openaiMaxTokenParam,
   };
 }
 
@@ -87,6 +91,7 @@ async function* streamOpenAICompat(
   const fields = buildProviderInferenceFields(
     cfg.providerKind,
     capsFromOpts(cfg, opts),
+    { modelId: cfg.modelId },
   );
   const body: Record<string, unknown> = {
     model: cfg.modelId,

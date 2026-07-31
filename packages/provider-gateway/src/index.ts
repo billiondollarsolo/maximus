@@ -37,7 +37,11 @@ export {
   type ShowOllamaModelInput,
   type OllamaModelDetails,
 } from "./show-ollama-model.js";
-export { buildProviderInferenceFields } from "./build-provider-body.js";
+export {
+  buildProviderInferenceFields,
+  openaiUsesMaxCompletionTokens,
+  resolveOpenAiMaxTokenParam,
+} from "./build-provider-body.js";
 export {
   toOpenAiChatMessages,
   toAnthropicUserContent,

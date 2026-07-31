@@ -112,8 +112,26 @@ async function webResToNode(webRes, res) {
     res.end();
     return;
   }
-  const nodeStream = Readable.fromWeb(webRes.body);
-  nodeStream.pipe(res);
+  // Manual pump (not pipe) so each SSE enqueue is written immediately.
+  // pipe() can coalesce small chunks and delay first paint of chat tokens.
+  const reader = webRes.body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value && value.byteLength) {
+        const ok = res.write(Buffer.from(value));
+        if (!ok) {
+          await new Promise((resolve) => res.once("drain", resolve));
+        }
+      }
+    }
+    res.end();
+  } catch (err) {
+    reader.cancel().catch(() => {});
+    if (!res.writableEnded) res.end();
+    throw err;
+  }
 }
 
 const fetchHandler = await loadHandler();

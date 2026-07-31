@@ -1,6 +1,11 @@
 export {
   heuristicTitle,
   shouldRetitle,
+  shouldRunAutoRetitle,
+  normalizeGeneratedTitle,
+  fakeGeneratedTitle,
+  buildRetitleUserPrompt,
+  RETITLE_SYSTEM_PROMPT,
   type TitleSource,
 } from "./title.js";
 export {
@@ -34,6 +39,7 @@ export {
 export {
   parseCapabilities,
   buildCapabilities,
+  isOpenAiMaxTokensUnsupportedError,
   mergeCapabilities,
   effectiveNumCtx,
   effectiveMaxOutputTokens,
@@ -43,6 +49,7 @@ export {
   isEmbeddingCapability,
   validateSamplingParams,
   type ModelCapabilities,
+  type OpenAiMaxTokenParam,
 } from "./model-capabilities.js";
 export { isEmbeddingModelName } from "./embed-heuristic.js";
 export {
@@ -126,6 +133,7 @@ export {
 } from "./model-allow.js";
 export {
   modelsForUser,
+  legacyAllowlistToAccess,
   type CatalogModel,
   type ModelsForUserOptions,
 } from "./models-for-user.js";

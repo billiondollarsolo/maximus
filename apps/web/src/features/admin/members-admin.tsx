@@ -151,8 +151,8 @@ export function MembersAdmin() {
   return (
     <div>
       <AdminPageHeader
-        title="Members"
-        description="Invite teammates and review roles. Ownership transfer is reserved for future policy work."
+        title="People"
+        description="Org roster, invites, and teams for model access grants. Roles still control admin power; teams only affect who can use which models."
         actions={
           <Button type="button" onClick={() => setInviteOpen(true)}>
             <Icon icon={Plus} size="sm" />
@@ -168,7 +168,10 @@ export function MembersAdmin() {
         </AdminAlert>
       ) : null}
 
-      <AdminSection title="Team" description="Active organization members.">
+      <AdminSection
+        title="Members"
+        description="People in this organization and their roles."
+      >
         {loading ? (
           <p className="text-sm text-text-muted">Loading…</p>
         ) : (

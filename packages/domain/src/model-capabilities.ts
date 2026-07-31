@@ -1,3 +1,6 @@
+/** Learned OpenAI body quirk: some models reject max_tokens. */
+export type OpenAiMaxTokenParam = "max_tokens" | "max_completion_tokens";
+
 export type ModelCapabilities = {
   streaming?: boolean;
   vision?: boolean;
@@ -17,6 +20,11 @@ export type ModelCapabilities = {
   frequencyPenalty?: number;
   presencePenalty?: number;
   stop?: string[];
+  /**
+   * Learned / configured OpenAI max-token field name.
+   * Persisted on the offering after a provider 400 teaches us which one works.
+   */
+  openaiMaxTokenParam?: OpenAiMaxTokenParam;
 };
 
 function positiveInt(v: unknown): number | undefined {
@@ -69,6 +77,9 @@ export function parseCapabilities(
     raw.presencePenalty ?? raw.presence_penalty,
   );
   const stop = parseStop(raw.stop);
+  const openaiMaxTokenParam = parseOpenAiMaxTokenParam(
+    raw.openaiMaxTokenParam ?? raw.openai_max_token_param,
+  );
   return {
     streaming: raw.streaming !== false,
     vision: raw.vision === true,
@@ -87,7 +98,15 @@ export function parseCapabilities(
     ...(frequencyPenalty != null ? { frequencyPenalty } : {}),
     ...(presencePenalty != null ? { presencePenalty } : {}),
     ...(stop ? { stop } : {}),
+    ...(openaiMaxTokenParam ? { openaiMaxTokenParam } : {}),
   };
+}
+
+function parseOpenAiMaxTokenParam(
+  v: unknown,
+): OpenAiMaxTokenParam | undefined {
+  if (v === "max_tokens" || v === "max_completion_tokens") return v;
+  return undefined;
 }
 
 export function effectiveNumCtx(caps: ModelCapabilities): number | undefined {
@@ -155,6 +174,7 @@ export function buildCapabilities(input: {
   frequencyPenalty?: number | null;
   presencePenalty?: number | null;
   stop?: string[] | null;
+  openaiMaxTokenParam?: OpenAiMaxTokenParam | null;
 }): Record<string, unknown> {
   const out: Record<string, unknown> = {
     streaming: input.streaming !== false,
@@ -180,7 +200,25 @@ export function buildCapabilities(input: {
   if (fp != null) out.frequencyPenalty = fp;
   if (pp != null) out.presencePenalty = pp;
   if (input.stop?.length) out.stop = input.stop.filter(Boolean);
+  if (
+    input.openaiMaxTokenParam === "max_tokens" ||
+    input.openaiMaxTokenParam === "max_completion_tokens"
+  ) {
+    out.openaiMaxTokenParam = input.openaiMaxTokenParam;
+  }
   return out;
+}
+
+/**
+ * OpenAI error text that means we must switch max_tokens → max_completion_tokens.
+ */
+export function isOpenAiMaxTokensUnsupportedError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("max_tokens") &&
+    (m.includes("max_completion_tokens") ||
+      m.includes("unsupported parameter"))
+  );
 }
 
 /** Validate sampling ranges; returns error message or null. */

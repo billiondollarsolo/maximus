@@ -33,7 +33,28 @@ export const Route = createFileRoute("/api/conversations")({
             ) {
               throw new AppError("NOT_FOUND", "Conversation not found");
             }
-            const msgs = await messageRepo.listMessagesForConversation(db, id);
+            let msgs = await messageRepo.listMessagesForConversation(db, id);
+            // Heal orphaned "streaming" rows (client navigated away / proxy drop).
+            // Live turns update within seconds; anything older than 3m is stuck.
+            const staleMs = 3 * 60 * 1000;
+            const now = Date.now();
+            for (const m of msgs) {
+              if (m.status !== "streaming" || m.role !== "assistant") continue;
+              const age = now - new Date(m.updatedAt ?? m.createdAt).getTime();
+              if (age < staleMs) continue;
+              await messageRepo.updateMessage(db, m.id, {
+                status: "error",
+                content: [
+                  {
+                    type: "text",
+                    text:
+                      "(Generation interrupted. Stop and resend, or pick a smaller model.)",
+                  },
+                ],
+                error: { code: "ABORTED", message: "stale streaming message" },
+              });
+            }
+            msgs = await messageRepo.listMessagesForConversation(db, id);
             return jsonOk({
               conversation: conv,
               messages: msgs,

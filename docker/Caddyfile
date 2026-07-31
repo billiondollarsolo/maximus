@@ -1,7 +1,7 @@
 # Default production Caddyfile — HTTP-01 Let's Encrypt (ports 80/443 must be public)
 # Set DOMAIN and ACME_EMAIL in .env
 #
-# SSE: flush_interval -1 so chat streams are not buffered.
+# SSE: separate handle (no gzip) + flush_interval -1 so chat streams are not buffered.
 
 {
 	email {$ACME_EMAIL}
@@ -10,14 +10,26 @@
 }
 
 {$DOMAIN} {
-	encode gzip zstd
+	# Long-lived SSE — never compress (gzip buffers the whole stream)
+	@sse path /api/chat /api/admin/overview/stream
+	handle @sse {
+		reverse_proxy web:3000 {
+			flush_interval -1
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
+		}
+	}
 
-	# Long-lived chat streams
-	reverse_proxy web:3000 {
-		flush_interval -1
-		transport http {
-			read_timeout 10m
-			write_timeout 10m
+	handle {
+		encode gzip zstd
+		reverse_proxy web:3000 {
+			flush_interval -1
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
 		}
 	}
 

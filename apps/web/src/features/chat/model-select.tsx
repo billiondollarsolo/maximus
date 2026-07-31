@@ -3,6 +3,10 @@ import { modelIdFromRef } from "@maximus/domain";
 import { ChevronDown } from "lucide-react";
 import { Icon } from "#/components/ui";
 import { cn } from "#/lib/cn";
+import {
+  isLargeLocalModel,
+  LARGE_LOCAL_MODEL_WARNING,
+} from "./large-local-model";
 
 export type ModelOption = {
   modelRef: string;
@@ -94,6 +98,7 @@ export function ModelSelect({
 
   const vision = selected?.capabilities?.vision === true;
   const imageGen = selected?.capabilities?.imageGen === true;
+  const largeLocal = Boolean(value && isLargeLocalModel(value));
 
   useEffect(() => {
     onCapabilities?.({ vision, imageGen });
@@ -250,6 +255,11 @@ export function ModelSelect({
                                   </span>
                                 ) : null;
                               })()}
+                              {isLargeLocalModel(m.modelRef) ? (
+                                <span className="mt-0.5 text-[10px] leading-snug text-amber-500/90">
+                                  First token may take 1–2 min
+                                </span>
+                              ) : null}
                             </button>
                           </li>
                         );
@@ -270,6 +280,14 @@ export function ModelSelect({
       {imageGen ? (
         <span className="hidden rounded-md bg-bg-sidebar-hover px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-faint sm:inline">
           Image
+        </span>
+      ) : null}
+      {largeLocal ? (
+        <span
+          className="max-w-[14rem] truncate rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 sm:max-w-[18rem]"
+          title={LARGE_LOCAL_MODEL_WARNING}
+        >
+          Slow first token
         </span>
       ) : null}
     </div>

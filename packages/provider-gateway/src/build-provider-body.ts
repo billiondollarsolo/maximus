@@ -1,9 +1,40 @@
-import type { ModelCapabilities } from "@maximus/domain";
+import type {
+  ModelCapabilities,
+  OpenAiMaxTokenParam,
+  ProviderKind,
+} from "@maximus/domain";
 import {
   effectiveMaxOutputTokens,
   effectiveNumCtx,
 } from "@maximus/domain";
-import type { ProviderKind } from "@maximus/domain";
+
+/**
+ * Heuristic bootstrap when we have not yet learned the field for this offering.
+ * Prefer stored `caps.openaiMaxTokenParam` when present.
+ */
+export function openaiUsesMaxCompletionTokens(modelId: string): boolean {
+  const id = modelId.toLowerCase();
+  if (/^o[1-9]/.test(id)) return true;
+  if (id.startsWith("gpt-5") || id.includes("gpt-5")) return true;
+  if (id.includes("luna")) return true;
+  return false;
+}
+
+/** Resolve which max-token field to send for an OpenAI-style body. */
+export function resolveOpenAiMaxTokenParam(
+  caps: ModelCapabilities,
+  modelId: string,
+): OpenAiMaxTokenParam {
+  if (
+    caps.openaiMaxTokenParam === "max_tokens" ||
+    caps.openaiMaxTokenParam === "max_completion_tokens"
+  ) {
+    return caps.openaiMaxTokenParam;
+  }
+  return openaiUsesMaxCompletionTokens(modelId)
+    ? "max_completion_tokens"
+    : "max_tokens";
+}
 
 /**
  * Pure mapper: effective model params → provider request body fields.
@@ -12,15 +43,15 @@ import type { ProviderKind } from "@maximus/domain";
 export function buildProviderInferenceFields(
   kind: ProviderKind | "openai_compatible",
   caps: ModelCapabilities,
+  opts?: { modelId?: string },
 ): {
-  /** OpenAI-compat / Anthropic top-level */
   max_tokens?: number;
+  max_completion_tokens?: number;
   temperature?: number;
   top_p?: number;
   frequency_penalty?: number;
   presence_penalty?: number;
   stop?: string[];
-  /** Ollama options bag */
   options?: Record<string, number | string | string[]>;
 } {
   const maxOut = effectiveMaxOutputTokens(caps);
@@ -47,8 +78,16 @@ export function buildProviderInferenceFields(
   }
 
   // openai + openai_compatible
+  const modelId = opts?.modelId ?? "";
+  // Learned flag applies to openai and openai_compatible (many gateways mirror OpenAI).
+  const tokenParam = resolveOpenAiMaxTokenParam(caps, modelId);
+
   return {
-    ...(maxOut != null ? { max_tokens: maxOut } : {}),
+    ...(maxOut != null
+      ? tokenParam === "max_completion_tokens"
+        ? { max_completion_tokens: maxOut }
+        : { max_tokens: maxOut }
+      : {}),
     ...(caps.temperature != null ? { temperature: caps.temperature } : {}),
     ...(caps.topP != null ? { top_p: caps.topP } : {}),
     ...(caps.frequencyPenalty != null

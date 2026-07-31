@@ -14,7 +14,7 @@ function AdminMembersPage() {
   const gate = useAdminGate();
   return (
     <AdminGateFrame gate={gate}>
-      <AdminShell title="Members" active="/admin/members">
+      <AdminShell title="People" active="/admin/members">
         <MembersAdmin />
       </AdminShell>
     </AdminGateFrame>

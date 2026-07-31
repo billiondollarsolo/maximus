@@ -30,6 +30,8 @@ export type ServerMsg = {
   modelRef?: string | null;
   tokenUsage?: Record<string, number | string | undefined> | null;
   metrics?: GenerationMetricsUi | null;
+  /** Provider error payload when status is error (DB / API shape). */
+  error?: { message?: string; code?: string } | null;
 };
 
 export function metricsFromTokenUsage(

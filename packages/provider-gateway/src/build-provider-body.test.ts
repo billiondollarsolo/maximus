@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildProviderInferenceFields } from "./build-provider-body.js";
+import {
+  buildProviderInferenceFields,
+  openaiUsesMaxCompletionTokens,
+  resolveOpenAiMaxTokenParam,
+} from "./build-provider-body.js";
 
 describe("buildProviderInferenceFields", () => {
   it("maps OpenAI-compat fields", () => {
@@ -17,6 +21,43 @@ describe("buildProviderInferenceFields", () => {
       frequency_penalty: 0.1,
       stop: ["END"],
     });
+  });
+
+  it("uses learned openaiMaxTokenParam over model-id heuristic", () => {
+    expect(
+      resolveOpenAiMaxTokenParam(
+        { openaiMaxTokenParam: "max_completion_tokens" },
+        "gpt-4.1-mini",
+      ),
+    ).toBe("max_completion_tokens");
+    expect(
+      resolveOpenAiMaxTokenParam(
+        { openaiMaxTokenParam: "max_tokens" },
+        "gpt-5.6-luna",
+      ),
+    ).toBe("max_tokens");
+
+    const learned = buildProviderInferenceFields(
+      "openai",
+      { maxOutputTokens: 512, openaiMaxTokenParam: "max_completion_tokens" },
+      { modelId: "custom-weird-name" },
+    );
+    expect(learned.max_completion_tokens).toBe(512);
+    expect(learned.max_tokens).toBeUndefined();
+  });
+
+  it("heuristic bootstrap for gpt-5 / o-series when not yet learned", () => {
+    expect(openaiUsesMaxCompletionTokens("gpt-5.6-luna")).toBe(true);
+    expect(openaiUsesMaxCompletionTokens("o3-mini")).toBe(true);
+    expect(openaiUsesMaxCompletionTokens("gpt-4.1-mini")).toBe(false);
+
+    const f = buildProviderInferenceFields(
+      "openai",
+      { maxOutputTokens: 2048, temperature: 0.2 },
+      { modelId: "gpt-5.6-luna" },
+    );
+    expect(f.max_completion_tokens).toBe(2048);
+    expect(f.max_tokens).toBeUndefined();
   });
 
   it("maps Anthropic max_tokens + sampling", () => {

@@ -3,6 +3,7 @@ import {
   canWriteConversation,
   heuristicTitle,
   imagePart,
+  isResourceAllowed,
   modelCanGenerateImages,
   parseModelRef,
   textParts,
@@ -19,12 +20,15 @@ import * as messageRepo from "../repos/messages.js";
 import * as usageRepo from "../repos/usage.js";
 import * as attachmentsRepo from "../repos/attachments.js";
 import * as providerRepo from "../repos/providers.js";
+import { loadAccessForOrg } from "../repos/access-grants.js";
+import { listTeamIdsForUser } from "../repos/teams.js";
 import type {
   ChatActor,
   ChatTurnEvent,
   StreamAssistantInput,
 } from "./chat-turn-types.js";
 import { resolveModelCapabilities } from "./resolve-model-capabilities.js";
+import { retitleConversation } from "./retitle-conversation.js";
 
 export async function* runImageGenTurn(input: {
   db: Db;
@@ -98,6 +102,8 @@ export async function* runImageGenTurn(input: {
     input.db,
     conversation.id,
   );
+  const isFirstUserTurn =
+    allMsgs.filter((m) => m.role === "user").length === 0;
   const userMsg = await messageRepo.insertMessage(input.db, {
     conversationId: conversation.id,
     parentMessageId: conversation.activeLeafId,
@@ -166,14 +172,31 @@ export async function* runImageGenTurn(input: {
   }
 
   const mode = input.providerMode ?? "fake";
-  const allowRows = await providerRepo.listAllowlist(input.db, input.ctx.orgId);
+  // Same grant path as text chat — no legacy model_allowlists dual check.
+  const [access, teamIds] = await Promise.all([
+    loadAccessForOrg(input.db, input.ctx.orgId),
+    listTeamIdsForUser(input.db, input.ctx.orgId, input.ctx.user.id),
+  ]);
+  if (
+    !isResourceAllowed({
+      accessMode: access.accessMode,
+      grants: access.grants,
+      orgRole: input.ctx.role,
+      userId: input.ctx.user.id,
+      teamIds,
+      resourceType: "model",
+      resourceRef: input.modelRef,
+    })
+  ) {
+    throw new AppError(
+      "FORBIDDEN",
+      "You do not have access to this model in the current organization",
+    );
+  }
   resolveAdapter({
     modelRef: input.modelRef,
     role: input.ctx.role,
-    allowlist: allowRows.map((r) => ({
-      modelRef: r.modelRef,
-      role: (r.role as "owner" | "admin" | "member" | null) ?? null,
-    })),
+    allowlist: [],
     platform: input.platform,
     providerMode: mode,
     allowPrivateBaseUrls: input.allowPrivateBaseUrls,
@@ -258,6 +281,30 @@ export async function* runImageGenTurn(input: {
       content: "",
       contentParts,
     };
+
+    if (isFirstUserTurn) {
+      const result = await retitleConversation({
+        db: input.db,
+        ctx: input.ctx,
+        conversationId: conversation.id,
+        modelRef: input.modelRef,
+        userText: prompt,
+        assistantText: "Generated an image",
+        input: {
+          encryptionKey: input.encryptionKey,
+          providerMode: input.providerMode,
+          platform: input.platform,
+          allowPrivateBaseUrls: input.allowPrivateBaseUrls,
+        },
+      });
+      if (result.ok) {
+        yield {
+          type: "title",
+          title: result.title,
+          conversationId: conversation.id,
+        };
+      }
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "image gen failed";
     await messageRepo.updateMessage(input.db, asst.id, {

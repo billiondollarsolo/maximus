@@ -132,9 +132,10 @@ export const Route = createFileRoute("/api/admin/overview/stream")({
           return withSecurityHeaders(
             new Response(stream, {
               headers: {
-                "Content-Type": "text/event-stream",
+                "Content-Type": "text/event-stream; charset=utf-8",
                 "Cache-Control": "no-cache, no-transform",
                 Connection: "keep-alive",
+                "X-Accel-Buffering": "no",
               },
             }),
           );

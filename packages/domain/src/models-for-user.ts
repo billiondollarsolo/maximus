@@ -1,6 +1,8 @@
 import type { OrgRole } from "./policies/rbac.js";
-import { isModelAllowed, type AllowlistRule } from "./model-allow.js";
+import type { AllowlistRule } from "./model-allow.js";
 import {
+  accessModeFromLegacyAllowlist,
+  grantsFromLegacyAllowlist,
   isResourceAllowed,
   type AccessGrant,
   type AccessMode,
@@ -32,19 +34,32 @@ export type ModelsForUserOptions = {
   includeHidden?: boolean;
   /** Access mode; default open when omitted with empty grants */
   accessMode?: AccessMode;
-  /** New grant rows (preferred over legacy allowlist) */
+  /** Grant rows (preferred). When omitted, legacy allowlist is adapted to grants. */
   grants?: AccessGrant[];
   userId?: string;
   teamIds?: string[];
 };
 
 /**
+ * Thin migration adapter: legacy role allowlist → accessMode + grants.
+ * Re-exports domain helpers so catalog code has one import surface.
+ */
+export function legacyAllowlistToAccess(allowlist: AllowlistRule[]): {
+  accessMode: AccessMode;
+  grants: AccessGrant[];
+} {
+  return {
+    accessMode: accessModeFromLegacyAllowlist(allowlist),
+    grants: grantsFromLegacyAllowlist(allowlist),
+  };
+}
+
+/**
  * Filter catalog for a user: enabled + visible + not embedding + access.
  *
- * Access:
- * - If `grants` provided (or accessMode allowlist): use isResourceAllowed.
- * - Else legacy: empty allowlist = all; non-empty = role rules.
- * - Agents: check baseModelRef when set, else modelRef.
+ * Single path: always {@link isResourceAllowed}. Legacy allowlist (3rd arg) is
+ * converted via {@link legacyAllowlistToAccess} when `opts.grants` is omitted
+ * and `opts.accessMode` is also omitted.
  */
 export function modelsForUser(
   catalog: CatalogModel[],
@@ -52,9 +67,20 @@ export function modelsForUser(
   allowlist: AllowlistRule[] = [],
   opts: ModelsForUserOptions = {},
 ): CatalogModel[] {
-  const accessMode = opts.accessMode ?? "open";
-  const grants = opts.grants;
-  const useGrants = grants !== undefined;
+  let accessMode: AccessMode;
+  let grants: AccessGrant[];
+
+  if (opts.grants !== undefined) {
+    accessMode = opts.accessMode ?? "open";
+    grants = opts.grants;
+  } else if (opts.accessMode !== undefined) {
+    accessMode = opts.accessMode;
+    grants = [];
+  } else {
+    const adapted = legacyAllowlistToAccess(allowlist);
+    accessMode = adapted.accessMode;
+    grants = adapted.grants;
+  }
 
   return catalog.filter((m) => {
     if (!m.isEnabled) return false;
@@ -64,19 +90,14 @@ export function modelsForUser(
 
     const refForAccess = m.baseModelRef ?? m.modelRef;
 
-    if (useGrants) {
-      return isResourceAllowed({
-        accessMode,
-        grants: grants ?? [],
-        orgRole: role,
-        userId: opts.userId ?? "",
-        teamIds: opts.teamIds ?? [],
-        resourceType: "model",
-        resourceRef: refForAccess,
-      });
-    }
-
-    // Legacy allowlist path (empty = open)
-    return isModelAllowed(role, refForAccess, allowlist);
+    return isResourceAllowed({
+      accessMode,
+      grants,
+      orgRole: role,
+      userId: opts.userId ?? "",
+      teamIds: opts.teamIds ?? [],
+      resourceType: "model",
+      resourceRef: refForAccess,
+    });
   });
 }

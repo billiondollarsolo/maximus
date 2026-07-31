@@ -127,7 +127,7 @@ See [runbook.md](./runbook.md) for key rotation and [security-self-host.md](./se
 
 ## SSE / streaming notes
 
-Caddy is configured with `flush_interval -1` and long read/write timeouts so chat SSE is not buffered. If you put another proxy in front, disable buffering for `/api/chat`.
+Caddy routes `/api/chat` and `/api/admin/overview/stream` **without gzip** (`@sse` handle), with `flush_interval -1` and long read/write timeouts. Compressing SSE buffers the whole response until the stream ends. If you put another proxy in front, disable buffering and compression for those paths.
 
 ## Troubleshooting
 

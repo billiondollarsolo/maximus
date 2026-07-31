@@ -36,6 +36,8 @@ export type ChatTurnEvent =
       /** Generation stats (OpenWebUI-style footer) */
       metrics?: GenerationMetrics;
     }
+  /** LLM (or fake) sidebar title after first assistant reply */
+  | { type: "title"; title: string; conversationId: string }
   | { type: "error"; message: string; code?: string };
 
 export type GenerationMetrics = {

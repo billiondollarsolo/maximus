@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { Db } from "../client.js";
 import { messages } from "../schema/index.js";
 import { newId } from "../ids.js";
@@ -36,7 +36,8 @@ export async function listMessagesForConversation(db: Db, conversationId: string
   return db
     .select()
     .from(messages)
-    .where(eq(messages.conversationId, conversationId));
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(asc(messages.createdAt), asc(messages.position));
 }
 
 export async function updateMessage(

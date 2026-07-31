@@ -3,6 +3,7 @@ import {
   buildCapabilities,
   contentHasImages,
   isEmbeddingCapability,
+  isOpenAiMaxTokensUnsupportedError,
   mergeCapabilities,
   modelAcceptsImages,
   modelCanGenerateImages,
@@ -13,6 +14,21 @@ import {
 describe("parseCapabilities", () => {
   it("defaults streaming true", () => {
     expect(parseCapabilities(undefined)).toEqual({ streaming: true });
+  });
+
+  it("parses learned openaiMaxTokenParam", () => {
+    expect(
+      parseCapabilities({ openaiMaxTokenParam: "max_completion_tokens" }),
+    ).toMatchObject({ openaiMaxTokenParam: "max_completion_tokens" });
+  });
+
+  it("detects OpenAI max_tokens unsupported errors", () => {
+    expect(
+      isOpenAiMaxTokensUnsupportedError(
+        "Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead.",
+      ),
+    ).toBe(true);
+    expect(isOpenAiMaxTokensUnsupportedError("rate limit")).toBe(false);
   });
 
   it("reads vision and imageGen flags", () => {

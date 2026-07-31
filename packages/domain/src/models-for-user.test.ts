@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { modelsForUser, type CatalogModel } from "./models-for-user.js";
+import {
+  legacyAllowlistToAccess,
+  modelsForUser,
+  type CatalogModel,
+} from "./models-for-user.js";
 import {
   defaultPlatformCatalog,
   defaultPlatformModelRef,
@@ -54,7 +58,14 @@ describe("modelsForUser", () => {
     expect(refs).not.toContain("ollama:c1:nomic-embed-text");
   });
 
-  it("legacy allowlist restricts", () => {
+  it("legacy allowlist restricts via single grants path adapter", () => {
+    const adapted = legacyAllowlistToAccess([
+      { modelRef: "ollama:c1:gemma3:4b", role: null },
+    ]);
+    expect(adapted.accessMode).toBe("allowlist");
+    expect(adapted.grants).toHaveLength(1);
+    expect(adapted.grants[0]!.subjectType).toBe("org");
+
     const out = modelsForUser(base, "member", [
       { modelRef: "ollama:c1:gemma3:4b", role: null },
     ]);

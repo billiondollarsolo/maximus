@@ -17,6 +17,7 @@ export type StreamOpts = {
   frequencyPenalty?: number;
   presencePenalty?: number;
   stop?: string[];
+  openaiMaxTokenParam?: "max_tokens" | "max_completion_tokens";
 };
 
 export type FakeTextAdapter = {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import {
   listActiveBranch,
   selectSiblingBranch,
@@ -13,18 +14,72 @@ import {
 } from "./chat-types";
 import {
   appendAssistantText,
+  applyChatMetaIds,
   consumeChatSse,
+  failAssistant,
   finalizeAssistant,
 } from "./consume-chat-sse";
+import {
+  chatTurnIsBusy,
+  initialChatTurnState,
+  reduceChatTurn,
+  type ChatTurnState,
+} from "./chat-turn-state";
 
+function resolveLeafId(
+  msgs: ServerMsg[],
+  preferred: string | null | undefined,
+): string | null {
+  if (msgs.length === 0) return null;
+  if (preferred && msgs.some((m) => m.id === preferred)) return preferred;
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i]!.role === "assistant") return msgs[i]!.id;
+  }
+  return msgs[msgs.length - 1]!.id;
+}
+
+function toUiMessages(
+  treeMsgs: ServerMsg[],
+  tree: TreeMessage[],
+  activeLeafId: string | null,
+): UiMessage[] {
+  const leaf = resolveLeafId(treeMsgs, activeLeafId);
+  let branch = listActiveBranch(tree, leaf);
+  if (branch.length === 0 && treeMsgs.length > 0) {
+    branch = tree;
+  }
+  const byId = new Map(treeMsgs.map((m) => [m.id, m]));
+  return branch.map((node) => {
+    const full = byId.get(node.id);
+    const metrics =
+      full?.metrics ??
+      metricsFromTokenUsage(full?.modelRef, full?.tokenUsage ?? null);
+    return {
+      id: node.id,
+      role: node.role as UiMessage["role"],
+      content: full ? textFromContent(full.content) : "",
+      parts: full?.content,
+      status: full?.status,
+      parentMessageId: node.parentMessageId,
+      position: node.position,
+      modelRef: full?.modelRef,
+      metrics,
+      error: full?.error ?? null,
+    };
+  });
+}
+
+/**
+ * Chat workspace state machine (intentionally simple):
+ * - URL id → load messages (only after success mark route loaded)
+ * - send → optimistic rows + SSE patches; always re-fetch when the turn ends
+ * - newChat → only place that wipes the thread
+ */
 export function useChatWorkspace(
   modelRef: string,
   opts?: {
-    /** Conversation id from the URL (`/c/$id` or null on `/`) */
     routeConversationId?: string | null;
-    /** Keep address bar in sync (ChatGPT-style deep links) */
     onNavigateConversation?: (id: string | null) => void;
-    /** Restore model picker when opening a conversation */
     onConversationModel?: (modelRef: string | null) => void;
   },
 ) {
@@ -41,12 +96,34 @@ export function useChatWorkspace(
   const [history, setHistory] = useState<ConvRow[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [abort, setAbort] = useState<AbortController | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  /** Pure turn lifecycle — driven by reduceChatTurn (not only ad-hoc flags). */
+  const [turnState, setTurnState] =
+    useState<ChatTurnState>(initialChatTurnState);
+  const turnStateRef = useRef(turnState);
+  turnStateRef.current = turnState;
 
   const routeId = opts?.routeConversationId ?? null;
   const onNav = opts?.onNavigateConversation;
   const onModel = opts?.onConversationModel;
-  /** Avoid re-loading the same route id in a loop */
-  const loadedRouteRef = useRef<string | null>(null);
+
+  function dispatchTurn(
+    event: Parameters<typeof reduceChatTurn>[1],
+  ): ChatTurnState {
+    const next = reduceChatTurn(turnStateRef.current, event);
+    turnStateRef.current = next;
+    setTurnState(next);
+    return next;
+  }
+
+  /** Route id whose messages are currently reflected in treeMsgs */
+  const syncedRouteRef = useRef<string | null>(null);
+  const streamingRef = useRef(false);
+  const turnGenRef = useRef(0);
+  const activeIdRef = useRef<string | null>(activeId);
+  activeIdRef.current = activeId;
+  const leafRef = useRef<string | null>(null);
+  leafRef.current = activeLeafId;
 
   const refreshHistory = useCallback(async (q?: string) => {
     const qs =
@@ -93,27 +170,10 @@ export function useChatWorkspace(
     [treeMsgs],
   );
 
-  const displayMessages: UiMessage[] = useMemo(() => {
-    const branch = listActiveBranch(tree, activeLeafId);
-    const byId = new Map(treeMsgs.map((m) => [m.id, m]));
-    return branch.map((node) => {
-      const full = byId.get(node.id);
-      const metrics =
-        full?.metrics ??
-        metricsFromTokenUsage(full?.modelRef, full?.tokenUsage ?? null);
-      return {
-        id: node.id,
-        role: node.role as UiMessage["role"],
-        content: full ? textFromContent(full.content) : "",
-        parts: full?.content,
-        status: full?.status,
-        parentMessageId: node.parentMessageId,
-        position: node.position,
-        modelRef: full?.modelRef,
-        metrics,
-      };
-    });
-  }, [tree, treeMsgs, activeLeafId]);
+  const displayMessages: UiMessage[] = useMemo(
+    () => toUiMessages(treeMsgs, tree, activeLeafId),
+    [tree, treeMsgs, activeLeafId],
+  );
 
   const applyModelFromConversation = useCallback(
     (data: {
@@ -136,72 +196,134 @@ export function useChatWorkspace(
   );
 
   const loadConversation = useCallback(
-    async (id: string, options?: { fromRoute?: boolean }) => {
+    async (
+      id: string,
+      options?: {
+        fromRoute?: boolean;
+        /** Apply even while streamingRef is true (end-of-turn sync) */
+        force?: boolean;
+        /** Expect this turn generation; abort apply if a newer send started */
+        turnGen?: number;
+      },
+    ) => {
+      if (streamingRef.current && !options?.force) return;
+
+      const gen = options?.turnGen ?? turnGenRef.current;
       setActiveId(id);
       setMobileOpen(false);
+      setLoadError(null);
       if (!options?.fromRoute) {
         onNav?.(id);
       }
-      loadedRouteRef.current = id;
 
-      const res = await fetch(
-        `/api/conversations?id=${encodeURIComponent(id)}`,
-        { credentials: "same-origin" },
-      );
-      if (!res.ok) {
-        // Missing / unauthorized — go home
-        if (res.status === 404 || res.status === 403 || res.status === 401) {
-          loadedRouteRef.current = null;
-          setActiveId(null);
-          setTreeMsgs([]);
-          setActiveLeafId(null);
-          onNav?.(null);
-        }
+      let res: Response;
+      try {
+        res = await fetch(
+          `/api/conversations?id=${encodeURIComponent(id)}`,
+          { credentials: "same-origin" },
+        );
+      } catch {
+        setLoadError("Network error loading conversation");
         return;
       }
+
+      if (turnGenRef.current !== gen && options?.force) return;
+      if (streamingRef.current && !options?.force) return;
+
+      if (!res.ok) {
+        // Keep whatever is on screen — never navigate away mid-session on a blip.
+        setLoadError(`Failed to load conversation (${res.status})`);
+        return;
+      }
+
       const data = (await res.json()) as {
-        conversation?: { modelRef?: string | null };
+        conversation?: {
+          modelRef?: string | null;
+          title?: string | null;
+        };
         messages: ServerMsg[];
         activeLeafId: string | null;
       };
+
+      if (turnGenRef.current !== gen && options?.force) return;
+      if (streamingRef.current && !options?.force) return;
+
       setTreeMsgs(data.messages);
-      setActiveLeafId(
-        data.activeLeafId ??
-          data.messages[data.messages.length - 1]?.id ??
-          null,
-      );
+      setActiveLeafId(resolveLeafId(data.messages, data.activeLeafId));
+      syncedRouteRef.current = id;
       applyModelFromConversation(data);
+
+      // Keep sidebar title in sync with server
+      if (data.conversation?.title) {
+        setHistory((prev) => {
+          const idx = prev.findIndex((c) => c.id === id);
+          if (idx === -1) {
+            return [
+              {
+                id,
+                title: data.conversation!.title ?? "New chat",
+                updatedAt: new Date().toISOString(),
+              },
+              ...prev,
+            ];
+          }
+          const next = [...prev];
+          next[idx] = {
+            ...next[idx]!,
+            title: data.conversation!.title ?? next[idx]!.title,
+          };
+          return next;
+        });
+      }
     },
     [applyModelFromConversation, onNav],
   );
 
-  // URL → state (deep link / sidebar navigation via router)
+  // URL → load. Only depends on routeId string (not loadConversation identity).
   useEffect(() => {
-    if (routeId) {
-      if (loadedRouteRef.current !== routeId) {
-        void loadConversation(routeId, { fromRoute: true });
-      }
-      return;
-    }
-    // `/` — new chat shell; clear thread if we left a conversation URL
-    if (loadedRouteRef.current !== null && !streaming) {
-      loadedRouteRef.current = null;
-      setActiveId(null);
-      setTreeMsgs([]);
-      setActiveLeafId(null);
-      setDraft("");
-      setComposerKey((k) => k + 1);
-    }
-  }, [routeId, loadConversation, streaming]);
+    if (!routeId) return;
+    if (syncedRouteRef.current === routeId) return;
+    if (streamingRef.current) return;
+    void loadConversation(routeId, { fromRoute: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run on route id change
+  }, [routeId]);
+
+  // Back to `/` only when the path actually transitions away from /c/{id}.
+  // Do NOT wipe when we are still on `/` waiting for first-message nav
+  // (syncedRouteRef may already be set from SSE meta).
+  const prevRouteRef = useRef<string | null>(routeId);
+  useEffect(() => {
+    const prev = prevRouteRef.current;
+    prevRouteRef.current = routeId;
+    if (routeId) return;
+    if (prev == null) return; // already home (or first paint on `/`)
+    if (streamingRef.current) return;
+    syncedRouteRef.current = null;
+    setActiveId(null);
+    setTreeMsgs([]);
+    setActiveLeafId(null);
+    setDraft("");
+    setComposerKey((k) => k + 1);
+    setLoadError(null);
+  }, [routeId]);
 
   function newChat() {
-    loadedRouteRef.current = null;
+    if (streamingRef.current) {
+      abort?.abort();
+    }
+    streamingRef.current = false;
+    turnGenRef.current += 1;
+    dispatchTurn({ type: "reset" });
+    syncedRouteRef.current = null;
+    setStreaming(false);
+    setAbort(null);
     setActiveId(null);
     setTreeMsgs([]);
     setActiveLeafId(null);
     setDraft("");
     setComposerKey((k) => k + 1);
     setMobileOpen(false);
+    setLoadError(null);
     onNav?.(null);
   }
 
@@ -234,53 +356,95 @@ export function useChatWorkspace(
     interactionMode?: "chat" | "image_gen",
   ) {
     if (!modelRef) return;
+
     const ac = new AbortController();
+    turnGenRef.current += 1;
+    const turnGen = turnGenRef.current;
     setAbort(ac);
+    streamingRef.current = true;
     setStreaming(true);
-    const tempUserId = `tmp_u_${Date.now()}`;
-    const tempAsstId = `tmp_a_${Date.now()}`;
+    setLoadError(null);
+
+    const tempUserId = `tmp_u_${Date.now()}_${turnGen}`;
+    const tempAsstId = `tmp_a_${Date.now()}_${turnGen}`;
+    dispatchTurn({ type: "send", assistantId: tempAsstId });
+    let liveUserId: string | undefined =
+      mode === "regenerate" ? undefined : tempUserId;
+    let liveAsstId = tempAsstId;
+    /** Stable id for rAF flushes (may change after meta remap). */
+    const streamAsstIdRef = { current: tempAsstId };
+    /** Coalesce tokens to one paint per animation frame (still progressive). */
+    const pendingText = { current: "" };
+    let raf = 0;
+
+    const flushPendingText = () => {
+      raf = 0;
+      const chunk = pendingText.current;
+      if (!chunk) return;
+      pendingText.current = "";
+      const id = streamAsstIdRef.current;
+      // Force a paint so React 18 does not batch the whole stream into one frame.
+      flushSync(() => {
+        setTreeMsgs((ms) => appendAssistantText(ms, id, chunk));
+      });
+    };
+
+    const enqueueStreamText = (t: string) => {
+      pendingText.current += t;
+      if (!raf) {
+        raf = requestAnimationFrame(flushPendingText);
+      }
+    };
+
     const target = targetMessageId
       ? treeMsgs.find((m) => m.id === targetMessageId)
       : undefined;
     const tempUserParent =
-      mode === "edit" ? (target?.parentMessageId ?? null) : activeLeafId;
+      mode === "edit"
+        ? (target?.parentMessageId ?? null)
+        : leafRef.current;
     const tempAsstParent =
       mode === "regenerate"
         ? (target?.parentMessageId ?? null)
         : tempUserId;
 
-    if (mode !== "regenerate") {
-      setTreeMsgs((prev) => [
-        ...prev,
-        {
-          id: tempUserId,
-          role: "user",
-          parentMessageId: tempUserParent,
+    // Optimistic UI — single functional update so both rows land together
+    flushSync(() => {
+      setTreeMsgs((prev) => {
+        const next = [...prev];
+        if (mode !== "regenerate") {
+          next.push({
+            id: tempUserId,
+            role: "user",
+            parentMessageId: tempUserParent,
+            position: 999,
+            content: [
+              ...(text ? [{ type: "text", text }] : []),
+              ...(attachmentIds ?? []).map((id) => ({
+                type: "image" as const,
+                attachmentId: id,
+                mime: "image/*",
+              })),
+            ],
+            status: "complete",
+          });
+        }
+        next.push({
+          id: tempAsstId,
+          role: "assistant",
+          parentMessageId: tempAsstParent,
           position: 999,
-          content: [
-            ...(text ? [{ type: "text", text }] : []),
-            ...(attachmentIds ?? []).map((id) => ({
-              type: "image",
-              attachmentId: id,
-              mime: "image/*",
-            })),
-          ],
-          status: "complete",
-        },
-      ]);
-    }
-    setTreeMsgs((prev) => [
-      ...prev,
-      {
-        id: tempAsstId,
-        role: "assistant",
-        parentMessageId: tempAsstParent,
-        position: 999,
-        content: [{ type: "text", text: "" }],
-        status: "streaming",
-      },
-    ]);
-    setActiveLeafId(tempAsstId);
+          content: [{ type: "text", text: "" }],
+          status: "streaming",
+        });
+        return next;
+      });
+      setActiveLeafId(tempAsstId);
+    });
+    leafRef.current = tempAsstId;
+
+    let convId = activeIdRef.current;
+    let sawStreamText = false;
 
     try {
       const res = await fetch("/api/chat", {
@@ -290,7 +454,7 @@ export function useChatWorkspace(
         body: JSON.stringify({
           input: { text, attachmentIds },
           forwardedProps: {
-            conversationId: activeId ?? undefined,
+            conversationId: activeIdRef.current ?? undefined,
             modelRef,
             mode: mode ?? "send",
             interactionMode,
@@ -299,40 +463,166 @@ export function useChatWorkspace(
         }),
         signal: ac.signal,
       });
+
+      if (turnGenRef.current !== turnGen) return;
+
       if (!res.ok || !res.body) {
-        setStreaming(false);
+        const errText = await res.text().catch(() => "");
+        setTreeMsgs((ms) =>
+          failAssistant(
+            ms,
+            liveAsstId,
+            errText || `Request failed (${res.status})`,
+          ),
+        );
         return;
       }
-      let convId = activeId;
+
       await consumeChatSse(res.body, {
-        onMeta: (id) => {
-          convId = id;
-          setActiveId(id);
-          loadedRouteRef.current = id;
-          // First message creates the thread — put id in the address bar
-          onNav?.(id);
+        onMeta: (meta) => {
+          if (turnGenRef.current !== turnGen) return;
+          // Flush under temp id before remapping durable ids
+          flushPendingText();
+          convId = meta.conversationId;
+          activeIdRef.current = meta.conversationId;
+          setActiveId(meta.conversationId);
+          dispatchTurn({
+            type: "meta",
+            conversationId: meta.conversationId,
+            assistantId: meta.assistantMessageId,
+          });
+
+          flushSync(() => {
+            setTreeMsgs((ms) =>
+              applyChatMetaIds(
+                ms,
+                { userId: liveUserId, assistantId: liveAsstId },
+                meta,
+              ),
+            );
+            if (meta.assistantMessageId) {
+              setActiveLeafId(meta.assistantMessageId);
+            }
+          });
+          if (meta.userMessageId) liveUserId = meta.userMessageId;
+          if (meta.assistantMessageId) {
+            liveAsstId = meta.assistantMessageId;
+            streamAsstIdRef.current = meta.assistantMessageId;
+            leafRef.current = meta.assistantMessageId;
+          }
+
+          setHistory((prev) => {
+            if (prev.some((c) => c.id === meta.conversationId)) return prev;
+            return [
+              {
+                id: meta.conversationId,
+                title: text.trim().slice(0, 60) || "New chat",
+                updatedAt: new Date().toISOString(),
+              },
+              ...prev,
+            ];
+          });
+
+          if (routeId !== meta.conversationId) {
+            onNav?.(meta.conversationId);
+          }
+          syncedRouteRef.current = meta.conversationId;
         },
         onText: (t) => {
-          setTreeMsgs((ms) => appendAssistantText(ms, tempAsstId, t));
+          if (turnGenRef.current !== turnGen) return;
+          sawStreamText = true;
+          dispatchTurn({ type: "text", text: t });
+          enqueueStreamText(t);
         },
         onDone: (content, status, contentParts, metrics) => {
-          setTreeMsgs((ms) =>
-            finalizeAssistant(
-              ms,
-              tempAsstId,
-              content,
-              status,
-              contentParts,
-              metrics,
-            ),
-          );
+          if (turnGenRef.current !== turnGen) return;
+          flushPendingText();
+          dispatchTurn({ type: "done" });
+          flushSync(() => {
+            setTreeMsgs((ms) =>
+              finalizeAssistant(
+                ms,
+                liveAsstId,
+                content,
+                status,
+                contentParts,
+                metrics,
+              ),
+            );
+          });
+        },
+        onTitle: (title, conversationId) => {
+          if (turnGenRef.current !== turnGen) return;
+          setHistory((prev) => {
+            const idx = prev.findIndex((c) => c.id === conversationId);
+            if (idx === -1) {
+              return [
+                {
+                  id: conversationId,
+                  title,
+                  updatedAt: new Date().toISOString(),
+                },
+                ...prev,
+              ];
+            }
+            const next = [...prev];
+            next[idx] = { ...next[idx]!, title };
+            return next;
+          });
+        },
+        onStatus: () => {
+          /* keepalives only — long-wait UI is timer-based in MessageList */
+        },
+        onError: (message) => {
+          if (turnGenRef.current !== turnGen) return;
+          flushPendingText();
+          dispatchTurn({ type: "error", message });
+          setTreeMsgs((ms) => failAssistant(ms, liveAsstId, message));
         },
       });
-      if (convId) await loadConversation(convId, { fromRoute: true });
-      await refreshHistory(searchQuery);
+      flushPendingText();
+    } catch (err) {
+      if (turnGenRef.current !== turnGen) return;
+      flushPendingText();
+      if (err instanceof Error && err.name === "AbortError") {
+        dispatchTurn({ type: "abort" });
+        setTreeMsgs((ms) =>
+          finalizeAssistant(ms, liveAsstId, undefined, "aborted"),
+        );
+      } else {
+        const message =
+          err instanceof Error ? err.message : "chat failed";
+        dispatchTurn({ type: "error", message });
+        setTreeMsgs((ms) => failAssistant(ms, liveAsstId, message));
+      }
     } finally {
-      setStreaming(false);
-      setAbort(null);
+      if (turnGenRef.current === turnGen) {
+        flushPendingText();
+        // Prefer the live streamed tree. Only force-reload if we never got
+        // tokens (proxy drop / missed SSE) so the UI can recover from DB.
+        if (convId) {
+          if (!sawStreamText) {
+            try {
+              await loadConversation(convId, {
+                fromRoute: true,
+                force: true,
+                turnGen,
+              });
+            } catch {
+              // keep local tree
+            }
+          } else {
+            syncedRouteRef.current = convId;
+          }
+          await refreshHistory(searchQuery);
+        }
+        dispatchTurn({ type: "finalize_done" });
+        streamingRef.current = false;
+        setStreaming(chatTurnIsBusy(turnStateRef.current));
+        // After finalize_done, phase is idle — clear streaming UI flag.
+        setStreaming(false);
+        setAbort(null);
+      }
     }
   }
 
@@ -347,12 +637,15 @@ export function useChatWorkspace(
     composerKey,
     setComposerKey,
     tree,
+    treeMsgs,
     displayMessages,
     streaming,
+    turnPhase: turnState.phase,
     history,
     searchQuery,
     setSearchQuery,
     abort,
+    loadError,
     loadConversation,
     newChat,
     postFeedback,

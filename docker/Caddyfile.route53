@@ -17,13 +17,25 @@
 		}
 	}
 
-	encode gzip zstd
+	@sse path /api/chat /api/admin/overview/stream
+	handle @sse {
+		reverse_proxy web:3000 {
+			flush_interval -1
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
+		}
+	}
 
-	reverse_proxy web:3000 {
-		flush_interval -1
-		transport http {
-			read_timeout 10m
-			write_timeout 10m
+	handle {
+		encode gzip zstd
+		reverse_proxy web:3000 {
+			flush_interval -1
+			transport http {
+				read_timeout 10m
+				write_timeout 10m
+			}
 		}
 	}
 

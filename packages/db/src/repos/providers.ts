@@ -364,6 +364,31 @@ export async function createModel(
   return row!;
 }
 
+/**
+ * Merge keys into an offering's capabilities JSON (later keys win).
+ * Used to persist learned provider quirks (e.g. max_completion_tokens).
+ */
+export async function mergeModelCapabilitiesByRef(
+  db: Db,
+  input: {
+    orgId: string;
+    modelRef: string;
+    patch: Record<string, unknown>;
+  },
+) {
+  const row = await getModelByRef(db, input.orgId, input.modelRef);
+  if (!row) return null;
+  const prev =
+    row.capabilities && typeof row.capabilities === "object"
+      ? (row.capabilities as Record<string, unknown>)
+      : {};
+  return updateModel(db, {
+    id: row.id,
+    orgId: input.orgId,
+    capabilities: { ...prev, ...input.patch },
+  });
+}
+
 export async function updateModel(
   db: Db,
   input: {

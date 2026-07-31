@@ -7,7 +7,7 @@ import {
 
 const NAV = [
   { to: "/admin", label: "Overview", exact: true },
-  { to: "/admin/members", label: "Members" },
+  { to: "/admin/members", label: "People" },
   { to: "/admin/providers", label: "Providers" },
   { to: "/admin/models", label: "Access" },
   { to: "/admin/usage", label: "Usage" },

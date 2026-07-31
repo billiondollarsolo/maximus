@@ -9,9 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as ChatIndexRouteImport } from './routes/_chat.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAuditRouteImport } from './routes/admin.audit'
 import { Route as AdminMembersRouteImport } from './routes/admin.members'
@@ -28,13 +29,13 @@ import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiModelsRouteImport } from './routes/api/models'
 import { Route as ApiProjectsRouteImport } from './routes/api/projects'
 import { Route as ApiUploadsRouteImport } from './routes/api/uploads'
-import { Route as CConversationIdRouteImport } from './routes/c.$conversationId'
 import { Route as InviteInviteIdRouteImport } from './routes/invite.$inviteId'
 import { Route as SettingsIndexRouteImport } from './routes/settings.index'
 import { Route as SettingsAccountRouteImport } from './routes/settings.account'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsGeneralRouteImport } from './routes/settings.general'
 import { Route as SettingsPersonalizationRouteImport } from './routes/settings.personalization'
+import { Route as ChatCConversationIdRouteImport } from './routes/_chat.c.$conversationId'
 import { Route as ApiAdminAccessGrantsRouteImport } from './routes/api/admin/access-grants'
 import { Route as ApiAdminAgentsRouteImport } from './routes/api/admin/agents'
 import { Route as ApiAdminAuditRouteImport } from './routes/api/admin/audit'
@@ -61,9 +62,8 @@ import { Route as ApiAdminOverviewProbeRouteImport } from './routes/api/admin/ov
 import { Route as ApiAdminOverviewSettingsRouteImport } from './routes/api/admin/overview.settings'
 import { Route as ApiAdminOverviewStreamRouteImport } from './routes/api/admin/overview.stream'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ChatRoute = ChatRouteImport.update({
+  id: '/_chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -75,6 +75,11 @@ const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ChatIndexRoute = ChatIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ChatRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
@@ -156,11 +161,6 @@ const ApiUploadsRoute = ApiUploadsRouteImport.update({
   path: '/api/uploads',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CConversationIdRoute = CConversationIdRouteImport.update({
-  id: '/c/$conversationId',
-  path: '/c/$conversationId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const InviteInviteIdRoute = InviteInviteIdRouteImport.update({
   id: '/invite/$inviteId',
   path: '/invite/$inviteId',
@@ -190,6 +190,11 @@ const SettingsPersonalizationRoute = SettingsPersonalizationRouteImport.update({
   id: '/settings/personalization',
   path: '/settings/personalization',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ChatCConversationIdRoute = ChatCConversationIdRouteImport.update({
+  id: '/c/$conversationId',
+  path: '/c/$conversationId',
+  getParentRoute: () => ChatRoute,
 } as any)
 const ApiAdminAccessGrantsRoute = ApiAdminAccessGrantsRouteImport.update({
   id: '/api/admin/access-grants',
@@ -319,7 +324,7 @@ const ApiAdminOverviewStreamRoute = ApiAdminOverviewStreamRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof ChatIndexRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -336,7 +341,6 @@ export interface FileRoutesByFullPath {
   '/api/models': typeof ApiModelsRoute
   '/api/projects': typeof ApiProjectsRoute
   '/api/uploads': typeof ApiUploadsRoute
-  '/c/$conversationId': typeof CConversationIdRoute
   '/invite/$inviteId': typeof InviteInviteIdRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/data': typeof SettingsDataRoute
@@ -345,6 +349,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/api/': typeof ApiIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/c/$conversationId': typeof ChatCConversationIdRoute
   '/api/admin/access-grants': typeof ApiAdminAccessGrantsRoute
   '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
@@ -372,7 +377,6 @@ export interface FileRoutesByFullPath {
   '/api/admin/overview/stream': typeof ApiAdminOverviewStreamRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -389,15 +393,16 @@ export interface FileRoutesByTo {
   '/api/models': typeof ApiModelsRoute
   '/api/projects': typeof ApiProjectsRoute
   '/api/uploads': typeof ApiUploadsRoute
-  '/c/$conversationId': typeof CConversationIdRoute
   '/invite/$inviteId': typeof InviteInviteIdRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/personalization': typeof SettingsPersonalizationRoute
+  '/': typeof ChatIndexRoute
   '/admin': typeof AdminIndexRoute
   '/api': typeof ApiIndexRoute
   '/settings': typeof SettingsIndexRoute
+  '/c/$conversationId': typeof ChatCConversationIdRoute
   '/api/admin/access-grants': typeof ApiAdminAccessGrantsRoute
   '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
@@ -426,7 +431,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_chat': typeof ChatRouteWithChildren
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -443,15 +448,16 @@ export interface FileRoutesById {
   '/api/models': typeof ApiModelsRoute
   '/api/projects': typeof ApiProjectsRoute
   '/api/uploads': typeof ApiUploadsRoute
-  '/c/$conversationId': typeof CConversationIdRoute
   '/invite/$inviteId': typeof InviteInviteIdRoute
   '/settings/account': typeof SettingsAccountRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/personalization': typeof SettingsPersonalizationRoute
+  '/_chat/': typeof ChatIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/api/': typeof ApiIndexRoute
   '/settings/': typeof SettingsIndexRoute
+  '/_chat/c/$conversationId': typeof ChatCConversationIdRoute
   '/api/admin/access-grants': typeof ApiAdminAccessGrantsRoute
   '/api/admin/agents': typeof ApiAdminAgentsRoute
   '/api/admin/audit': typeof ApiAdminAuditRoute
@@ -498,7 +504,6 @@ export interface FileRouteTypes {
     | '/api/models'
     | '/api/projects'
     | '/api/uploads'
-    | '/c/$conversationId'
     | '/invite/$inviteId'
     | '/settings/account'
     | '/settings/data'
@@ -507,6 +512,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/api/'
     | '/settings/'
+    | '/c/$conversationId'
     | '/api/admin/access-grants'
     | '/api/admin/agents'
     | '/api/admin/audit'
@@ -534,7 +540,6 @@ export interface FileRouteTypes {
     | '/api/admin/overview/stream'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/login'
     | '/projects'
     | '/admin/audit'
@@ -551,15 +556,16 @@ export interface FileRouteTypes {
     | '/api/models'
     | '/api/projects'
     | '/api/uploads'
-    | '/c/$conversationId'
     | '/invite/$inviteId'
     | '/settings/account'
     | '/settings/data'
     | '/settings/general'
     | '/settings/personalization'
+    | '/'
     | '/admin'
     | '/api'
     | '/settings'
+    | '/c/$conversationId'
     | '/api/admin/access-grants'
     | '/api/admin/agents'
     | '/api/admin/audit'
@@ -587,7 +593,7 @@ export interface FileRouteTypes {
     | '/api/admin/overview/stream'
   id:
     | '__root__'
-    | '/'
+    | '/_chat'
     | '/login'
     | '/projects'
     | '/admin/audit'
@@ -604,15 +610,16 @@ export interface FileRouteTypes {
     | '/api/models'
     | '/api/projects'
     | '/api/uploads'
-    | '/c/$conversationId'
     | '/invite/$inviteId'
     | '/settings/account'
     | '/settings/data'
     | '/settings/general'
     | '/settings/personalization'
+    | '/_chat/'
     | '/admin/'
     | '/api/'
     | '/settings/'
+    | '/_chat/c/$conversationId'
     | '/api/admin/access-grants'
     | '/api/admin/agents'
     | '/api/admin/audit'
@@ -641,7 +648,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  ChatRoute: typeof ChatRouteWithChildren
   LoginRoute: typeof LoginRoute
   ProjectsRoute: typeof ProjectsRoute
   AdminAuditRoute: typeof AdminAuditRoute
@@ -658,7 +665,6 @@ export interface RootRouteChildren {
   ApiModelsRoute: typeof ApiModelsRoute
   ApiProjectsRoute: typeof ApiProjectsRoute
   ApiUploadsRoute: typeof ApiUploadsRoute
-  CConversationIdRoute: typeof CConversationIdRoute
   InviteInviteIdRoute: typeof InviteInviteIdRoute
   SettingsAccountRoute: typeof SettingsAccountRoute
   SettingsDataRoute: typeof SettingsDataRoute
@@ -693,11 +699,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_chat': {
+      id: '/_chat'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -713,6 +719,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/projects'
       preLoaderRoute: typeof ProjectsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_chat/': {
+      id: '/_chat/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof ChatIndexRouteImport
+      parentRoute: typeof ChatRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -826,13 +839,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUploadsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/c/$conversationId': {
-      id: '/c/$conversationId'
-      path: '/c/$conversationId'
-      fullPath: '/c/$conversationId'
-      preLoaderRoute: typeof CConversationIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/invite/$inviteId': {
       id: '/invite/$inviteId'
       path: '/invite/$inviteId'
@@ -874,6 +880,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/personalization'
       preLoaderRoute: typeof SettingsPersonalizationRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_chat/c/$conversationId': {
+      id: '/_chat/c/$conversationId'
+      path: '/c/$conversationId'
+      fullPath: '/c/$conversationId'
+      preLoaderRoute: typeof ChatCConversationIdRouteImport
+      parentRoute: typeof ChatRoute
     }
     '/api/admin/access-grants': {
       id: '/api/admin/access-grants'
@@ -1053,6 +1066,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ChatRouteChildren {
+  ChatIndexRoute: typeof ChatIndexRoute
+  ChatCConversationIdRoute: typeof ChatCConversationIdRoute
+}
+
+const ChatRouteChildren: ChatRouteChildren = {
+  ChatIndexRoute: ChatIndexRoute,
+  ChatCConversationIdRoute: ChatCConversationIdRoute,
+}
+
+const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
+
 interface ApiAdminOverviewRouteChildren {
   ApiAdminOverviewProbeRoute: typeof ApiAdminOverviewProbeRoute
   ApiAdminOverviewSettingsRoute: typeof ApiAdminOverviewSettingsRoute
@@ -1069,7 +1094,7 @@ const ApiAdminOverviewRouteWithChildren =
   ApiAdminOverviewRoute._addFileChildren(ApiAdminOverviewRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  ChatRoute: ChatRouteWithChildren,
   LoginRoute: LoginRoute,
   ProjectsRoute: ProjectsRoute,
   AdminAuditRoute: AdminAuditRoute,
@@ -1086,7 +1111,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiModelsRoute: ApiModelsRoute,
   ApiProjectsRoute: ApiProjectsRoute,
   ApiUploadsRoute: ApiUploadsRoute,
-  CConversationIdRoute: CConversationIdRoute,
   InviteInviteIdRoute: InviteInviteIdRoute,
   SettingsAccountRoute: SettingsAccountRoute,
   SettingsDataRoute: SettingsDataRoute,

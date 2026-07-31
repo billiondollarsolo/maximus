@@ -9,24 +9,41 @@ import { prepareStreamingMarkdown, textFromReactChildren } from "./stream-markdo
 /**
  * ChatGPT-class assistant markdown: GFM + syntax highlighting + copyable fences.
  * Stream-safe (auto-closes open code fences). No raw HTML (XSS-safe).
+ *
+ * Pass `streaming` while tokens still arrive: still renders live GFM/markdown,
+ * but skips syntax highlighting (cheap enough for ~60fps token paints).
  */
 export function MarkdownRenderer({
   content,
   className,
+  streaming = false,
 }: {
   content: string;
   className?: string;
+  /** Live stream — fence auto-close on, highlight off */
+  streaming?: boolean;
 }) {
   const source = useMemo(
     () => prepareStreamingMarkdown(content),
     [content],
   );
 
+  const rehypePlugins = useMemo(
+    () => (streaming ? [] : [rehypeHighlight]),
+    [streaming],
+  );
+
   return (
-    <div className={cn("msg-prose markdown-body", className)}>
+    <div
+      className={cn(
+        "msg-prose markdown-body",
+        streaming && "markdown-streaming",
+        className,
+      )}
+    >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        rehypePlugins={rehypePlugins}
         components={{
           pre({ children, className: preClass }) {
             const child = Array.isArray(children) ? children[0] : children;
@@ -50,12 +67,13 @@ export function MarkdownRenderer({
             );
             return (
               <CodeBlock language={language} code={plain} className={preClass}>
-                <code className={cn("hljs", cls)}>{props?.children as never}</code>
+                <code className={cn(streaming ? undefined : "hljs", cls)}>
+                  {props?.children as never}
+                </code>
               </CodeBlock>
             );
           },
           code({ className: codeClass, children, ...rest }) {
-            // Block code is handled by `pre`; anything reaching here is inline.
             const isBlock = Boolean(
               codeClass && /language-/.test(codeClass),
             );
@@ -87,7 +105,6 @@ export function MarkdownRenderer({
               </div>
             );
           },
-          // Avoid default browser margins fighting msg-prose
           p({ children }) {
             return <p>{children}</p>;
           },
@@ -113,7 +130,6 @@ export function MarkdownRenderer({
             return <hr />;
           },
           input(props: ComponentPropsWithoutRef<"input">) {
-            // GFM task list checkboxes (read-only)
             if (props.type === "checkbox") {
               return (
                 <input
@@ -131,6 +147,12 @@ export function MarkdownRenderer({
       >
         {source}
       </ReactMarkdown>
+      {streaming ? (
+        <span
+          className="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-text-muted align-text-bottom"
+          aria-hidden
+        />
+      ) : null}
     </div>
   );
 }

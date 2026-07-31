@@ -27,7 +27,7 @@ export function ChatWorkspace({
         void nav({
           to: "/c/$conversationId",
           params: { conversationId: id },
-          replace: false,
+          replace: true,
         });
       } else {
         void nav({ to: "/" });
@@ -36,14 +36,19 @@ export function ChatWorkspace({
     [nav],
   );
 
+  const onConversationModel = useCallback((ref: string | null) => {
+    if (ref) setModelRef(ref);
+  }, []);
+
   const chat = useChatWorkspace(modelRef, {
     routeConversationId: conversationId,
     onNavigateConversation,
-    onConversationModel: (ref) => {
-      if (ref) setModelRef(ref);
-    },
+    onConversationModel,
   });
-  const isEmpty = chat.displayMessages.length === 0;
+
+  // Prefer tree presence over branch projection — a stale leaf id must not
+  // flash the empty "Ready when you are" shell over real messages.
+  const isEmpty = chat.treeMsgs.length === 0 && !chat.streaming;
 
   const composer = (
     <Composer
@@ -104,6 +109,11 @@ export function ChatWorkspace({
             <EmptyState />
             {composer}
           </div>
+          {chat.loadError ? (
+            <p className="pb-2 text-center text-[12px] text-red-400">
+              {chat.loadError}
+            </p>
+          ) : null}
           <p className="pb-4 text-center text-[11px] text-text-faint">
             Maximus is AI. Check important info.
           </p>
